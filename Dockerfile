@@ -6,7 +6,7 @@ ENV GOPROXY=https://goproxy.io
 RUN go build -o V2RayA .
 
 
-FROM alpine:latest  
+FROM alpine:latest
 RUN apk --no-cache add iptables
 WORKDIR /service
 COPY --from=builder /service/V2RayA .
