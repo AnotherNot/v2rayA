@@ -1,4 +1,4 @@
-package pingtunnel
+package trojan
 
 import "v2ray.com/core/common/errors"
 
