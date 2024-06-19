@@ -2,20 +2,10 @@ name: Build & Release v2rayA
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ main ]
-    tags:
-      - v*
-    paths:
-      - "**/*.go"
-      - "go.mod"
-      - "go.sum"
-      - "gui/**"
-      - ".github/workflows/*.yml"
-  pull_request:
-    types: [opened, synchronize, reopened]
-    paths:
-      - .github/workflows/release_main.yml
+    inputs:
+      tag:
+        type: string
+        required: true
 
 jobs:
   Build_v2rayA_Web:
@@ -25,7 +15,7 @@ jobs:
       with:
         fetch-depth: 0
     - name: Set up Node.js
-      uses: actions/setup-node@v4.0.2
+      uses: actions/setup-node@v4
       with:
         node-version: lts/*
         cache: 'yarn'
@@ -40,7 +30,7 @@ jobs:
         echo "Use tar to generate web.tar.gz..."
         tar -zcvf web.tar.gz web/
     - name: Upload Zip File to Artifacts
-      uses: actions/upload-artifact@v4.3.1
+      uses: actions/upload-artifact@v4
       with:
         path: web/*
         name: web
@@ -61,26 +51,16 @@ jobs:
       with:
         fetch-depth: 0
     - name: Download Artifact
-      uses: actions/download-artifact@v4.1.2
+      uses: actions/download-artifact@v4
       with:
         name: web
         path: service/server/router/web
     - name: Check Version
       id: prep
       env:
-        REF: ${{ github.ref }}
-      shell: bash
+        REF: ${{ inputs.tag }}
       run: |
-        echo "P_DIR=$(pwd)" >> $GITHUB_OUTPUT
-        if [[ "$REF" == "refs/tags/v"* ]]; then
-          tag=$(git describe --tags $(git rev-list --tags --max-count=1))
-          version=${tag:1}
-        else
-          date=$(git log -1 --format="%cd" --date=short | sed s/-//g)
-          count=$(git rev-list --count HEAD)
-          commit=$(git rev-parse --short HEAD)
-          version="unstable-$date.r${count}.$commit"
-        fi
+        version=${REF}
         echo "VERSION=$version" >> $GITHUB_OUTPUT
         echo "VERSION=$version" >> $GITHUB_ENV
     - name: Set up Go
@@ -160,26 +140,16 @@ jobs:
       with:
         fetch-depth: 0
     - name: Download Artifact
-      uses: actions/download-artifact@v4.1.2
+      uses: actions/download-artifact@v4
       with:
         name: web
         path: service/server/router/web
     - name: Check Version
       id: prep
       env:
-        REF: ${{ github.ref }}
-      shell: bash
+        REF: ${{ inputs.tag }}
       run: |
-        echo "P_DIR=$(pwd)" >> $GITHUB_OUTPUT
-        if [[ "$REF" == "refs/tags/v"* ]]; then
-          tag=$(git describe --tags $(git rev-list --tags --max-count=1))
-          version=${tag:1}
-        else
-          date=$(git log -1 --format="%cd" --date=short | sed s/-//g)
-          count=$(git rev-list --count HEAD)
-          commit=$(git rev-parse --short HEAD)
-          version="unstable-$date.r${count}.$commit"
-        fi
+        version=${REF}
         echo "VERSION=$version" >> $GITHUB_OUTPUT
         echo "VERSION=$version" >> $GITHUB_ENV
     - name: Set up Go
@@ -230,29 +200,20 @@ jobs:
         fetch-depth: 0
     - name: Check Version
       id: prep
-      env:
-        REF: ${{ github.ref }}
       shell: bash
+      env:
+        REF: ${{ inputs.tag }}
       run: |
-        echo "P_DIR=$(pwd)" >> $GITHUB_OUTPUT
-        if [[ "$REF" == "refs/tags/v"* ]]; then
-          tag=$(git describe --tags $(git rev-list --tags --max-count=1))
-          version=${tag:1}
-        else
-          date=$(git log -1 --format="%cd" --date=short | sed s/-//g)
-          count=$(git rev-list --count HEAD)
-          commit=$(git rev-parse --short HEAD)
-          version="unstable-$date.r${count}.$commit"
-        fi
+        version=${REF}
         echo "VERSION=$version" >> $GITHUB_OUTPUT
         echo "VERSION=$version" >> $GITHUB_ENV
     - name: Download Artifact Windows x64
-      uses: actions/download-artifact@v4.1.2
+      uses: actions/download-artifact@v4
       with:
         name: v2raya_with_singtun_windows_x64_${{ steps.prep.outputs.VERSION }}.exe
         path: D:\Downloads
     - name: Download Artifact Windows arm64
-      uses: actions/download-artifact@v4.1.2
+      uses: actions/download-artifact@v4
       with:
         name: v2raya_with_singtun_windows_arm64_${{ steps.prep.outputs.VERSION }}.exe
         path: D:\Downloads
@@ -363,12 +324,12 @@ jobs:
         echo "PACKAGE_VERSION=$package_version" >> $GITHUB_OUTPUT
         echo "PACKAGE_VERSION=$package_version" >> $GITHUB_ENV
     - name: Download Artifact
-      uses: actions/download-artifact@v4.1.2
+      uses: actions/download-artifact@v4
       with:
         name: v2raya_${{ steps.get_filename.outputs.BUILD_NAME }}_${{ steps.prep.outputs.VERSION }}
         path: build/
     - name: Download x64 Linux Build
-      uses: actions/download-artifact@v4.1.2
+      uses: actions/download-artifact@v4
       with:
         name: v2raya_linux_x64_${{ steps.prep.outputs.VERSION }}
         path: test/
@@ -463,7 +424,7 @@ jobs:
         echo "VERSION=$version" >> $GITHUB_OUTPUT
         echo "VERSION=$version" >> $GITHUB_ENV
     - name: Download Artifacts
-      uses: actions/download-artifact@v4.1.2
+      uses: actions/download-artifact@v4
       with:
         path: builds/
     - name: Move Files to Release Directory
@@ -679,7 +640,7 @@ jobs:
         echo "VERSION=$version" >> $GITHUB_OUTPUT
         echo "VERSION=$version" >> $GITHUB_ENV
     - name: Download Artifacts
-      uses: actions/download-artifact@v4.1.2
+      uses: actions/download-artifact@v4
       with:
         path: builds/
     - name: Prepare Builds
@@ -760,17 +721,17 @@ jobs:
         echo "VERSION=$version" >> $GITHUB_OUTPUT
         echo "VERSION=$version" >> $GITHUB_ENV
     - name: Download Artifact Linux x64
-      uses: actions/download-artifact@v4.1.2
+      uses: actions/download-artifact@v4
       with:
         name: v2raya_linux_x64_${{ steps.prep.outputs.VERSION }}
         path: Downloads
     - name: Download Artifact macOS x64
-      uses: actions/download-artifact@v4.1.2
+      uses: actions/download-artifact@v4
       with:
         name: v2raya_darwin_x64_${{ steps.prep.outputs.VERSION }}
         path: Downloads
     - name: Download Artifact macOS arm64
-      uses: actions/download-artifact@v4.1.2
+      uses: actions/download-artifact@v4
       with:
         name: v2raya_darwin_arm64_${{ steps.prep.outputs.VERSION }}
         path: Downloads
@@ -868,7 +829,7 @@ jobs:
         IMAGE="mzz2017/v2raya-gui"
         echo image=${IMAGE} >> $GITHUB_OUTPUT
     - name: Download Web Files
-      uses: actions/download-artifact@v4.1.2
+      uses: actions/download-artifact@v4
       with:
         name: web
         path: web
@@ -914,19 +875,9 @@ jobs:
     - name: Check Version
       id: prep
       env:
-        REF: ${{ github.ref }}
-      shell: bash
+        REF: ${{ inputs.tag }}
       run: |
-        echo "P_DIR=$(pwd)" >> $GITHUB_OUTPUT
-        if [[ "$REF" == "refs/tags/v"* ]]; then
-          tag=$(git describe --tags $(git rev-list --tags --max-count=1))
-          version=${tag:1}
-        else
-          date=$(git log -1 --format="%cd" --date=short | sed s/-//g)
-          count=$(git rev-list --count HEAD)
-          commit=$(git rev-parse --short HEAD)
-          version="unstable-$date.r${count}.$commit"
-        fi
+        version=${REF}
         echo "VERSION=$version" >> $GITHUB_OUTPUT
         echo "VERSION=$version" >> $GITHUB_ENV
     - name: Submit to Microsoft winget
