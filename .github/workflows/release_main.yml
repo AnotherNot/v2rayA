@@ -2,30 +2,20 @@ name: Build & Release v2rayA
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ main ]
-    tags:
-      - v*
-    paths:
-      - "**/*.go"
-      - "go.mod"
-      - "go.sum"
-      - "gui/**"
-      - ".github/workflows/*.yml"
-  pull_request:
-    types: [opened, synchronize, reopened]
-    paths:
-      - .github/workflows/release_main.yml
+    inputs:
+      tag:
+        type: string
+        required: true
 
 jobs:
   Build_v2rayA_Web:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4.1.1
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Set up Node.js
-      uses: actions/setup-node@v4.0.2
+      uses: actions/setup-node@v4
       with:
         node-version: lts/*
         cache: 'yarn'
@@ -40,7 +30,7 @@ jobs:
         echo "Use tar to generate web.tar.gz..."
         tar -zcvf web.tar.gz web/
     - name: Upload Zip File to Artifacts
-      uses: actions/upload-artifact@v4.3.1
+      uses: actions/upload-artifact@v4
       with:
         path: web/*
         name: web
@@ -50,149 +40,183 @@ jobs:
         path: |
           web.tar.gz
   Build_v2rayA_Binaries:
-    strategy:
-      matrix:
-        goos: [ linux ]
-        goarch: [ amd64, arm64, 386, riscv64, mips64, mips64le, mipsle, mips, loong64 ]
-        include:
-          # BEGIN Linux ARM 5 6 7
-          - goos: linux
-            goarch: arm
-            goarm: 7
-          - goos: linux
-            goarch: arm
-            goarm: 6
-          - goos: linux
-            goarch: arm
-            goarm: 5
-          # END Linux ARM 5 6 7
-          # BEGIN Windows
-          - goos: windows
-            goarch: amd64
-            win_suf: .exe
-          - goos: windows
-            goarch: arm64
-            win_suf: .exe
-          # END Windows
-          # BEGIN macOS
-          - goos: darwin
-            goarch: amd64
-          - goos: darwin
-            goarch: arm64
-          # END macOS
-          # BEGIN BSD
-          - goos: freebsd
-            goarch: amd64
-          - goos: freebsd
-            goarch: arm64
-          - goos: openbsd
-            goarch: amd64
-          - goos: openbsd
-            goarch: arm64
-          # END BSD
-      fail-fast: false
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     needs: [Build_v2rayA_Web]
     env:
-      GOOS: ${{ matrix.goos }}
-      GOARCH: ${{ matrix.goarch }}
-      GOARM: ${{ matrix.goarm }}
-      WIN_SUF: ${{ matrix.win_suf }}
       CGO_ENABLED: 0
       NAME: v2raya
       DESC: "A web GUI client of Project V which supports VMess, VLESS, SS, SSR, Trojan, Tuic and Juicity protocols"
     steps:
-    - uses: actions/checkout@v4.1.1
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Download Artifact
-      uses: actions/download-artifact@v4.1.2
+      uses: actions/download-artifact@v4
       with:
         name: web
         path: service/server/router/web
-    - name: Get Friendly File Name
-      shell: pwsh
-      id: get_filename
-      run: |
-        $build_name = $(((Get-Content ./install/friendly-filenames.json | ConvertFrom-Json)."${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.goarm }}").friendlyName)
-        Write-Output "BUILD_NAME=$build_name" >> ${env:GITHUB_OUTPUT}
-        Write-Output "BUILD_NAME=$build_name" >> ${env:GITHUB_ENV}
     - name: Check Version
       id: prep
       env:
-        REF: ${{ github.ref }}
+        REF: ${{ inputs.tag }}
       run: |
-        echo "P_DIR=$(pwd)" >> $GITHUB_OUTPUT
-        if [[ "$REF" == "refs/tags/v"* ]]; then
-          tag=$(git describe --tags $(git rev-list --tags --max-count=1))
-          version=${tag:1}
-        else
-          date=$(git log -1 --format="%cd" --date=short | sed s/-//g)
-          count=$(git rev-list --count HEAD)
-          commit=$(git rev-parse --short HEAD)
-          version="unstable-$date.r${count}.$commit"
-        fi
+        tag=${{ inputs.tag }}
+        version=$(echo $tag | sed 's/v//g')
         echo "VERSION=$version" >> $GITHUB_OUTPUT
         echo "VERSION=$version" >> $GITHUB_ENV
     - name: Set up Go
-      uses: actions/setup-go@v5.0.0
+      uses: actions/setup-go@v5
       with:
         cache-dependency-path: |
           service/go.mod
           service/go.sum
         go-version: ^1.21
-    - name: Install Dependencies
-      run: |
-        sudo apt-get update -y && sudo apt-get install -y gzip
     - name: Build v2rayA Binaries
       id: build
+      shell: pwsh
       run: |
-        for file in $(find service/server/router/web |grep -v png |grep -v index.html|grep -v .gz); do
-          if [ ! -d $file ];then
-            gzip -9 $file
-          fi
-        done
-        cd service
-        go build -ldflags="-X github.com/v2rayA/v2rayA/conf.Version=$VERSION -s -w" -o ../build_"$GOOS"_"$GOARCH""$GOARM"_"$VERSION""$WIN_SUF"
-        cd ..
-        mv build_"$GOOS"_"$GOARCH""$GOARM"_"$VERSION""$WIN_SUF" v2raya_"${{ steps.get_filename.outputs.BUILD_NAME }}"_"$VERSION""$WIN_SUF"
+        New-Item -ItemType Directory -Path v2raya_binaries
+        foreach ($arch in @('amd64', 'arm64', '386', 'riscv64', 'mips64', 'mips64le', 'mipsle', 'mips', 'loong64')) {
+          $env:GOARCH = $arch
+          $filename = $((Get-Content ./install/friendly-filenames.json | ConvertFrom-Json)."linux-$arch")."friendlyName"
+          Set-Location -Path service
+          go build -o ../v2raya_binaries/v2raya_${filename}_${env:VERSION} -ldflags="-X github.com/v2rayA/v2rayA/conf.Version=${env:VERSION} -s -w" -trimpath
+          Set-Location -Path ..
+        }
+        foreach ($arm in @('7')) {
+          $env:GOARCH = 'arm'
+          $env:GOARM = $arm
+          $filename = $((Get-Content ./install/friendly-filenames.json | ConvertFrom-Json)."linux-arm$arm")."friendlyName"
+          Set-Location -Path service
+          go build -o ../v2raya_binaries/v2raya_${filename}_${env:VERSION} -ldflags="-X github.com/v2rayA/v2rayA/conf.Version=${env:VERSION} -s -w" -trimpath
+          Set-Location -Path ..
+        }
+        foreach ($arch in @('amd64', 'arm64')) {
+          $env:GOOS = 'windows'
+          $env:GOARCH = $arch
+          $filename = $((Get-Content ./install/friendly-filenames.json | ConvertFrom-Json)."windows-$arch")."friendlyName"
+          Set-Location -Path service
+          go build -o ../v2raya_binaries/v2raya_${filename}_${env:VERSION}.exe -ldflags="-X github.com/v2rayA/v2rayA/conf.Version=${env:VERSION} -s -w" -trimpath
+          Set-Location -Path ..
+        }
+        foreach ($arch in @('amd64', 'arm64')) {
+          $env:GOOS = 'darwin'
+          $env:GOARCH = $arch
+          $filename = $((Get-Content ./install/friendly-filenames.json | ConvertFrom-Json)."darwin-$arch")."friendlyName"
+          Set-Location -Path service
+          go build -o ../v2raya_binaries/v2raya_${filename}_${env:VERSION} -ldflags="-X github.com/v2rayA/v2rayA/conf.Version=${env:VERSION} -s -w" -trimpath
+          Set-Location -Path ..
+        }
+        foreach ($arch in @('amd64', 'arm64')) {
+          $env:GOOS = 'freebsd'
+          $env:GOARCH = $arch
+          $filename = $((Get-Content ./install/friendly-filenames.json | ConvertFrom-Json)."freebsd-$arch")."friendlyName"
+          Set-Location -Path service
+          go build -o ../v2raya_binaries/v2raya_${filename}_${env:VERSION} -ldflags="-X github.com/v2rayA/v2rayA/conf.Version=${env:VERSION} -s -w" -trimpath
+          Set-Location -Path ..
+        }
+        foreach ($arch in @('amd64', 'arm64')) {
+          $env:GOOS = 'openbsd'
+          $env:GOARCH = $arch
+          $filename = $((Get-Content ./install/friendly-filenames.json | ConvertFrom-Json)."openbsd-$arch")."friendlyName"
+          Set-Location -Path service
+          go build -o ../v2raya_binaries/v2raya_${filename}_${env:VERSION} -ldflags="-X github.com/v2rayA/v2rayA/conf.Version=${env:VERSION} -s -w" -trimpath
+          Set-Location -Path ..
+        }
+
     - name: Upload Artifact
       uses: nanoufo/action-upload-artifacts-and-release-assets@v2
       with:
         path: |
-          v2raya_${{ steps.get_filename.outputs.BUILD_NAME }}_${{ steps.prep.outputs.VERSION }}${{ matrix.win_suf }}
+          v2raya_binaries/*
+  Build_v2rayA_SingTun_Binaries:
+    runs-on: ubuntu-latest
+    needs: [Build_v2rayA_Web]
+    env:
+      CGO_ENABLED: 0
+      NAME: v2raya
+      DESC: "A web GUI client of Project V which supports VMess, VLESS, SS, SSR, Trojan, Tuic and Juicity protocols"
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Download Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: web
+        path: service/server/router/web
+    - name: Check Version
+      id: prep
+      env:
+        REF: ${{ inputs.tag }}
+      run: |
+        tag=${{ inputs.tag }}
+        version=$(echo $tag | sed 's/v//g')
+        echo "VERSION=$version" >> $GITHUB_OUTPUT
+        echo "VERSION=$version" >> $GITHUB_ENV
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        cache-dependency-path: |
+          service/go.mod
+          service/go.sum
+        go-version: ^1.21
+    - name: Build v2rayA SingTun Binaries
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Path v2raya_binaries
+        foreach ($arch in @('amd64', 'arm64')) {
+          $env:GOARCH = $arch
+          $filename = $((Get-Content ./install/friendly-filenames.json | ConvertFrom-Json)."linux-$arch")."friendlyName"
+          Set-Location -Path service
+          go build -tags "with_gvisor" -o ../v2raya_binaries/v2raya_with_singtun_${filename}_${env:VERSION} -ldflags="-X github.com/v2rayA/v2rayA/conf.Version=${env:VERSION} -s -w" -trimpath
+          Set-Location -Path ..
+        }
+        foreach ($arch in @('amd64', 'arm64')) {
+          $env:GOOS = 'windows'
+          $env:GOARCH = $arch
+          $filename = $((Get-Content ./install/friendly-filenames.json | ConvertFrom-Json)."windows-$arch")."friendlyName"
+          Set-Location -Path service
+          go build -tags "with_gvisor" -o ../v2raya_binaries/v2raya_with_singtun_${filename}_${env:VERSION}.exe -ldflags="-X github.com/v2rayA/v2rayA/conf.Version=${env:VERSION} -s -w" -trimpath
+          Set-Location -Path ..
+        }
+        foreach ($arch in @('amd64', 'arm64')) {
+          $env:GOOS = 'darwin'
+          $env:GOARCH = $arch
+          $filename = $((Get-Content ./install/friendly-filenames.json | ConvertFrom-Json)."darwin-$arch")."friendlyName"
+          Set-Location -Path service
+          go build -tags "with_gvisor" -o ../v2raya_binaries/v2raya_with_singtun_${filename}_${env:VERSION} -ldflags="-X github.com/v2rayA/v2rayA/conf.Version=${env:VERSION} -s -w" -trimpath
+          Set-Location -Path ..
+        }
+    - name: Upload Artifact
+      uses: nanoufo/action-upload-artifacts-and-release-assets@v2
+      with:
+        path: |
+          v2raya_binaries/*
   Build_Windows_Installers:
     runs-on: windows-latest
     needs: [Build_v2rayA_Binaries]
     steps:
-    - uses: actions/checkout@v4.1.1
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Check Version
       id: prep
-      env:
-        REF: ${{ github.ref }}
       shell: bash
+      env:
+        REF: ${{ inputs.tag }}
       run: |
-        echo "P_DIR=$(pwd)" >> $GITHUB_OUTPUT
-        if [[ "$REF" == "refs/tags/v"* ]]; then
-          tag=$(git describe --tags $(git rev-list --tags --max-count=1))
-          version=${tag:1}
-        else
-          date=$(git log -1 --format="%cd" --date=short | sed s/-//g)
-          count=$(git rev-list --count HEAD)
-          commit=$(git rev-parse --short HEAD)
-          version="unstable-$date.r${count}.$commit"
-        fi
+        tag=${{ inputs.tag }}
+        version=$(echo $tag | sed 's/v//g')
         echo "VERSION=$version" >> $GITHUB_OUTPUT
         echo "VERSION=$version" >> $GITHUB_ENV
     - name: Download Artifact Windows x64
-      uses: actions/download-artifact@v4.1.2
+      uses: actions/download-artifact@v4
       with:
         name: v2raya_windows_x64_${{ steps.prep.outputs.VERSION }}.exe
         path: D:\Downloads
     - name: Download Artifact Windows arm64
-      uses: actions/download-artifact@v4.1.2
+      uses: actions/download-artifact@v4
       with:
         name: v2raya_windows_arm64_${{ steps.prep.outputs.VERSION }}.exe
         path: D:\Downloads
@@ -268,7 +292,7 @@ jobs:
       NAME: v2raya
       DESC: "A web GUI client of Project V which supports VMess, VLESS, SS, SSR, Trojan, Tuic and Juicity protocols"
     steps:
-    - uses: actions/checkout@v4.1.1
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Get Friendly File Name
@@ -284,31 +308,21 @@ jobs:
     - name: Check Version
       id: prep
       env:
-        REF: ${{ github.ref }}
+        REF: ${{ inputs.tag }}
       run: |
-        echo "P_DIR=$(pwd)" >> $GITHUB_OUTPUT
-        if [[ "$REF" == "refs/tags/v"* ]]; then
-          tag=$(git describe --tags $(git rev-list --tags --max-count=1))
-          version=${tag:1}
-          package_version="$(echo "$version" | awk -F 'v' '{print $1}')"
-        else
-          date=$(git log -1 --format="%cd" --date=short | sed s/-//g)
-          count=$(git rev-list --count HEAD)
-          commit=$(git rev-parse --short HEAD)
-          version="unstable-$date.r${count}.$commit"
-          package_version="$date.r${count}.$commit"
-        fi
+        tag=${{ inputs.tag }}
+        version=$(echo $tag | sed 's/v//g')
         echo "VERSION=$version" >> $GITHUB_OUTPUT
         echo "VERSION=$version" >> $GITHUB_ENV
-        echo "PACKAGE_VERSION=$package_version" >> $GITHUB_OUTPUT
-        echo "PACKAGE_VERSION=$package_version" >> $GITHUB_ENV
+        echo "PACKAGE_VERSION=$version" >> $GITHUB_OUTPUT
+        echo "PACKAGE_VERSION=$version" >> $GITHUB_ENV
     - name: Download Artifact
-      uses: actions/download-artifact@v4.1.2
+      uses: actions/download-artifact@v4
       with:
         name: v2raya_${{ steps.get_filename.outputs.BUILD_NAME }}_${{ steps.prep.outputs.VERSION }}
         path: build/
     - name: Download x64 Linux Build
-      uses: actions/download-artifact@v4.1.2
+      uses: actions/download-artifact@v4
       with:
         name: v2raya_linux_x64_${{ steps.prep.outputs.VERSION }}
         path: test/
@@ -384,26 +398,23 @@ jobs:
         path: |
           fpm_packages/*
   GitHub_Release:
-    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-22.04
-    needs: [Build_v2rayA_Binaries, Build_Windows_Installers, Build_Linux_Packages]
+    needs: [Build_v2rayA_Binaries, Build_Windows_Installers, Build_Linux_Packages, Build_v2rayA_SingTun_Binaries] 
     steps:
-    - uses: actions/checkout@v4.1.1
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Check Version
       id: prep
       env:
-        REF: ${{ github.ref }}
-      shell: bash
+        REF: ${{ inputs.tag }}
       run: |
-        echo "P_DIR=$(pwd)" >> $GITHUB_OUTPUT
-        tag=$(git describe --tags $(git rev-list --tags --max-count=1))
-        version=${tag:1}
+        tag=${{ inputs.tag }}
+        version=$(echo $tag | sed 's/v//g')
         echo "VERSION=$version" >> $GITHUB_OUTPUT
         echo "VERSION=$version" >> $GITHUB_ENV
     - name: Download Artifacts
-      uses: actions/download-artifact@v4.1.2
+      uses: actions/download-artifact@v4
       with:
         path: builds/
     - name: Move Files to Release Directory
@@ -429,6 +440,8 @@ jobs:
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
+        echo "Don't upload SingTun binaries to GitHub Release for they are not stable."
+        rm -f release/v2raya_with_singtun_*
         Latest_Releases=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/v2rayA/v2rayA/releases/latest | jq -r '.tag_name')
         Latest_tag=v${{ steps.prep.outputs.VERSION }}
         if [ "$Latest_Releases" != "$Latest_tag" ]; then
@@ -449,7 +462,7 @@ jobs:
           --data '{"purge_everything":true}'
   Build_v2ray_Debian_Packages:
     runs-on: ubuntu-22.04
-    if: startsWith(github.ref, 'refs/tags/v')
+
     steps:
     - name: Install Tools
       run: |
@@ -605,21 +618,23 @@ jobs:
   Build_APT_Repository_and_AUR:
     runs-on: ubuntu-22.04
     needs: [Build_v2rayA_Binaries, Build_Linux_Packages, Build_v2ray_Debian_Packages]
-    if: startsWith(github.ref, 'refs/tags/v')
+
     steps:
-    - uses: actions/checkout@v4.1.1
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Check Version
       id: prep
+      env:
+        REF: ${{ inputs.tag }}
       run: |
         echo "P_DIR=$(pwd)" >> $GITHUB_OUTPUT
-        tag=$(git describe --tags $(git rev-list --tags --max-count=1))
-        version=${tag:1}
+        tag=${{ inputs.tag }}
+        version=$(echo $tag | sed 's/v//g')
         echo "VERSION=$version" >> $GITHUB_OUTPUT
         echo "VERSION=$version" >> $GITHUB_ENV
     - name: Download Artifacts
-      uses: actions/download-artifact@v4.1.2
+      uses: actions/download-artifact@v4
       with:
         path: builds/
     - name: Prepare Builds
@@ -686,31 +701,33 @@ jobs:
   Release_to_Homebrew:
     runs-on: ubuntu-22.04
     needs: [Build_v2rayA_Binaries]
-    if: startsWith(github.ref, 'refs/tags/v')
+
     steps:
-    - uses: actions/checkout@v4.1.1
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Check Version
       id: prep
+      shell: bash
+      env:
+        REF: ${{ inputs.tag }}
       run: |
-        echo "P_DIR=$(pwd)" >> $GITHUB_OUTPUT
-        tag=$(git describe --tags $(git rev-list --tags --max-count=1))
-        version=${tag:1}
+        tag=${{ inputs.tag }}
+        version=$(echo $tag | sed 's/v//g')
         echo "VERSION=$version" >> $GITHUB_OUTPUT
         echo "VERSION=$version" >> $GITHUB_ENV
     - name: Download Artifact Linux x64
-      uses: actions/download-artifact@v4.1.2
+      uses: actions/download-artifact@v4
       with:
         name: v2raya_linux_x64_${{ steps.prep.outputs.VERSION }}
         path: Downloads
     - name: Download Artifact macOS x64
-      uses: actions/download-artifact@v4.1.2
+      uses: actions/download-artifact@v4
       with:
         name: v2raya_darwin_x64_${{ steps.prep.outputs.VERSION }}
         path: Downloads
     - name: Download Artifact macOS arm64
-      uses: actions/download-artifact@v4.1.2
+      uses: actions/download-artifact@v4
       with:
         name: v2raya_darwin_arm64_${{ steps.prep.outputs.VERSION }}
         path: Downloads
@@ -739,16 +756,16 @@ jobs:
   Release_v2rayA_to_Docker:
     runs-on: ubuntu-22.04
     needs: [GitHub_Release]
-    if: startsWith(github.ref, 'refs/tags/v')
+
     steps:
-    - uses: actions/checkout@v4.1.1
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Check Version
       id: prep
       run: |
         tag=$(git describe --tags $(git rev-list --tags --max-count=1))
-        version=${tag:1}
+        version=$(echo $tag | sed 's/v//g')
         echo "VERSION=$version" >> $GITHUB_OUTPUT
         echo "VERSION=$version" >> $GITHUB_ENV
         TAG=$(echo $GITHUB_REF | cut -d / -f 3)
@@ -760,11 +777,20 @@ jobs:
       uses: docker/setup-qemu-action@v3.0.0
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3.0.0
+    - name: Login to GitHub container registry
+      uses: docker/login-action@v3.0.0
+      with:
+        registry: ghcr.io
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     - name: Login to DockerHub
       uses: docker/login-action@v3.0.0
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
+    - name: Convert repository owner to lowercase
+      run: |
+          echo "LOWERCASE_REPOSITORY_OWNER=${GITHUB_REPOSITORY_OWNER@L}" >>${GITHUB_ENV}
     - name: Build and push
       uses: docker/build-push-action@v5.0.0
       with:
@@ -776,28 +802,29 @@ jobs:
         tags: |
           ${{ steps.prep.outputs.image }}:${{ steps.prep.outputs.tag }}
           ${{ steps.prep.outputs.image }}:latest
+          ghcr.io/${{ env.LOWERCASE_REPOSITORY_OWNER }}/v2raya:${{ steps.prep.outputs.tag }}
+          ghcr.io/${{ env.LOWERCASE_REPOSITORY_OWNER }}/v2raya:latest
         cache-from: type=gha
         cache-to: type=gha,mode=max
   Release_v2rayA_GUI_to_Docker:
     runs-on: ubuntu-22.04
     needs: [Build_v2rayA_Web]
-    if: startsWith(github.ref, 'refs/tags/v')
+
     steps:
-    - uses: actions/checkout@v4.1.1
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Check Version
       id: prep
+      env:
+        REF: ${{ inputs.tag }}
       run: |
-        tag=$(git describe --tags $(git rev-list --tags --max-count=1))
-        version=${tag:1}
+        tag=${{ inputs.tag }}
+        version=$(echo $tag | sed 's/v//g')
         echo "VERSION=$version" >> $GITHUB_OUTPUT
         echo "VERSION=$version" >> $GITHUB_ENV
-        TAG=$(echo $GITHUB_REF | cut -d / -f 3)
-        IMAGE="mzz2017/v2raya-gui"
-        echo image=${IMAGE} >> $GITHUB_OUTPUT
     - name: Download Web Files
-      uses: actions/download-artifact@v4.1.2
+      uses: actions/download-artifact@v4
       with:
         name: web
         path: web
@@ -805,11 +832,20 @@ jobs:
       uses: docker/setup-qemu-action@v3.0.0
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3.0.0
+    - name: Login to GitHub container registry
+      uses: docker/login-action@v3.0.0
+      with:
+        registry: ghcr.io
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     - name: Login to DockerHub
       uses: docker/login-action@v3.0.0
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
+    - name: Convert repository owner to lowercase
+      run: |
+          echo "LOWERCASE_REPOSITORY_OWNER=${GITHUB_REPOSITORY_OWNER@L}" >>${GITHUB_ENV}
     - name: Build and push
       uses: docker/build-push-action@v5.0.0
       with:
@@ -818,33 +854,26 @@ jobs:
         file: install/docker/Dockerfile.GUI.Action
         platforms: linux/arm,linux/arm64,linux/amd64
         push: true
-        tags: mzz2017/v2raya-gui:latest
+        tags: |
+          mzz2017/v2raya-gui:latest
+          ghcr.io/${{ env.LOWERCASE_REPOSITORY_OWNER }}/v2raya-gui:latest
         cache-from: type=gha
         cache-to: type=gha,mode=max
   Submit_to_Microsoft_winget:
     runs-on: windows-latest
     needs: [GitHub_Release]
-    if: startsWith(github.ref, 'refs/tags/v')
+
     steps:
-    - uses: actions/checkout@v4.1.1
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Check Version
       id: prep
       env:
-        REF: ${{ github.ref }}
-      shell: bash
+        REF: ${{ inputs.tag }}
       run: |
-        echo "P_DIR=$(pwd)" >> $GITHUB_OUTPUT
-        if [[ "$REF" == "refs/tags/v"* ]]; then
-          tag=$(git describe --tags $(git rev-list --tags --max-count=1))
-          version=${tag:1}
-        else
-          date=$(git log -1 --format="%cd" --date=short | sed s/-//g)
-          count=$(git rev-list --count HEAD)
-          commit=$(git rev-parse --short HEAD)
-          version="unstable-$date.r${count}.$commit"
-        fi
+        tag=${{ inputs.tag }}
+        version=$(echo $tag | sed 's/v//g')
         echo "VERSION=$version" >> $GITHUB_OUTPUT
         echo "VERSION=$version" >> $GITHUB_ENV
     - name: Submit to Microsoft winget
