@@ -1534,8 +1534,8 @@ export default {
       return null;
     },
     generateURL(srcObj) {
-      let obj = {};
       let query = {};
+      let obj = {};
       let tmp;
       switch (srcObj.protocol) {
         case "vless":
