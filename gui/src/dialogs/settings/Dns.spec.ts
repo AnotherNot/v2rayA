@@ -21,10 +21,14 @@ const api = vi.hoisted(() => ({
   getDnsRules: vi.fn(),
   getOutbounds: vi.fn(),
   putDnsRules: vi.fn(),
+  getDnsSource: vi.fn(),
+  putDnsSource: vi.fn(),
+  deleteDnsSource: vi.fn(),
 }));
 vi.mock("@/api", () => api);
 
 import Dns from "./Dns.vue";
+import RuleSource from "./RuleSource.vue";
 
 enableAutoUnmount(afterEach);
 afterAll(() => vi.unstubAllGlobals());
@@ -33,8 +37,20 @@ function button(w: VueWrapper, text: string) {
   return w.findAll("button").find((b) => b.text() === text)!;
 }
 
+// The rule source panel is a text field too, and it sits above the rules, so
+// the rule fields are what is left once the panel's own subtree is dropped.
+function outsidePanel<T extends HTMLElement>(w: VueWrapper, selector: string) {
+  const panel = w.findComponent(RuleSource);
+  return w
+    .findAll<T>(selector)
+    .filter((el) => !panel.element.contains(el.element));
+}
+
 function servers(w: VueWrapper) {
-  return w.findAll<HTMLInputElement>(".v-text-field:not(.v-select) input");
+  return outsidePanel<HTMLInputElement>(
+    w,
+    ".v-text-field:not(.v-select) input",
+  );
 }
 
 const stored = [
@@ -56,6 +72,18 @@ describe("the DNS settings dialog", () => {
       .mockReset()
       .mockResolvedValue({ outbounds: ["proxy", "regional"] });
     api.putDnsRules.mockReset().mockResolvedValue({});
+    // no source is configured, so the panel shows its empty form
+    api.getDnsSource.mockReset().mockResolvedValue({
+      url: "",
+      version: "",
+      remarks: "",
+    });
+    api.putDnsSource.mockReset().mockResolvedValue({
+      url: "",
+      version: "",
+      alreadyUpToDate: false,
+    });
+    api.deleteDnsSource.mockReset().mockResolvedValue({});
   });
 
   test("loads the fields and outbound choices, then saves the legacy array body", async () => {
@@ -181,5 +209,37 @@ describe("the DNS settings dialog", () => {
     await button(w, en.operations.cancel).trigger("click");
     expect(api.putDnsRules).not.toHaveBeenCalled();
     expect(w.emitted("close")).toEqual([[]]);
+  });
+
+  test("an import shows the rules the source brought, not the ones that were loaded", async () => {
+    api.getDnsSource.mockResolvedValue({ url: "", version: "", remarks: "" });
+    const imported = [
+      { server: "77.88.8.8", domains: "geosite:cn", outbound: "direct" },
+      { server: "1.0.0.1", domains: "", outbound: "proxy" },
+    ];
+    api.getDnsRules.mockResolvedValue({ rules: imported });
+    const w = mountWithApp(Dns);
+    await flushPromises();
+
+    const panel = w.findComponent(RuleSource);
+    expect(panel.exists()).toBe(true);
+    await panel
+      .get('input[type="text"]')
+      .setValue("https://example.test/dns.json");
+    await flushPromises();
+    const apply = w
+      .findAll("button")
+      .find((b) => b.text().trim() === en.ruleSource.import);
+    await apply!.trigger("click");
+    await flushPromises();
+
+    expect(api.putDnsSource).toHaveBeenCalledWith({
+      url: "https://example.test/dns.json",
+    });
+    // the form follows the import rather than keeping the previous contents
+    expect(servers(w).map((input) => input.element.value)).toEqual([
+      "77.88.8.8",
+      "1.0.0.1",
+    ]);
   });
 });

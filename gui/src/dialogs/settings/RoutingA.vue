@@ -10,8 +10,11 @@ import {
   mdiOpenInNew,
 } from "@mdi/js";
 import { getRoutingA, putRoutingA } from "@/api";
+import { deleteRoutingSource, getRoutingSource, putRoutingSource } from "@/api";
 import { errorText } from "@/api/errors";
+import type { RoutingSource } from "@/api/types";
 import { useConfirm, useNotify, useUnsavedGuard } from "@/composables";
+import RuleSource from "./RuleSource.vue";
 import RoutingEditor from "./routingA/RoutingEditor.vue";
 import RoutingReference from "./routingA/RoutingReference.vue";
 import RoutingForm from "./routingA/RoutingForm.vue";
@@ -36,6 +39,7 @@ const confirm = useConfirm();
 const notify = useNotify();
 const routingA = ref("");
 const original = ref("");
+const routingSource = ref<RoutingSource | null>(null);
 useUnsavedGuard(() => routingA.value !== original.value);
 const loading = ref(true);
 const saving = ref(false);
@@ -153,7 +157,49 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
+  // The panel is secondary: a source that cannot be read must not keep the
+  // rules from being edited.
+  try {
+    routingSource.value = await getRoutingSource();
+  } catch {
+    routingSource.value = null;
+  }
 });
+
+// An import replaces the rules, so the editor has to show what the source
+// brought rather than what was open when the dialog was.
+async function importFromSource(url: string, remarks?: string) {
+  try {
+    const res = await putRoutingSource({ url, remarks });
+    const rules = await getRoutingA();
+    routingA.value = original.value = rules.routingA;
+    routingSource.value = await getRoutingSource();
+    notify.success(
+      res.alreadyUpToDate
+        ? t("ruleSource.alreadyUpToDate")
+        : t("ruleSource.imported"),
+    );
+  } catch (err) {
+    notify.warning(errorText(err));
+    throw err;
+  }
+}
+
+async function clearSource() {
+  try {
+    await deleteRoutingSource();
+    routingSource.value = {
+      url: "",
+      version: "",
+      remarks: "",
+      domainStrategy: "",
+    };
+    notify.success(t("ruleSource.forgotten"));
+  } catch (err) {
+    notify.warning(errorText(err));
+    throw err;
+  }
+}
 async function close() {
   if (saving.value || confirming.value) return;
   confirming.value = true;
@@ -307,6 +353,14 @@ async function save() {
         color="primary"
         :aria-label="t('routingA.loading')"
         class="mb-4"
+      />
+      <RuleSource
+        v-if="!loading"
+        subject="routing"
+        :source="routingSource"
+        :picks-set="true"
+        :import-source="importFromSource"
+        :clear-source="clearSource"
       />
       <div
         class="routing-layout"

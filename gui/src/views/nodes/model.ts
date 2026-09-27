@@ -89,6 +89,14 @@ export function useNodes() {
   // next page has since written to the store
   let disposed = false;
   if (getCurrentScope()) onScopeDispose(() => (disposed = true));
+  // A reload and a mutation both end in apply, and their responses can cross:
+  // a GET /touch issued before a PUT completed still describes the membership
+  // from before it, so applying it would drop the change the user just made.
+  // Every operation takes a ticket when it is issued and only the newest
+  // ticket may write.
+  let issued = 0;
+  let appliedTicket = 0;
+  const claim = () => ++issued;
 
   const connected = computed<Which[]>(() => touch.value.connectedServer ?? []);
   /** the rows connected in the current outbound */
@@ -98,8 +106,9 @@ export function useNodes() {
       .map((w) => ({ which: w, row: locate(touch.value, w) }))
       .filter((x): x is { which: Which; row: Row } => x.row !== null),
   );
-  function apply(res: TouchResponse) {
-    if (disposed) return;
+  function apply(res: TouchResponse, ticket = claim()) {
+    if (disposed || ticket < appliedTicket) return;
+    appliedTicket = ticket;
     const next = res.touch;
     next.subscriptions.forEach((s, i) => {
       s.status = dayjs(s.status)
@@ -142,7 +151,8 @@ export function useNodes() {
 
   /** sync reloads the touch; the socket's open and every mutation call it. */
   async function sync(): Promise<void> {
-    apply(await getTouch());
+    const ticket = claim();
+    apply(await getTouch(), ticket);
     ready.value = true;
   }
 
@@ -170,8 +180,12 @@ export function useNodes() {
           { id: w.id, _type: w._type, sub: w.sub ?? 0, outbound: group },
         ]);
     const loading = openLoading();
+    const ticket = claim();
     try {
-      apply(await putOutboundConnections({ outbound: group, touches: next }));
+      apply(
+        await putOutboundConnections({ outbound: group, touches: next }),
+        ticket,
+      );
     } finally {
       loading.close();
     }

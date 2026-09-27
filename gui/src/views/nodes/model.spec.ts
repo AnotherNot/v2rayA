@@ -5,6 +5,7 @@ import { effectScope, type EffectScope } from "vue";
 import "@/plugins/dayjs";
 
 const api = vi.hoisted(() => ({
+  getTouch: vi.fn(),
   getPingLatency: vi.fn(),
   getHttpLatency: vi.fn(),
   putOutboundConnections: vi.fn(),
@@ -116,6 +117,57 @@ describe("a page that is gone", () => {
     expect(store.connectedServer).toEqual([]);
     expect(nodes.touch.value.servers).toHaveLength(2);
     scope = effectScope();
+  });
+});
+
+describe("responses that cross", () => {
+  /** a touch response as the backend would send it at that moment */
+  const touch = (connected: boolean) => ({
+    code: "SUCCESS" as const,
+    running: true,
+    networkPaused: false,
+    touch: {
+      servers: [row(1), row(2)],
+      subscriptions: [],
+      connectedServer: connected
+        ? [{ id: 2, _type: "server" as const, outbound: "proxy" }]
+        : [],
+    },
+  });
+
+  test("a reload issued before a mutation does not undo it when it lands last", async () => {
+    const nodes = createNodes();
+    // the socket reconnects and starts a reload...
+    let releaseReload: (v: ReturnType<typeof touch>) => void = () => {};
+    api.getTouch.mockReturnValue(
+      new Promise((resolve) => {
+        releaseReload = resolve;
+      }),
+    );
+    // ...then the user adds a node to the group, which answers first
+    api.putOutboundConnections.mockResolvedValue(touch(true));
+
+    const reloading = nodes.sync();
+    await nodes.toggleGroup(nodes.touch.value.servers[1], "proxy");
+    expect(nodes.connectedRows.value.map((c) => c.row.id)).toEqual([2]);
+
+    // the reload carries the membership from before the mutation
+    releaseReload(touch(false));
+    await reloading;
+
+    expect(nodes.connectedRows.value.map((c) => c.row.id)).toEqual([2]);
+  });
+
+  test("a reload issued after a mutation still refreshes the view", async () => {
+    const nodes = createNodes();
+    api.putOutboundConnections.mockResolvedValue(touch(true));
+    api.getTouch.mockResolvedValue(touch(false));
+
+    await nodes.toggleGroup(nodes.touch.value.servers[1], "proxy");
+    expect(nodes.connectedRows.value.map((c) => c.row.id)).toEqual([2]);
+
+    await nodes.sync();
+    expect(nodes.connectedRows.value).toEqual([]);
   });
 });
 

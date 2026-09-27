@@ -20,12 +20,18 @@ const setting = reactive<OutboundSetting>({
 });
 const form = ref<{ validate(): Promise<{ valid: boolean }> } | null>(null);
 const saving = ref(false);
+const loading = ref(true);
 
 onMounted(async () => {
+  // a group that could not be loaded must not be saved over from the
+  // defaults, so the dialog closes with the error
   try {
     Object.assign(setting, (await getOutbound(props.outbound)).setting);
   } catch (err) {
-    notify.warning(errorText(err));
+    notify.error(t("sharing.failed", { message: errorText(err) }));
+    emit("close");
+  } finally {
+    loading.value = false;
   }
 });
 
@@ -58,7 +64,7 @@ async function save() {
       </v-card-title>
     </v-card-item>
     <v-card-text class="px-6">
-      <v-form ref="form" @submit.prevent="save">
+      <v-form ref="form" :disabled="loading" @submit.prevent="save">
         <v-text-field
           v-model="setting.probeURL"
           :label="t('outbound.probeUrl')"
@@ -85,9 +91,14 @@ async function save() {
       <v-btn variant="text" @click="emit('close')">{{
         t("operations.cancel")
       }}</v-btn>
-      <v-btn variant="flat" color="primary" :loading="saving" @click="save">{{
-        t("operations.save")
-      }}</v-btn>
+      <v-btn
+        variant="flat"
+        color="primary"
+        :loading="saving"
+        :disabled="loading"
+        @click="save"
+        >{{ t("operations.save") }}</v-btn
+      >
     </v-card-actions>
   </v-card>
 </template>

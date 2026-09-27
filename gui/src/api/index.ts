@@ -15,6 +15,8 @@ import type {
   DnsRule,
   DnsRulesResponse,
   Ports,
+  RoutingSource,
+  RuleSourceResult,
   Setting,
   SettingResponse,
   TouchResponse,
@@ -143,6 +145,18 @@ export const getRoutingA = () =>
   call<{ routingA: string }>({ url: "routingA", method: "get" });
 export const putRoutingA = (body: { routingA: string }) =>
   call<unknown>({ url: "routingA", method: "put", data: body });
+export const getRoutingSource = () =>
+  call<RoutingSource>({ url: "routingSource", method: "get" });
+export const putRoutingSource = (body: { url: string; remarks?: string }) =>
+  call<RuleSourceResult>({ url: "routingSource", method: "put", data: body });
+export const deleteRoutingSource = () =>
+  call<unknown>({ url: "routingSource", method: "delete" });
+export const getDnsSource = () =>
+  call<RoutingSource>({ url: "dnsSource", method: "get" });
+export const putDnsSource = (body: { url: string }) =>
+  call<RuleSourceResult>({ url: "dnsSource", method: "put", data: body });
+export const deleteDnsSource = () =>
+  call<unknown>({ url: "dnsSource", method: "delete" });
 export const getDnsRules = () =>
   call<DnsRulesResponse>({ url: "dnsRules", method: "get" });
 export const putDnsRules = (body: DnsRule[]) =>

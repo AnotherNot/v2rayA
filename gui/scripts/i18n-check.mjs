@@ -1,9 +1,17 @@
-// i18n-check: every locale carries the same key set as en, and every key
-// the sources reference exists in en. Dynamic keys (built at runtime from
-// a backend error code, a log level, an export mode) are declared by
-// prefix here rather than found by scanning.
+// i18n-check: every locale carries the same key set as en, every key the
+// sources reference exists in en, and every translation interpolates the
+// same placeholders as en. Dynamic keys (built at runtime from a backend
+// error code, a log level, an export mode) are declared by prefix here
+// rather than found by scanning.
 //
-//   node scripts/i18n-check.mjs   (exit 1 on any missing key)
+// Plural form counts are deliberately not compared. A locale may carry
+// fewer forms than en and still be correct: vue-i18n clamps the index it
+// derives from the count, so a one-form CJK message renders every count,
+// and a three-form message is authored to match the index its locale's
+// plural rule produces. Comparing counts would only push authors to pad
+// translations with copies of a form they do not need.
+//
+//   node scripts/i18n-check.mjs   (exit 1 on any missing key or placeholder)
 import {
   readdirSync,
   readFileSync,
@@ -70,6 +78,15 @@ const locales = Object.fromEntries(
 const en = locales["en.js"];
 let failed = false;
 
+// The placeholders a message interpolates. A translation that renames {n} to
+// {count}, drops one, or leaves a stray brace renders nothing where the
+// value belongs, and nothing else in the build notices. Deduplicated: a
+// plural message repeats its placeholder in every form, and only the set of
+// names has to agree with en.
+const placeholders = (value) => [
+  ...new Set([...String(value).matchAll(/\{(\w+)\}/g)].map((m) => m[1])),
+].sort();
+
 for (const [file, keys] of Object.entries(locales)) {
   if (file === "en.js") continue;
   const missing = [...en.keys()].filter((k) => !keys.has(k));
@@ -79,6 +96,20 @@ for (const [file, keys] of Object.entries(locales)) {
     console.log(`${file}: ${missing.length} missing, ${extra.length} extra`);
     for (const k of missing.slice(0, 20)) console.log(`  missing ${k}`);
     for (const k of extra.slice(0, 20)) console.log(`  extra   ${k}`);
+  }
+  const drifted = [];
+  for (const [k, want] of en) {
+    if (!keys.has(k)) continue;
+    const expected = placeholders(want);
+    const got = placeholders(keys.get(k));
+    if (expected.join() !== got.join()) drifted.push([k, expected, got]);
+  }
+  if (drifted.length) {
+    failed = true;
+    console.log(`${file}: ${drifted.length} messages interpolate other placeholders`);
+    for (const [k, expected, got] of drifted.slice(0, 20)) {
+      console.log(`  ${k}: en {${expected.join(",")}} vs {${got.join(",")}}`);
+    }
   }
 }
 

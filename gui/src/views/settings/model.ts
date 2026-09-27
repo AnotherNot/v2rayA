@@ -9,6 +9,7 @@ import {
   putSetting,
 } from "@/api";
 import { watchConnected } from "@/api/connect";
+import { errorText } from "@/api/errors";
 import type { Setting } from "@/api/types";
 import { openLoading } from "@/composables/useLoading";
 import { useAppStore } from "@/stores/app";
@@ -64,18 +65,27 @@ export function useSettings() {
   const localGFWListVersion = ref("");
   const localGeositeVersion = ref("");
   const remoteGFWListVersion = ref("");
+  // a load that failed leaves the form on its defaults, so the page says so
+  // instead of showing them as the stored settings
+  const loadError = ref("");
 
   async function load(): Promise<void> {
-    const res = await getSetting();
-    for (const key of Object.keys(form) as (keyof SettingForm)[]) {
-      if (key in res.setting)
-        (form as Record<string, unknown>)[key] = res.setting[key];
+    loadError.value = "";
+    try {
+      const res = await getSetting();
+      for (const key of Object.keys(form) as (keyof SettingForm)[]) {
+        if (key in res.setting)
+          (form as Record<string, unknown>)[key] = res.setting[key];
+      }
+      localGFWListVersion.value = res.localGFWListVersion ?? "";
+      localGeositeVersion.value = res.localGeositeVersion ?? "";
+      if (store.lite) form.transparentType = "system_proxy";
+      saved.value = JSON.stringify(form);
+      ready.value = true;
+    } catch (err) {
+      loadError.value = errorText(err);
+      throw err;
     }
-    localGFWListVersion.value = res.localGFWListVersion ?? "";
-    localGeositeVersion.value = res.localGeositeVersion ?? "";
-    if (store.lite) form.transparentType = "system_proxy";
-    saved.value = JSON.stringify(form);
-    ready.value = true;
   }
 
   async function loadRemoteVersion(): Promise<void> {
@@ -120,6 +130,7 @@ export function useSettings() {
     localGFWListVersion,
     localGeositeVersion,
     remoteGFWListVersion,
+    loadError,
     load,
     loadRemoteVersion,
     save,

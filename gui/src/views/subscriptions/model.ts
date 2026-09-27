@@ -1,40 +1,17 @@
-import { ref } from "vue";
-import {
-  deleteTouch,
-  getSharingAddress,
-  getTouch,
-  putSubscription,
-} from "@/api";
-import { errorText } from "@/api/errors";
+import { deleteTouch, getSharingAddress, putSubscription } from "@/api";
 import type { TouchSubscription } from "@/api/types";
 import { whichOf } from "../nodes/model";
 
+// Subscription mutations, without a copy of the subscription list: the views
+// that own the list already refresh it, so syncing here only added a second
+// /touch round trip per action.
 export function useSubscriptions() {
-  const subscriptions = ref<TouchSubscription[]>([]);
-  const loading = ref(true);
-  const loadError = ref("");
-
-  async function sync() {
-    loading.value = true;
-    loadError.value = "";
-    try {
-      subscriptions.value = (await getTouch()).touch.subscriptions;
-    } catch (err) {
-      loadError.value = errorText(err);
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  }
-
   async function update(subscription: TouchSubscription) {
     await putSubscription(whichOf(subscription));
-    await sync();
   }
 
   async function remove(subscription: TouchSubscription) {
     await deleteTouch([whichOf(subscription)]);
-    await sync();
   }
 
   async function sharingLink(subscription: TouchSubscription) {
@@ -42,10 +19,6 @@ export function useSubscriptions() {
   }
 
   return {
-    subscriptions,
-    loading,
-    loadError,
-    sync,
     update,
     remove,
     sharingLink,

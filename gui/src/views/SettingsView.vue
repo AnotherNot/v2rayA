@@ -45,6 +45,7 @@ useUnsavedGuard(() => settings.dirty.value);
 const {
   form,
   ready,
+  loadError,
   localGFWListVersion,
   localGeositeVersion,
   remoteGFWListVersion,
@@ -200,8 +201,16 @@ defineExpose({ sync: () => settings.load() });
 
 <template>
   <v-form ref="formRef" class="settings" @submit.prevent="save">
+    <v-alert v-if="loadError" type="error" variant="tonal" class="mb-4">
+      {{ loadError }}
+      <template #append
+        ><v-btn variant="text" @click="settings.load()">{{
+          t("operations.update")
+        }}</v-btn></template
+      >
+    </v-alert>
     <v-skeleton-loader
-      v-if="!ready"
+      v-else-if="!ready"
       type="list-item-two-line@6"
       class="bg-transparent"
     />

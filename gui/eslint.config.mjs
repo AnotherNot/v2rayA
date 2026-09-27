@@ -75,8 +75,6 @@ export default defineConfigWithVueTs(
       "src/*.js",
       "src/components/**",
       "src/plugins/**",
-      "src/assets/js/**",
-      "src/store/**",
       "src/locales/**",
     ],
     rules: {

@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, expect, test } from "vitest";
 import { client } from "@/api/client";
-import type { TouchResponse, TouchSubscription } from "@/api/types";
+import type { TouchSubscription } from "@/api/types";
 import { useSubscriptions } from "./model";
 
 const subscription: TouchSubscription = {
@@ -20,50 +20,42 @@ afterEach(() => {
   client.defaults.adapter = adapter;
 });
 
-test("update and delete address the subscription and reload the collection", async () => {
+test("update and delete address the subscription and leave the reload to the caller", async () => {
   const sent: { method?: string; path: string; body: unknown }[] = [];
-  let rows = [subscription];
   client.defaults.adapter = async (config) => {
     sent.push({
       method: config.method,
       path: new URL(config.url!, "http://backend.test").pathname,
       body: config.data ? JSON.parse(config.data) : undefined,
     });
-    if (config.method === "put")
-      rows = [{ ...subscription, info: "Used 2 GiB" }];
-    if (config.method === "delete") rows = [];
-    const data: TouchResponse = {
-      running: false,
-      networkPaused: false,
-      touch: { subscriptions: rows, servers: [], connectedServer: [] },
-    };
     return {
       config,
       status: 200,
       statusText: "OK",
       headers: {},
-      data: { code: "SUCCESS", data },
+      data: {
+        code: "SUCCESS",
+        data: { sharingAddress: "https://example.test/s" },
+      },
     };
   };
   const model = useSubscriptions();
-  await model.sync();
   await model.update(subscription);
-  expect(model.subscriptions.value[0].info).toBe("Used 2 GiB");
   await model.remove(subscription);
-  expect(model.subscriptions.value).toEqual([]);
+  await model.sharingLink(subscription);
+  // The views that own the subscription list refresh it themselves, so a
+  // /touch here was a second round trip per action.
   expect(sent).toEqual([
-    { method: "get", path: "/api/touch", body: undefined },
     {
       method: "put",
       path: "/api/subscription",
       body: { id: 3, _type: "subscription" },
     },
-    { method: "get", path: "/api/touch", body: undefined },
     {
       method: "delete",
       path: "/api/touch",
       body: { touches: [{ id: 3, _type: "subscription" }] },
     },
-    { method: "get", path: "/api/touch", body: undefined },
+    { method: "get", path: "/api/sharingAddress", body: undefined },
   ]);
 });

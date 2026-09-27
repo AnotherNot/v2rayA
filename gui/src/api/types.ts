@@ -129,6 +129,32 @@ export interface DnsRulesResponse {
   rules?: Partial<DnsRule>[] | null;
 }
 
+/** a named rule set behind a rule source, as the index describes it */
+export interface RoutingSourceItem {
+  remarks: string;
+  url: string;
+  domainStrategy: string;
+}
+
+/** the configured rule source: a URL, the version it last served, and the set in use */
+export interface RoutingSource {
+  url: string;
+  version: string;
+  remarks: string;
+  /** only a routing source names one; a DNS source does not */
+  domainStrategy?: string;
+  /** absent when the index could not be read; that is not an error */
+  items?: RoutingSourceItem[] | null;
+}
+
+/** what an import reports back */
+export interface RuleSourceResult {
+  url: string;
+  version: string;
+  remarks?: string;
+  alreadyUpToDate: boolean;
+}
+
 /** The WebSocket frames on /api/message: the ones the interface reads, and any other the backend may add. */
 export interface RunningStateMessage {
   type: "running_state";

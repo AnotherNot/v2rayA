@@ -181,4 +181,27 @@ describe("settings list", () => {
       "Based on modified time of file which sometimes is after latest version online.",
     );
   });
+
+  test("a load that failed offers a retry instead of a form of defaults", async () => {
+    vi.mocked(getSetting).mockRejectedValue(new Error("backend is down"));
+    await mountPage();
+    // the form would otherwise sit on its defaults looking like stored values
+    expect(wrapper.text()).toContain("backend is down");
+    expect(wrapper.text()).not.toContain("Transparent Proxy");
+
+    vi.mocked(getSetting).mockResolvedValue({
+      setting: { ...loaded },
+      localGFWListVersion: "2026-09-15",
+      localGeositeVersion: "",
+    });
+    const retry = wrapper
+      .findAll("button")
+      .find((b) => b.text().trim() === "Update");
+    expect(retry).toBeDefined();
+    await retry!.trigger("click");
+    await flushPromises();
+
+    expect(wrapper.text()).not.toContain("backend is down");
+    expect(wrapper.text()).toContain("Transparent Proxy");
+  });
 });
