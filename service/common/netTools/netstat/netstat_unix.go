@@ -89,35 +89,40 @@ func FillProcesses(sockets []*Socket) error {
 	}
 	mapInodeSocket := make(map[string]*Socket)
 	iNodes := make(map[string]struct{})
-	for i, s := range sockets {
-		s.processMutex.Lock()
-		defer s.processMutex.Unlock()
-		mapInodeSocket[s.inode] = sockets[i]
+	for _, s := range sockets {
+		mapInodeSocket[s.inode] = s
 		iNodes[s.inode] = struct{}{}
 	}
-loop1:
 	for _, fi := range f {
 		fn := fi.Name()
 		if !fi.IsDir() {
 			continue
 		}
+		numeric := true
 		for _, t := range fn {
 			if t > '9' || t < '0' {
-				continue loop1
+				numeric = false
+				break
 			}
 		}
-		for _, s := range sockets {
-			if s.Proc != nil {
-				continue
-			}
+		if !numeric {
+			continue
 		}
 		if inode := isProcessSocket(fn, iNodes); inode != "" {
 			pn, ppid := getProcessInfo(fn)
-			mapInodeSocket[inode].Proc = &Process{
-				PID:  fn,
-				PPID: ppid,
-				Name: pn,
+			// One socket at a time: holding every mutex until the function
+			// returns meant a /proc walk over thousands of sockets kept them
+			// all locked, and a reader could still see a half-filled Proc.
+			s := mapInodeSocket[inode]
+			s.processMutex.Lock()
+			if s.Proc == nil {
+				s.Proc = &Process{
+					PID:  fn,
+					PPID: ppid,
+					Name: pn,
+				}
 			}
+			s.processMutex.Unlock()
 			delete(iNodes, inode)
 		}
 	}
@@ -129,7 +134,7 @@ loop1:
 */
 func (s *Socket) Process() (*Process, error) {
 	s.processMutex.Lock()
-	s.processMutex.Unlock()
+	defer s.processMutex.Unlock()
 	if s.Proc != nil {
 		return s.Proc, nil
 	}

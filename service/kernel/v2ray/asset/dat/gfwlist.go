@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -74,8 +73,12 @@ func GetRemoteGFWListUpdateTime(c *http.Client) (gfwlist GFWList, err error) {
 		return
 	}
 	status = resp.Status
-	b, _ := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
+	b, err := asset.ReadAssetBody(resp)
+	if err != nil {
+		err = fmt.Errorf("cannot read the GFWList tag list: %w", err)
+		return
+	}
 	tag := gjson.GetBytes(b, "0.name").Str
 	if tag == "" {
 		err = fmt.Errorf("GitHub returned no GFWList tag list (HTTP %s); it may be rate-limiting this IP, try again later or use a custom download link", resp.Status)
@@ -133,7 +136,8 @@ func httpGet(url string) (data string, err error) {
 	if err != nil {
 		return
 	}
-	b, err := io.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	b, err := asset.ReadAssetBody(resp)
 	if err != nil {
 		return "", err
 	}
@@ -160,7 +164,7 @@ func UpdateLocalGFWListByCustomLink(downloadLink string) (localGFWListVersionAft
 	if err != nil {
 		return "", err
 	}
-	if err = asset.Download(downloadLink, pathSiteDat+".new"); err != nil {
+	if err = asset.DownloadWithClient(httpClient.GetHttpClientAutomatically(), downloadLink, pathSiteDat+".new"); err != nil {
 		log.Warn("UpdateLocalGFWList: %v", err)
 		return "", err
 	}
@@ -191,7 +195,7 @@ func UpdateLocalGFWList() (localGFWListVersionAfterUpdate string, err error) {
 		return "", err
 	}
 	u := fmt.Sprintf(`https://github.com/v2rayA/dist-v2ray-rules-dat/raw/%v/geosite.dat`, gfwlist.Tag)
-	if err = asset.Download(u, pathSiteDat+".new"); err != nil {
+	if err = asset.DownloadWithClient(httpClient.GetHttpClientAutomatically(), u, pathSiteDat+".new"); err != nil {
 		log.Warn("UpdateLocalGFWList: %v", err)
 		return
 	}

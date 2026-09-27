@@ -1,6 +1,8 @@
 package v2ray
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -9,6 +11,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/v2rayA/v2rayA/db/configure"
 	"github.com/v2rayA/v2rayA/kernel/v2ray/where"
@@ -197,10 +200,19 @@ func runTunRouteScript(stage, script string) error {
 	}
 
 	log.Info("tun: running %s script via %s", stage, binPath)
-	cmd := exec.Command(args[0], args[1:]...)
+	// A user script runs as root under the same lock the rest of the TUN
+	// lifecycle waits on, so it gets the shared hook deadline rather than
+	// being able to hang the teardown indefinitely.
+	ctx, cancel := context.WithTimeout(context.Background(), hookDeadline())
+	defer cancel()
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	cmd.Stdout = logWriter
 	cmd.Stderr = logWriter
+	cmd.WaitDelay = 100 * time.Millisecond
 	if err = cmd.Run(); err != nil {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return fmt.Errorf("tun route script (%s) exceeded the %s deadline", stage, hookDeadline())
+		}
 		return fmt.Errorf("tun route script (%s) exited with error: %w", stage, err)
 	}
 	return nil

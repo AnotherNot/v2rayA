@@ -23,7 +23,9 @@ import (
 
 const maxAssetDownloadSize int64 = 256 << 20
 
-func readAssetBody(resp *http.Response) ([]byte, error) {
+// ReadAssetBody reads a download under the asset size limit. Callers own the
+// response body: this neither closes it nor drains what the limit cut off.
+func ReadAssetBody(resp *http.Response) ([]byte, error) {
 	if resp.ContentLength > maxAssetDownloadSize {
 		return nil, fmt.Errorf("asset exceeds the 256 MiB download limit")
 	}
@@ -236,8 +238,28 @@ func GetNftablesConfigPath() (p string) {
 	return path.Join(conf.GetEnvironmentConfig().Config, "v2raya.nft")
 }
 
-func Download(url string, to string) (err error) {
-	c := &http.Client{Timeout: 90 * time.Second}
+// Download fetches a URL on a direct connection. A caller that can reach the
+// network only through the proxy should use DownloadWithClient instead: this
+// package cannot import common/httpClient, which routes through the core's
+// local proxy, because that would close an import cycle
+// (httpClient -> kernel/v2ray -> kernel/v2ray/asset).
+func Download(url string, to string) error {
+	return DownloadWithClient(nil, url, to)
+}
+
+// DownloadWithClient fetches a URL with the caller's client, so an update can
+// go through the proxy the user is already running instead of a connection the
+// network may refuse. A client without a timeout would let a stalled source
+// hang the update, so one is applied when the caller set none.
+func DownloadWithClient(c *http.Client, url string, to string) error {
+	if c == nil || c.Timeout == 0 {
+		clone := &http.Client{}
+		if c != nil {
+			*clone = *c
+		}
+		clone.Timeout = 90 * time.Second
+		c = clone
+	}
 	return download(c, url, to)
 }
 
@@ -277,7 +299,7 @@ func download(c *http.Client, url string, to string) (err error) {
 	}
 	defer resp.Body.Close()
 	status = resp.Status
-	b, err := readAssetBody(resp)
+	b, err := ReadAssetBody(resp)
 	if err != nil {
 		return common.Coded("ASSET_DOWNLOAD_FAILED", err, map[string]interface{}{
 			"host":   host,

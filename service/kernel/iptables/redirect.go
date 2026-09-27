@@ -328,7 +328,12 @@ table inet v2raya {
 	}
 
 	nftablesConf := asset.GetNftablesConfigPath()
-	os.WriteFile(nftablesConf, []byte(withDnsModulePort(table)), 0644)
+	// A failed write leaves the previous ruleset on disk, and `nft -f` would
+	// load that silently while reporting success — the user would believe the
+	// current interfaces and whitelist are in force.
+	if err := os.WriteFile(nftablesConf, []byte(withDnsModulePort(table)), 0644); err != nil {
+		return NewErrorSetter(fmt.Errorf("cannot write the nftables ruleset to %v: %w", nftablesConf, err))
+	}
 
 	command := `nft -f ` + nftablesConf
 

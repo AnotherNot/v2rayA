@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/v2rayA/v2rayA/db"
 	"github.com/v2rayA/v2rayA/db/configure"
@@ -49,6 +51,15 @@ func run() error {
 	recoverPendingHostState()
 	cleanup := func() {
 		fmt.Println("Quitting...")
+		// Drain the HTTP server before anything it depends on goes away: a
+		// request still in flight holds a database handle, and closing the
+		// pool under it turns a normal response into "database is closed".
+		// The Windows service path orders its teardown the same way.
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := router.Shutdown(shutdownCtx); err != nil {
+			log.Warn("HTTP server shutdown: %v", err)
+		}
 		v2ray.ProcessManager.CheckAndStopTransparentProxy(nil)
 		v2ray.ProcessManager.Stop(false)
 		_ = db.Close()
@@ -101,7 +112,9 @@ func run() error {
 	//w := configure.GetConnectedServers()
 	//log.Println(err, ", which:", w)
 	//_ = configure.ClearConnected()
-	errch := make(chan error)
+	// Buffered: waitForShutdown reads one value and the process exits, so
+	// whichever sender does not win must not be left blocked on the send.
+	errch := make(chan error, 2)
 	// start server
 	go func() {
 		errch <- router.Run()
@@ -109,7 +122,8 @@ func run() error {
 	// listen for signals to handle transparent proxy shutdown
 	go func() {
 		sigs := make(chan os.Signal, 1)
-		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGKILL, syscall.SIGILL)
+		// SIGKILL and SIGILL cannot be caught; signal.Notify ignores them.
+		signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGQUIT)
 		<-sigs
 		v2ray.ProcessManager.MarkShuttingDown()
 		errch <- nil

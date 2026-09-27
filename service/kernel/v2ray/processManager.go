@@ -44,9 +44,9 @@ func (m *CoreProcessManager) beforeStop(p *Process) {
 		hook := strings.Split(corehook, " ")
 		hook = append(hook, "--stage=pre-stop", fmt.Sprintf("--v2raya-confdir=%v", conf.GetEnvironmentConfig().Config))
 		log.Info("Execute the core pre stop hook: %v", hook)
-		b, err := exec.Command(hook[0], hook[1:]...).CombinedOutput()
+		b, err := runHook(hook, hookDeadline())
 		if len(b) > 0 {
-			log.Info("Executing the core pre stop hook: %v", string(b))
+			log.Info("Executing the core pre stop hook: %v", b)
 		}
 		if err != nil {
 			log.Warn("Error when executing the core pre stop hook: %v", err)
@@ -129,9 +129,9 @@ func (m *CoreProcessManager) setupTransparentProxy(p *Process, generation uint64
 				"--stage="+stage,
 				fmt.Sprintf("--v2raya-confdir=%v", conf.GetEnvironmentConfig().Config))
 			log.Info("Execute the transparent %s hook: %v", stage, hook)
-			b, err := exec.Command(hook[0], hook[1:]...).CombinedOutput()
+			b, err := runHook(hook, hookDeadline())
 			if len(b) > 0 {
-				log.Info("Executing the transparent %s hook: %v", stage, string(b))
+				log.Info("Executing the transparent %s hook: %v", stage, b)
 			}
 			if err != nil {
 				return fmt.Errorf("error when executing the transparent %s hook: %w", stage, err)
@@ -187,9 +187,9 @@ func (m *CoreProcessManager) checkAndStopTransparentProxy(setting *configure.Set
 				"--stage=pre-stop",
 				fmt.Sprintf("--v2raya-confdir=%v", conf.GetEnvironmentConfig().Config))
 			log.Info("Execute the transparent pre stop hook: %v", hook)
-			b, err := exec.Command(hook[0], hook[1:]...).CombinedOutput()
+			b, err := runHook(hook, hookDeadline())
 			if len(b) > 0 {
-				log.Info("Executing the transparent pre stop hook: %v", string(b))
+				log.Info("Executing the transparent pre stop hook: %v", b)
 			}
 			if err != nil {
 				log.Warn("Error when executing the transparent pre stop hook: %v", err)
@@ -205,9 +205,9 @@ func (m *CoreProcessManager) checkAndStopTransparentProxy(setting *configure.Set
 				"--stage=post-stop",
 				fmt.Sprintf("--v2raya-confdir=%v", conf.GetEnvironmentConfig().Config))
 			log.Info("Execute the transparent post stop hook: %v", hook)
-			b, err := exec.Command(hook[0], hook[1:]...).CombinedOutput()
+			b, err := runHook(hook, hookDeadline())
 			if len(b) > 0 {
-				log.Info("Executing the transparent post stop hook: %v", string(b))
+				log.Info("Executing the transparent post stop hook: %v", b)
 			}
 			if err != nil {
 				log.Warn("Error when executing the transparent post stop hook: %v", err)
@@ -222,9 +222,9 @@ func (m *CoreProcessManager) afterStop(p *Process) {
 		hook := strings.Split(corehook, " ")
 		hook = append(hook, "--stage=post-stop", fmt.Sprintf("--v2raya-confdir=%v", conf.GetEnvironmentConfig().Config))
 		log.Info("Execute the core post stop hook: %v", hook)
-		b, err := exec.Command(hook[0], hook[1:]...).CombinedOutput()
+		b, err := runHook(hook, hookDeadline())
 		if len(b) > 0 {
-			log.Info("Executing the core post stop hook: %v", string(b))
+			log.Info("Executing the core post stop hook: %v", b)
 		}
 		if err != nil {
 			log.Warn("Error when executing the core post stop hook: %v", err)
@@ -302,6 +302,44 @@ func (m *CoreProcessManager) handleUnexpectedStop(p *Process) {
 	_ = configure.SetLastKernelExitStatus(configure.LastKernelExitCrashed)
 }
 
+// runHook executes a configured hook under a deadline and returns what it
+// wrote. The deadline covers the whole process group, not just the hook
+// itself, so a hook that spawns a child and hangs cannot outlive the call:
+// every hook runs under a lock that the rest of the lifecycle waits on.
+func runHook(hook []string, timeout time.Duration) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, hook[0], hook[1:]...)
+	if setHookProcessGroup(cmd) {
+		cmd.Cancel = func() error {
+			if cmd.Process == nil {
+				return nil
+			}
+			group, err := os.FindProcess(-cmd.Process.Pid)
+			if err != nil {
+				return err
+			}
+			return group.Kill()
+		}
+	}
+	cmd.WaitDelay = 100 * time.Millisecond
+	b, err := cmd.CombinedOutput()
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return string(b), fmt.Errorf("hook %q exceeded the %s deadline", hook[0], timeout)
+	}
+	return string(b), err
+}
+
+// hookDeadline is the budget every hook shares with the core startup wait:
+// a hook that outlives it is a hang, not slow work.
+func hookDeadline() time.Duration {
+	d := time.Duration(conf.GetEnvironmentConfig().CoreStartupTimeout) * time.Second
+	if d <= 0 {
+		return 15 * time.Second
+	}
+	return d
+}
+
 // runPreStartHook executes the configured core pre-start hook.
 // It is called inside the Start lock so it is correctly ordered after the
 // pre-stop hook that runs inside m.stop.
@@ -310,26 +348,9 @@ func (m *CoreProcessManager) runPreStartHook() error {
 		hook := strings.Split(corehook, " ")
 		hook = append(hook, "--stage=pre-start", fmt.Sprintf("--v2raya-confdir=%v", conf.GetEnvironmentConfig().Config))
 		log.Info("Execute the core pre start hook: %v", hook)
-		deadline := time.Duration(conf.GetEnvironmentConfig().CoreStartupTimeout) * time.Second
-		ctx, cancel := context.WithTimeout(context.Background(), deadline)
-		defer cancel()
-		cmd := exec.CommandContext(ctx, hook[0], hook[1:]...)
-		if setHookProcessGroup(cmd) {
-			cmd.Cancel = func() error {
-				group, err := os.FindProcess(-cmd.Process.Pid)
-				if err != nil {
-					return err
-				}
-				return group.Kill()
-			}
-		}
-		cmd.WaitDelay = 100 * time.Millisecond
-		b, err := cmd.CombinedOutput()
-		if len(b) > 0 {
-			log.Info("Executing the core pre start hook: %v", string(b))
-		}
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			return fmt.Errorf("core pre-start hook %q exceeded the %s deadline", corehook, deadline)
+		out, err := runHook(hook, hookDeadline())
+		if len(out) > 0 {
+			log.Info("Executing the core pre start hook: %v", out)
 		}
 		if err != nil {
 			return fmt.Errorf("error when executing the core pre start hook: %w", err)
@@ -378,9 +399,9 @@ func (m *CoreProcessManager) afterStart(p *Process, generation uint64) (err erro
 		hook := strings.Split(corehook, " ")
 		hook = append(hook, "--stage=post-start", fmt.Sprintf("--v2raya-confdir=%v", conf.GetEnvironmentConfig().Config))
 		log.Info("Execute the core post start hook: %v", hook)
-		b, err := exec.Command(hook[0], hook[1:]...).CombinedOutput()
+		b, err := runHook(hook, hookDeadline())
 		if len(b) > 0 {
-			log.Info("Executing the core post start hook: %v", string(b))
+			log.Info("Executing the core post start hook: %v", b)
 		}
 		if err != nil {
 			return fmt.Errorf("error when executing the core post start hook: %w", err)

@@ -13,7 +13,10 @@ import (
 )
 
 var (
-	onceDB   sync.Once
+	// dbMu guards sqlDB and dbPath. A sync.Once cannot carry the "close and
+	// reopen" that Close needs: reassigning one is not safe against a
+	// concurrent Do, and a racing reader can observe a torn Once.
+	dbMu     sync.Mutex
 	sqlDB    *sql.DB
 	dbPath   string
 	readOnly bool
@@ -105,13 +108,21 @@ func initDB() {
 
 // GetDB returns the singleton SQLite database connection
 func GetDB() *sql.DB {
-	onceDB.Do(initDB)
+	dbMu.Lock()
+	defer dbMu.Unlock()
+	if sqlDB == nil {
+		initDB()
+	}
 	return sqlDB
 }
 
 // DBPath returns the path to the SQLite database file
 func DBPath() string {
-	onceDB.Do(initDB)
+	dbMu.Lock()
+	defer dbMu.Unlock()
+	if sqlDB == nil {
+		initDB()
+	}
 	return dbPath
 }
 
@@ -154,13 +165,14 @@ func Open() error {
 
 // Close closes the SQLite database connection
 func Close() error {
+	dbMu.Lock()
+	defer dbMu.Unlock()
 	if sqlDB == nil {
 		return nil
 	}
 	err := sqlDB.Close()
 	// a later GetDB opens afresh instead of handing out the closed handle
 	sqlDB = nil
-	onceDB = sync.Once{}
 	return err
 }
 

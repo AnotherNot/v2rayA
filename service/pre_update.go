@@ -63,6 +63,8 @@ func runSubscriptionUpdate(index int, update func()) (panicked bool) {
 func initUpdatingTicker() {
 	conf.TickerUpdateGFWList = time.NewTicker(24 * time.Hour * 365 * 100)
 	conf.TickerUpdateSubscription = time.NewTicker(24 * time.Hour * 365 * 100)
+	conf.TickerUpdateRoutingSource = time.NewTicker(24 * time.Hour)
+	conf.TickerUpdateDnsSource = time.NewTicker(24 * time.Hour)
 	go func() {
 		for range conf.TickerUpdateGFWList.C {
 			version, err := dat.CheckAndUpdateGFWList("")
@@ -77,6 +79,20 @@ func initUpdatingTicker() {
 	go func() {
 		for range conf.TickerUpdateSubscription.C {
 			updateSubscriptions()
+		}
+	}()
+	go func() {
+		for range conf.TickerUpdateRoutingSource.C {
+			if err := service.SyncRoutingSource(); err != nil {
+				log.Info("[AutoUpdate] routing rules: %v", err)
+			}
+		}
+	}()
+	go func() {
+		for range conf.TickerUpdateDnsSource.C {
+			if err := service.SyncDnsSource(); err != nil {
+				log.Info("[AutoUpdate] DNS rules: %v", err)
+			}
 		}
 	}()
 }

@@ -41,6 +41,11 @@ var skStates = [...]string{
 type SkState uint8
 
 func (sk SkState) String() string {
+	// /proc/net/tcp reports the state as a byte, so a value past the last
+	// known one is possible and must not index off the end of the table.
+	if int(sk) >= len(skStates) {
+		return "UNKNOWN"
+	}
 	return skStates[sk]
 }
 

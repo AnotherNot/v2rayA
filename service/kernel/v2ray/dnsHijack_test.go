@@ -1,6 +1,7 @@
 package v2ray
 
 import (
+	"github.com/v2rayA/v2rayA/conf"
 	"github.com/v2rayA/v2rayA/db/configure"
 	"os"
 	"path/filepath"
@@ -123,6 +124,14 @@ func withPaths(t *testing.T, resolv, backup string) {
 }
 
 func TestResolvHijackerConcurrentResetRemove(t *testing.T) {
+	// The hijacker only restores the resolver when localDNS is set, and
+	// lite mode — implied for a non-root run — turns localDNS off, because
+	// nothing ever creates the hijacker there: writeTransparentProxyRules
+	// guards the reset on ShouldLocalDnsListen. Creating it directly is a
+	// state production cannot reach, so there is nothing to assert.
+	if conf.GetEnvironmentConfig().Lite {
+		t.Skip("lite mode implies localDNS off; run as root to exercise the restore")
+	}
 	dir := t.TempDir()
 	resolv := filepath.Join(dir, "resolv.conf")
 	withPaths(t, resolv, filepath.Join(dir, "backup"))

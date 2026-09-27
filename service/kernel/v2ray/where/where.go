@@ -2,6 +2,8 @@ package where
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -51,25 +53,27 @@ func GetV2rayServiceVersion() (variant Variant, ver string, err error) {
 		return V2rayaCore, "", common.Coded("CORE_NOT_FOUND", fmt.Errorf("%w: v2raya_core executable not found next to v2rayA or in PATH; set --v2ray-bin", NotFoundErr), nil)
 	}
 
-	// Get version from binary
-	cmd := exec.Command(v2rayPath, "version")
+	// Get version from binary. The deadline is enforced by the context rather
+	// than by a watchdog goroutine: a watchdog started before Start can find
+	// cmd.Process still nil, and it is never cancelled, so a slow core both
+	// escaped the kill and leaked the goroutine on every call.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, v2rayPath, "version")
+	cmd.WaitDelay = 100 * time.Millisecond
 	output := bytes.NewBuffer(nil)
 	cmd.Stdout = output
 	cmd.Stderr = output
-	go func() {
-		time.Sleep(5 * time.Second)
-		p := cmd.Process
-		if p != nil {
-			_ = p.Kill()
-		}
-	}()
-	if err := cmd.Start(); err != nil {
-		return V2rayaCore, "", err
+	runErr := cmd.Run()
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		return V2rayaCore, "", fmt.Errorf("%v did not report a version within 5 s", v2rayPath)
 	}
-	cmd.Wait()
 
 	fields := strings.Fields(strings.TrimSpace(output.String()))
 	if len(fields) < 2 {
+		if runErr != nil {
+			return V2rayaCore, "", fmt.Errorf("%v version failed: %w", v2rayPath, runErr)
+		}
 		return V2rayaCore, "", fmt.Errorf("cannot parse version from output: %q", output.String())
 	}
 	ver = fields[1]

@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/v2rayA/v2rayA/common/httpClient"
 	"github.com/v2rayA/v2rayA/kernel/v2ray/asset"
 	"github.com/v2rayA/v2rayA/pkg/util/log"
 )
@@ -14,7 +15,7 @@ func UpdateLocalGeoIP() (err error) {
 	if err != nil {
 		return err
 	}
-	if err = asset.Download("https://github.com/v2fly/geoip/releases/latest/download/geoip.dat", pathSiteDat+".new"); err != nil {
+	if err = asset.DownloadWithClient(httpClient.GetHttpClientAutomatically(), "https://github.com/v2fly/geoip/releases/latest/download/geoip.dat", pathSiteDat+".new"); err != nil {
 		log.Warn("UpdateLocalGeoIP: %v", err)
 		return
 	}

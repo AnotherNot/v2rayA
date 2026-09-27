@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/v2rayA/v2rayA/common/httpClient"
 	"github.com/v2rayA/v2rayA/kernel/v2ray/asset"
 	"github.com/v2rayA/v2rayA/pkg/util/log"
 )
@@ -15,7 +16,7 @@ func UpdateLocalGeoSite() (err error) {
 		return err
 	}
 
-	if err = asset.Download("https://github.com/v2fly/domain-list-community/releases/latest/download/dlc.dat", pathSiteDat+".new"); err != nil {
+	if err = asset.DownloadWithClient(httpClient.GetHttpClientAutomatically(), "https://github.com/v2fly/domain-list-community/releases/latest/download/dlc.dat", pathSiteDat+".new"); err != nil {
 		log.Warn("UpdateLocalGeoSite: %v", err)
 		return
 	}

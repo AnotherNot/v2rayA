@@ -115,9 +115,8 @@ func (h *ResolvHijacker) HijackResolv() error {
 			log.Warn("DNS hijack: cannot replace the %v link: %v", resolvPath, err)
 		}
 	}
-	err := os.WriteFile(resolvPath,
+	err := writeFileAtomic(resolvPath,
 		[]byte(HijackFlag+"\nnameserver 127.2.0.17\nnameserver "+fallbackResolver()+"\n"),
-		os.FileMode(0644),
 	)
 	if err != nil {
 		err = fmt.Errorf("failed to hijackDNS: [write] %v", err)
@@ -166,8 +165,16 @@ func backupResolv() error {
 	return writeResolvBackup(b)
 }
 
-func writeResolvBackup(content []byte) (err error) {
-	temp, err := os.CreateTemp(filepath.Dir(resolvBackupPath), "."+filepath.Base(resolvBackupPath)+".*")
+func writeResolvBackup(content []byte) error {
+	return writeFileAtomic(resolvBackupPath, content)
+}
+
+// writeFileAtomic replaces path with content in one step. A resolver file
+// written in place is truncated first, so a crash or a full disk mid-write
+// leaves the machine with no DNS at all — the temp file is on the same
+// filesystem, and the rename is what publishes it.
+func writeFileAtomic(path string, content []byte) (err error) {
+	temp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".*")
 	if err != nil {
 		return err
 	}
@@ -188,7 +195,41 @@ func writeResolvBackup(content []byte) (err error) {
 	if err = temp.Close(); err != nil {
 		return err
 	}
-	return os.Rename(tempPath, resolvBackupPath)
+	return os.Rename(tempPath, path)
+}
+
+// restoreResolvSymlink points resolvPath back at target without a window in
+// which the path does not exist: removing the hijacked file and then creating
+// the link leaves the machine with no /etc/resolv.conf if it is interrupted
+// between the two. Renaming a link into place is a single step, so the only
+// case needing a remove first is a destination the rename cannot replace.
+func restoreResolvSymlink(target string) error {
+	temp, err := os.CreateTemp(filepath.Dir(resolvPath), "."+filepath.Base(resolvPath)+".link.*")
+	if err != nil {
+		return err
+	}
+	tempPath := temp.Name()
+	if err = temp.Close(); err != nil {
+		_ = os.Remove(tempPath)
+		return err
+	}
+	if err = os.Remove(tempPath); err != nil {
+		return err
+	}
+	if err = os.Symlink(target, tempPath); err != nil {
+		_ = os.Remove(tempPath)
+		return err
+	}
+	if err = os.Rename(tempPath, resolvPath); err == nil {
+		return nil
+	}
+	_ = os.Remove(tempPath)
+	// The rename refused to replace what is there, so fall back to the
+	// remove-then-create sequence rather than leaving no resolver at all.
+	if err = os.Remove(resolvPath); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return os.Symlink(target, resolvPath)
 }
 
 // restoreResolv puts back what backupResolv saved. It reports whether the
@@ -212,16 +253,12 @@ func restoreResolv() bool {
 		if target == "" {
 			return false
 		}
-		if err := os.Remove(resolvPath); err != nil && !os.IsNotExist(err) {
-			log.Warn("DNS hijack: cannot replace %v: %v", resolvPath, err)
-			return false
-		}
-		if err := os.Symlink(target, resolvPath); err != nil {
+		if err := restoreResolvSymlink(target); err != nil {
 			log.Warn("DNS hijack: cannot restore the %v link to %v: %v", resolvPath, target, err)
 			return false
 		}
 	case strings.HasPrefix(strings.TrimSpace(content), emptyMarker):
-		if err := os.WriteFile(resolvPath, nil, 0644); err != nil {
+		if err := writeFileAtomic(resolvPath, nil); err != nil {
 			log.Warn("DNS hijack: cannot restore an empty %v: %v", resolvPath, err)
 			return false
 		}
@@ -233,7 +270,7 @@ func restoreResolv() bool {
 			return false
 		}
 	default:
-		if err := os.WriteFile(resolvPath, b, 0644); err != nil {
+		if err := writeFileAtomic(resolvPath, b); err != nil {
 			log.Warn("DNS hijack: cannot restore %v: %v", resolvPath, err)
 			return false
 		}

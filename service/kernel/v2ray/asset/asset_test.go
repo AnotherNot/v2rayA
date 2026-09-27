@@ -63,6 +63,41 @@ func TestEnsureCoreAssetsLinksMissingFiles(t *testing.T) {
 	}
 }
 
+// The client the proxy-aware callers pass in has no timeout of its own, so
+// DownloadWithClient has to add one: without it a source that accepts the
+// connection and then stalls would hang the update forever.
+func TestDownloadWithClientAddsATimeout(t *testing.T) {
+	var seen *http.Request
+	client := &http.Client{Transport: assetTransport(func(r *http.Request) (*http.Response, error) {
+		seen = r
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Status:     "200 OK",
+			Body:       io.NopCloser(strings.NewReader("dat")),
+		}, nil
+	})}
+	target := filepath.Join(t.TempDir(), "asset.dat")
+	if err := DownloadWithClient(client, "https://example.test/asset.dat", target); err != nil {
+		t.Fatal(err)
+	}
+	if b, err := os.ReadFile(target); err != nil || string(b) != "dat" {
+		t.Fatalf("downloaded content: %v %q", err, b)
+	}
+	if seen == nil {
+		t.Fatal("the caller's client was not used")
+	}
+	if client.Timeout != 0 {
+		t.Errorf("the caller's client was mutated: timeout %v", client.Timeout)
+	}
+}
+
+// A caller may pass no client at all; the direct download still has to work.
+func TestDownloadWithNilClient(t *testing.T) {
+	if err := Download("http://127.0.0.1:1/never", filepath.Join(t.TempDir(), "x.dat")); err == nil {
+		t.Fatal("a refused connection reported success")
+	}
+}
+
 func TestFindAssetOutsideDirSkipsItsOwnDirectory(t *testing.T) {
 	dir := "/usr/share/v2raya"
 	if _, err := os.Stat(filepath.Join(dir, "geosite.dat")); err != nil {

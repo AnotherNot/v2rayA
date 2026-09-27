@@ -207,13 +207,16 @@ func ImportSubscription(url string) (err error) {
 				source = u.String()
 			}
 		}
-		c := httpClient.GetHttpClientAutomatically()
+		// copy, do not assign: GetHttpClientAutomatically hands back the
+		// shared http.DefaultClient in most branches, and writing a timeout
+		// into it would race every other caller and outlive this request
+		c := *httpClient.GetHttpClientAutomatically()
 		c.Timeout = 90 * time.Second
 		// assign, do not redeclare: a shadowed err here made the
 		// AppendSubscriptions failure below vanish behind a nil return
 		var infos []serverObj.ServerObj
 		var status string
-		infos, status, err = ResolveSubscriptionWithClient(source, c)
+		infos, status, err = ResolveSubscriptionWithClient(source, &c)
 		if err != nil {
 			return fmt.Errorf("could not fetch subscription from %s: %w", subscriptionHost(source), err)
 		}
