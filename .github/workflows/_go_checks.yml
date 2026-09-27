@@ -1,0 +1,53 @@
+name: Go Checks (Reusable)
+
+on:
+  workflow_call:
+
+jobs:
+  vet:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Download Web Artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: web
+          path: service/server/router/web
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          cache-dependency-path: |
+            core/go.mod
+            core/go.sum
+            service/go.mod
+            service/go.sum
+          go-version: "1.26"
+      # The service embeds the built web files, so the embed target must be
+      # populated before the module compiles at all.
+      - name: Vet
+        shell: bash
+        run: |
+          cd service && go vet ./...
+          cd ../core && go vet ./...
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Download Web Artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: web
+          path: service/server/router/web
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          cache-dependency-path: |
+            service/go.mod
+            service/go.sum
+          go-version: "1.26"
+      # The runner is not root, so the service comes up in lite mode and the
+      # tests that need the transparent-proxy paths skip themselves.
+      - name: Test
+        shell: bash
+        run: cd service && go test -race -timeout 20m ./...

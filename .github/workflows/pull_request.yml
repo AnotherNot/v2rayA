@@ -12,6 +12,10 @@ jobs:
   Build_v2rayA_Web:
     uses: ./.github/workflows/_build_web.yml
 
+  Go_Checks:
+    needs: Build_v2rayA_Web
+    uses: ./.github/workflows/_go_checks.yml
+
   Build_v2rayA:
     runs-on: ${{ matrix.os }}
     strategy:
