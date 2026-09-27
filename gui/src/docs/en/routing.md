@@ -46,6 +46,10 @@ The list mode edits each rule with a form; the text mode shows line numbers, col
 
 Saving reloads a running core with the new rules; when the core rejects them, v2rayA puts the previous rules back and shows the core's error, which names the offending text. A stopped core takes the rules on its next start.
 
+## Rule sources
+
+Rules can be imported from a URL instead of written by hand: the **Rule source** panel above the editor. It shows the address, the version the source last served and — when the index names several sets — a picker for which set to import. An import replaces the rules, so the editor reloads and shows what the source brought. Importing the same version twice answers that nothing changed, and forgetting the source keeps the rules, so an applied set is never left empty.
+
 ## Custom inbounds
 
 A custom inbound bound to RoutingA has its own rule text that applies to that inbound only. It takes rules, not definitions: `default:` and `outbound:` lines are ignored, and traffic no rule matches goes to the group chosen in the form. End the text with a catch-all such as `network(tcp, udp) -> direct` to route everything else yourself.

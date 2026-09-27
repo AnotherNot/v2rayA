@@ -196,6 +196,10 @@ Open the interface and create the administrator. The tutorial then walks through
 
 Once the core runs, point an application at SOCKS5 `127.0.0.1:20170` or HTTP `127.0.0.1:20171` (`20172` applies the routing rules to HTTP), or turn on transparent proxy on the dashboard and pick a mode from the table below. A group with several connected members uses the one with the lowest measured latency; pinning a member routes the group through it alone. Subscriptions update from the subscriptions page or on the interval set in the settings.
 
+The day-to-day operation — nodes, groups, modes, DNS, logs, backups — is
+covered step by step in [docs/user-guide.md](docs/user-guide.md) (in Russian:
+[docs/user-guide-ru.md](docs/user-guide-ru.md)).
+
 <img src="docs/images/screenshot.png" alt="The dashboard, light and dark" width="100%">
 
 ## Transparent proxy
