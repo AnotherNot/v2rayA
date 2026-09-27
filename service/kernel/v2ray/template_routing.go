@@ -177,6 +177,15 @@ func (t *Template) setRulePortRouting() error {
 	return t.AppendRoutingRuleByMode(t.Setting.RulePortMode, []string{"rule-http", "rule-socks"})
 }
 func parseRoutingA(t *Template, routingInboundTags []string) error {
+	// A rule source names the domain strategy its set was written for. It is
+	// applied before the default is filled in, so a set asking for AsIs gets it
+	// and a set asking for IPOnDemand — what the core defaults to anyway —
+	// changes nothing.
+	var src configure.RoutingSource
+	configure.GetRoutingSource(&src)
+	if src.DomainStrategy != "" {
+		t.Routing.DomainStrategy = src.DomainStrategy
+	}
 	lines := strings.Split(configure.GetRoutingA(), "\n")
 	hardcodeReplacement := regexp.MustCompile(`\$\$.+?\$\$`)
 	for i := range lines {

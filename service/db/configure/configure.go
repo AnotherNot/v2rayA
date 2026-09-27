@@ -330,6 +330,13 @@ func GetRoutingA() (r string) {
 	}
 	return
 }
+
+// GetRoutingARaw returns the stored rules without the built-in template
+// standing in for an empty slot, so a caller can tell what the user actually
+// has from what a fresh install would show.
+func GetRoutingARaw(r *string) {
+	_ = db.Get("system", "routingA", r)
+}
 func SetDomainsExcluded(domains string) (err error) {
 	return db.Set("system", "domainsExcluded", domains)
 }

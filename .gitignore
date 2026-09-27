@@ -61,3 +61,5 @@ plans
 
 # npm lockfile (this project uses yarn; package-lock.json is accidental)
 gui/package-lock.json
+
+external_repos
