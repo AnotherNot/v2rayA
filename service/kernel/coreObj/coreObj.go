@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -383,6 +384,14 @@ type QuicSettings struct {
 type XHTTPRangeConfig struct {
 	From int32 `json:"from,omitempty"`
 	To   int32 `json:"to,omitempty"`
+}
+
+// MarshalJSON writes the "min-max" string the core's simplified loader reads.
+// The loader only accepts that form or a plain integer; the {"from","to"}
+// object this struct would otherwise produce stops the core from starting, so
+// any non-zero range ever written that way was broken.
+func (r XHTTPRangeConfig) MarshalJSON() ([]byte, error) {
+	return []byte(strconv.Quote(fmt.Sprintf("%d-%d", r.From, r.To))), nil
 }
 
 type XHTTPXmux struct {

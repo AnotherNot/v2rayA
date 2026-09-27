@@ -3,6 +3,7 @@ package coreObj
 import (
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -86,5 +87,36 @@ func TestPinnedPeerCertSha256HexNormalizesURLSafe(t *testing.T) {
 	want, _ := PinnedPeerCertSha256Hex("YAeLpzeMUkvQyVF5zpGov2ZMfdNfnfqkFHEf+w4EA+c=")
 	if got != want {
 		t.Fatalf("URL-safe pin must normalize to the same hex, got %q want %q", got, want)
+	}
+}
+
+// The core's simplified loader reads a range as "min-max" or a plain integer;
+// the {"from","to"} object this struct would otherwise produce stops the core
+// from starting, so every non-zero range ever written that way was broken.
+func TestXHTTPRangeConfigMarshalsAsRangeString(t *testing.T) {
+	for _, c := range []struct {
+		r    XHTTPRangeConfig
+		want string
+	}{
+		{XHTTPRangeConfig{From: 100, To: 1000}, `"100-1000"`},
+		{XHTTPRangeConfig{From: 0, To: 500}, `"0-500"`},
+		{XHTTPRangeConfig{From: 8, To: 8}, `"8-8"`},
+	} {
+		b, err := json.Marshal(c.r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(b) != c.want {
+			t.Errorf("marshal = %s, want %s", b, c.want)
+		}
+	}
+	// inside a full settings object the field keeps its name and the string form
+	xs := XHTTPSettings{XPaddingBytes: &XHTTPRangeConfig{From: 100, To: 1000}}
+	b, err := json.Marshal(xs)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), `"xPaddingBytes":"100-1000"`) {
+		t.Fatalf("settings = %s", b)
 	}
 }
