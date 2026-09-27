@@ -62,6 +62,7 @@ type UpstreamManager struct {
 	proxyAddrResolver ProxyAddrResolver            // Resolver for proxy tag → SOCKS5 address (legacy)
 	dispatcher        RouteDispatcher              // xray-core internal routing dispatcher
 	bootstrapIPs      map[string]string            // upstream hostname → IP from bootstrap
+	groups            map[string]bool              // proxy tags that are balancer groups, not single outbounds
 	mu                sync.RWMutex
 }
 
@@ -112,6 +113,28 @@ func NewUpstreamManager(configs []UpstreamConfig) *UpstreamManager {
 
 	log.Printf("[dns upstream] created manager with %d upstreams", len(configs))
 	return m
+}
+
+// SetGroupTags records which proxy tags are balancer groups. A group tag has
+// no outbound handler, so forcing it on the dispatcher would dial a dead
+// link; queries for those tags go through the SOCKS proxies instead, where
+// the normal routing rules with balancers apply.
+func (m *UpstreamManager) SetGroupTags(tags []string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.groups = make(map[string]bool, len(tags))
+	for _, t := range tags {
+		if t != "" {
+			m.groups[t] = true
+		}
+	}
+}
+
+// isGroup reports whether the proxy tag is a balancer group.
+func (m *UpstreamManager) isGroup(proxyTag string) bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.groups[proxyTag]
 }
 
 // GetUpstream returns the upstream instance with the given ID.

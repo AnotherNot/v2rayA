@@ -157,6 +157,7 @@ func (m *DnsModule) Start() error {
 	// Create the UpstreamManager.
 	m.upstreamMgr = NewUpstreamManager(m.config.Upstreams)
 	m.upstreamMgr.SetBootstrapIPs(resolvedBootstrap)
+	m.upstreamMgr.SetGroupTags(m.config.GroupTags)
 
 	// Set xray-core internal dispatcher (if configured before Start).
 	if m.dispatcher != nil {

@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"runtime"
+	"sort"
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
@@ -15,6 +16,7 @@ import (
 	"github.com/v2rayA/v2rayA/db/configure"
 	"github.com/v2rayA/v2rayA/kernel/iptables"
 	"github.com/v2rayA/v2rayA/pkg/util/log"
+	"github.com/v2rayA/v2rayA/pkg/util/privilege"
 )
 
 type Addr struct {
@@ -87,6 +89,13 @@ func dnsModuleExtraListenAddrs(setting *configure.Setting) []string {
 			addrs = append(addrs, net.JoinHostPort("127.0.0.1", dnsModulePort(setting)))
 		}
 		addrs = append(addrs, net.JoinHostPort("127.2.0.17", dnsModulePort(setting)))
+	}
+	// Port 53 is privileged: without root the bind always fails and the core
+	// exits, so a non-root service must not ask for the listener at all. An
+	// occupancy probe cannot see that coming — a free port is still unbindable.
+	if !privilege.IsRootOrAdmin() {
+		log.Warn("DNS module will not listen on 127.2.0.17:53 without root")
+		return addrs
 	}
 	if could, err := CouldLocalDnsListen(); !could {
 		log.Warn("DNS module will not listen on 127.2.0.17:53: %v", err)
@@ -184,12 +193,25 @@ func (t *Template) generateDnsModuleConfig(serverInfos []serverInfo) error {
 	// 规则里直连的明文上游排在其后，公共 DNS 只在这些都不可用时才轮到。
 	bootstrapDns := common.Deduplicate(append(getSystemDnsServers(), directDnsServers()...))
 
+	// Balancer group tags have no outbound handler: the DNS module must not
+	// force them on the dispatcher but send them through the local SOCKS
+	// inbound instead, where the routing rules with balancers apply. The
+	// outbounds are resolved before this runs, so the group set is known.
+	var groupTags []string
+	for tag, isGroup := range t.outNames() {
+		if isGroup {
+			groupTags = append(groupTags, tag)
+		}
+	}
+	sort.Strings(groupTags)
+
 	cfg := map[string]interface{}{
 		"listener": map[string]interface{}{
 			"listen_addr":        listenAddr,
 			"extra_listen_addrs": dnsModuleExtraListenAddrs(setting),
 			"timeout":            5,
 		},
+		"group_tags": groupTags,
 		"cache": map[string]interface{}{
 			"enabled":   setting.DnsCacheEnabled,
 			"size":      setting.DnsCacheSize,

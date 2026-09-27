@@ -113,6 +113,12 @@ type DnsModuleConfig struct {
 	// The DNS module connects to these SOCKS5 proxies when sending queries through tagged upstreams.
 	// If a tag is not found in this map, the module falls back to common defaults ("proxy" → "127.0.0.1:1080").
 	ProxyMap map[string]string `json:"proxy_map,omitempty"`
+	// GroupTags lists the proxy tags that are balancer groups rather than
+	// single outbounds. A group has no outbound handler, so forcing it on the
+	// dispatcher would dial a dead link; the module sends those upstreams
+	// through the SOCKS proxies in ProxyMap instead, where the normal routing
+	// rules — balancers included — apply.
+	GroupTags []string `json:"group_tags,omitempty"`
 	// Bootstrap lists domain names of DNS upstream servers that need to be resolved
 	// via system DNS before the module can use them. These are resolved at startup.
 	Bootstrap []string `json:"bootstrap,omitempty"`

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -43,7 +44,11 @@ func NewDnsListener(config *DnsListenerConfig, handler Handler) *DnsListener {
 	}
 }
 
-// Start starts UDP and TCP listeners for the primary address and all extra addresses.
+// Start starts the primary listener strictly and every extra listener on a
+// best-effort basis: an extra address that cannot be bound (a privileged
+// port without root, a resolver already owning it) is skipped with a warning
+// instead of failing the whole module. A module whose primary listener is
+// down serves nothing, so the primary stays fatal.
 func (l *DnsListener) Start() error {
 	if l.config == nil {
 		return fmt.Errorf("dns listener: config is nil")
@@ -57,16 +62,21 @@ func (l *DnsListener) Start() error {
 
 	l.ctx, l.cancel = context.WithCancel(context.Background())
 
-	// Collect all listen addresses (primary + extras).
-	allAddrs := []string{l.config.ListenAddr}
-	allAddrs = append(allAddrs, l.config.ExtraListenAddrs...)
+	// The primary listener is mandatory: without it the module serves nothing.
+	primary, err := l.startPair(l.config.ListenAddr)
+	if err != nil {
+		l.Stop()
+		return fmt.Errorf("dns listener: %s: %w", l.config.ListenAddr, err)
+	}
+	l.servers = append(l.servers, *primary)
 
-	for _, addr := range allAddrs {
+	// Extra listeners are best-effort: one the process cannot bind must not
+	// take down the primary. A loud warning names the loser.
+	for _, addr := range l.config.ExtraListenAddrs {
 		pair, err := l.startPair(addr)
 		if err != nil {
-			// Clean up already started listeners.
-			l.Stop()
-			return fmt.Errorf("dns listener: %s: %w", addr, err)
+			log.Printf("[dns] warning: extra listener %s not started, continuing without it: %v", addr, err)
+			continue
 		}
 		l.servers = append(l.servers, *pair)
 	}
@@ -127,7 +137,9 @@ func (l *DnsListener) startPair(addr string) (*serverPair, error) {
 	return &serverPair{udp: udpSrv, tcp: tcpSrv}, nil
 }
 
-// Stop gracefully shuts down all listeners.
+// Stop gracefully shuts down all listeners. A pair that never finished
+// starting reports "server not started"; that is the normal residue of a
+// failed bind, not an error worth logging.
 func (l *DnsListener) Stop() error {
 	if l.cancel != nil {
 		l.cancel()
@@ -136,13 +148,13 @@ func (l *DnsListener) Stop() error {
 	var lastErr error
 	for _, pair := range l.servers {
 		if pair.udp != nil {
-			if err := pair.udp.Shutdown(); err != nil {
+			if err := pair.udp.Shutdown(); err != nil && !isNotStarted(err) {
 				log.Printf("[dns] UDP shutdown error: %v", err)
 				lastErr = err
 			}
 		}
 		if pair.tcp != nil {
-			if err := pair.tcp.Shutdown(); err != nil {
+			if err := pair.tcp.Shutdown(); err != nil && !isNotStarted(err) {
 				log.Printf("[dns] TCP shutdown error: %v", err)
 				lastErr = err
 			}
@@ -292,6 +304,12 @@ func dropSigs(rrs []dns.RR) []dns.RR {
 		}
 	}
 	return out
+}
+
+// isNotStarted reports the miekg/dns shutdown error of a server that never
+// finished starting. Callers see it after a failed bind; it carries no signal.
+func isNotStarted(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "server not started")
 }
 
 // Healthy returns true if all listeners are active.

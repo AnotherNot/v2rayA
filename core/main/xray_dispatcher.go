@@ -19,8 +19,13 @@ import (
 // through xray-core's proxy outbounds (VMESS, VLESS, Trojan, etc.) just like
 // xray-core's built-in DNS module does.
 //
-// It sets session.ContextWithInbound on the dispatch context so that xray's
-// routing engine selects the appropriate outbound based on routing rules.
+// The outbound is forced directly on the dispatch context, bypassing the
+// routing rules: a proxy tag names an outbound, not an inbound, and no
+// routing rule matches the DNS module's traffic. Setting the tag as an
+// inbound tag instead (as done before) matches nothing and the query falls
+// through to the default route — usually direct — so a "proxy" upstream
+// silently resolves directly. Forced dispatch is how xray itself dials a
+// tagged outbound (see DialTaggedOutbound).
 type xrayDispatcherAdapter struct {
 	dispatcher routing.Dispatcher
 }
@@ -38,8 +43,11 @@ func newXrayDispatcherAdapter(srv *xcore.Instance) (*xrayDispatcherAdapter, erro
 
 // Dispatch implements dns.RouteDispatcher.
 // It creates a TCP connection to addr through xray-core's routing engine.
-// The proxyTag is used to set the inbound tag on the context, which xray's
-// routing rules use to determine the outbound (like xray-core's DNS module).
+// A non-direct proxyTag forces that outbound directly, bypassing the routing
+// rules; "direct" (and empty) use the default routing. Balancer group tags
+// have no outbound handler and cannot be forced — the DNS module keeps those
+// on the SOCKS path, which flows through the normal routing with balancers,
+// so the dispatcher never sees them.
 func (a *xrayDispatcherAdapter) Dispatch(ctx context.Context, network, addr, proxyTag string) (net.Conn, error) {
 	// Parse the destination address.
 	host, portStr, err := net.SplitHostPort(addr)
@@ -62,18 +70,18 @@ func (a *xrayDispatcherAdapter) Dispatch(ctx context.Context, network, addr, pro
 		dest = xnet.TCPDestination(xnet.ParseAddress(host), xnet.Port(port))
 	}
 
-	// Set the inbound tag on the context so xray's routing engine
-	// selects the appropriate outbound (like xray-core's DNS module).
-	// For "direct", no special tag is needed (uses default routing).
-	dnsCtx := ctx
-	if proxyTag != "" && proxyTag != "direct" {
-		dnsCtx = session.ContextWithInbound(dnsCtx, &session.Inbound{Tag: proxyTag})
-	}
-	// Mark as DNS traffic to prevent recursive DNS resolution.
-	dnsCtx = session.ContextWithContent(dnsCtx, &session.Content{
+	// Mark as DNS traffic to prevent recursive DNS resolution. The content
+	// must be set before the forced tag: the tag lives on the content as an
+	// attribute, and replacing the content afterwards would drop it.
+	dnsCtx := session.ContextWithContent(ctx, &session.Content{
 		Protocol:       "dns",
 		SkipDNSResolve: true,
 	})
+	// Force the named outbound directly. For "direct" nothing is forced and
+	// the default routing applies.
+	if proxyTag != "" && proxyTag != "direct" {
+		dnsCtx = session.SetForcedOutboundTagToContext(dnsCtx, proxyTag)
+	}
 
 	// Dispatch through xray-core's routing engine.
 	link, err := a.dispatcher.Dispatch(dnsCtx, dest)
