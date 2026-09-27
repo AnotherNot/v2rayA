@@ -278,6 +278,142 @@ func TestDegenerateLinksDoNotPanic(t *testing.T) {
 	}
 }
 
+// vnextUsers reads the users back out of a generated configuration. Settings
+// carries vnext as an untyped value, so the round trip through JSON is what
+// proves the field survived with its name intact.
+func vnextUsers(t *testing.T, c Configuration) []coreObj.User {
+	t.Helper()
+	b, err := json.Marshal(c.CoreOutbound.Settings)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var s struct {
+		Vnext []struct {
+			Users []coreObj.User `json:"users"`
+		} `json:"vnext"`
+	}
+	if err := json.Unmarshal(b, &s); err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Vnext) == 0 || len(s.Vnext[0].Users) == 0 {
+		t.Fatal("configuration has no vnext user")
+	}
+	return s.Vnext[0].Users
+}
+
+// A VLESS link carrying the encryption format must keep it all the way into
+// the core configuration: dropping it builds a tunnel the server cannot read,
+// and the failure is silent. The values here are synthetic.
+func TestVlessEncryptionReachesConfiguration(t *testing.T) {
+	const enc = "mlkem768x25519plus.native.0rtt.testonly"
+	obj, err := NewFromLink("vless", "vless://b831381d-6324-4d53-ad4f-8cda48b30811@1.2.3.4:443?encryption="+enc+"&security=tls&sni=example.com&type=xhttp&path=%2Fx&host=example.com&mode=packet-up#enc")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := obj.Configuration(PriorInfo{Tag: "t"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := vnextUsers(t, c)[0].Encryption; got != enc {
+		t.Fatalf("encryption = %q, want the link's value", got)
+	}
+	if out := obj.ExportToURL(); !strings.Contains(out, "encryption="+enc) {
+		t.Fatalf("export dropped the encryption: %v", out)
+	}
+}
+
+// A link written before the encryption format has no parameter; it must keep
+// meaning "none" rather than failing.
+func TestVlessWithoutEncryptionDefaultsToNone(t *testing.T) {
+	obj, err := NewFromLink("vless", "vless://b831381d-6324-4d53-ad4f-8cda48b30811@1.2.3.4:443?security=tls&sni=example.com&type=tcp#plain")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, err := obj.Configuration(PriorInfo{Tag: "t"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := vnextUsers(t, c)[0].Encryption; got != "none" {
+		t.Fatalf("encryption = %q, want none", got)
+	}
+}
+
+// Links written by other clients name the XHTTP settings differently: `mode`
+// instead of `xhttpMode`, a single `x_padding_bytes` range, and an `extra`
+// object nesting both. All three must land in the same fields the GUI writes.
+func TestVlessXhttpStandardParameters(t *testing.T) {
+	obj, err := NewFromLink("vless", "vless://b831381d-6324-4d53-ad4f-8cda48b30811@1.2.3.4:443?security=tls&type=xhttp&path=%2Fx&host=example.com&mode=packet-up&x_padding_bytes=100-1000#std")
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := obj.(*V2Ray)
+	if v.XHTTPMode != "packet-up" {
+		t.Fatalf("mode = %q, want packet-up", v.XHTTPMode)
+	}
+	if v.XPaddingBytesFrom != 100 || v.XPaddingBytesTo != 1000 {
+		t.Fatalf("padding = %d-%d, want 100-1000", v.XPaddingBytesFrom, v.XPaddingBytesTo)
+	}
+	c, err := obj.Configuration(PriorInfo{Tag: "t"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	xs := c.CoreOutbound.StreamSettings.XHTTPSettings
+	if xs.Mode != "packet-up" {
+		t.Fatalf("config mode = %q, want packet-up", xs.Mode)
+	}
+	if xs.XPaddingBytes == nil || xs.XPaddingBytes.From != 100 || xs.XPaddingBytes.To != 1000 {
+		t.Fatalf("config padding = %+v, want 100-1000", xs.XPaddingBytes)
+	}
+}
+
+func TestVlessXhttpExtraObject(t *testing.T) {
+	extra := url.QueryEscape(`{"mode":"stream-up","xPaddingBytes":"10-20"}`)
+	obj, err := NewFromLink("vless", "vless://b831381d-6324-4d53-ad4f-8cda48b30811@1.2.3.4:443?security=tls&type=xhttp&path=%2Fx&extra="+extra+"#extra")
+	if err != nil {
+		t.Fatal(err)
+	}
+	v := obj.(*V2Ray)
+	if v.XHTTPMode != "stream-up" {
+		t.Fatalf("mode = %q, want stream-up", v.XHTTPMode)
+	}
+	if v.XPaddingBytesFrom != 10 || v.XPaddingBytesTo != 20 {
+		t.Fatalf("padding = %d-%d, want 10-20", v.XPaddingBytesFrom, v.XPaddingBytesTo)
+	}
+}
+
+func TestVlessXhttpExplicitParametersBeatExtra(t *testing.T) {
+	extra := url.QueryEscape(`{"mode":"stream-up","xPaddingBytes":"10-20"}`)
+	obj, err := NewFromLink("vless", "vless://b831381d-6324-4d53-ad4f-8cda48b30811@1.2.3.4:443?security=tls&type=xhttp&path=%2Fx&mode=packet-up&extra="+extra+"#both")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v := obj.(*V2Ray); v.XHTTPMode != "packet-up" {
+		t.Fatalf("mode = %q, want the explicit packet-up", v.XHTTPMode)
+	}
+}
+
+func TestParsePaddingRange(t *testing.T) {
+	for _, c := range []struct {
+		in       string
+		from, to int
+		ok       bool
+	}{
+		{"100-1000", 100, 1000, true},
+		{"0-0", 0, 0, true},
+		{"500", 0, 500, true},
+		{"", 0, 0, false},
+		{"abc", 0, 0, false},
+		{"1000-100", 0, 0, false},
+		{"-5-10", 0, 0, false},
+		{"10-", 0, 0, false},
+	} {
+		from, to, ok := parsePaddingRange(c.in)
+		if from != c.from || to != c.to || ok != c.ok {
+			t.Errorf("%q: got %d-%d ok=%v", c.in, from, to, ok)
+		}
+	}
+}
+
 func TestVlessRawTransportIsTCP(t *testing.T) {
 	obj, err := NewFromLink("vless", "vless://b831381d-6324-4d53-ad4f-8cda48b30811@1.2.3.4:443?type=raw&security=reality&sni=example.com&pbk=key&fp=chrome#raw")
 	if err != nil {

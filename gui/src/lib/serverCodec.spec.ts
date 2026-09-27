@@ -1,6 +1,10 @@
 // @vitest-environment happy-dom
 import { describe, expect, test } from "vitest";
-import { generateShareLink, parseShareLink } from "./serverCodec";
+import {
+  generateShareLink,
+  parseShareLink,
+  standardXhttp,
+} from "./serverCodec";
 import { links } from "./__fixtures__/links";
 import expected from "./__fixtures__/serverCodec.json";
 
@@ -40,4 +44,57 @@ test("a wireguard link keeps workers, reserved and kernelMode through parse and 
   expect(out).toContain("reserved=1%2C2%2C3");
   expect(out).toContain("workers=4");
   expect(out).toContain("kernelMode=true");
+});
+
+describe("standard XHTTP parameters", () => {
+  test("mode, x_padding_bytes and extra fill the GUI fields", () => {
+    expect(
+      standardXhttp({ mode: "packet-up", x_padding_bytes: "100-1000" }),
+    ).toEqual({ mode: "packet-up", paddingFrom: "100", paddingTo: "1000" });
+    expect(
+      standardXhttp({
+        extra: JSON.stringify({ mode: "stream-up", xPaddingBytes: "10-20" }),
+      }),
+    ).toEqual({ mode: "stream-up", paddingFrom: "10", paddingTo: "20" });
+    expect(standardXhttp({ x_padding_bytes: "500" })).toEqual({
+      mode: "",
+      paddingFrom: "0",
+      paddingTo: "500",
+    });
+    expect(standardXhttp({})).toEqual({
+      mode: "",
+      paddingFrom: "",
+      paddingTo: "",
+    });
+    expect(standardXhttp({ x_padding_bytes: "nope" })).toEqual({
+      mode: "",
+      paddingFrom: "",
+      paddingTo: "",
+    });
+    expect(standardXhttp({ extra: "{broken" })).toEqual({
+      mode: "",
+      paddingFrom: "",
+      paddingTo: "",
+    });
+  });
+
+  test("a link with an extra object keeps its mode and padding", () => {
+    const extra = encodeURIComponent(
+      JSON.stringify({ mode: "stream-up", xPaddingBytes: "10-20" }),
+    );
+    const form = parseShareLink(
+      `vless://b831381d-6324-4d53-ad4f-8cda48b30811@1.2.3.4:443?security=tls&type=xhttp&path=%2Fx&extra=${extra}#extra`,
+    ) as Record<string, unknown>;
+    expect(form.xhttpMode).toBe("stream-up");
+    expect(form.xPaddingBytesFrom).toBe("10");
+    expect(form.xPaddingBytesTo).toBe("20");
+  });
+
+  test("an encryption value survives parse and generate", () => {
+    const form = parseShareLink(
+      "vless://b831381d-6324-4d53-ad4f-8cda48b30811@1.2.3.4:443?encryption=mlkem.testonly&security=tls&type=tcp#enc",
+    ) as Record<string, unknown>;
+    expect(form.encryption).toBe("mlkem.testonly");
+    expect(generateShareLink(form)).toContain("encryption=mlkem.testonly");
+  });
 });

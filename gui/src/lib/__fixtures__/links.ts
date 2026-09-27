@@ -29,6 +29,10 @@ export const links = {
     "vless://b831381d-6324-4d53-ad4f-8cda48b30811@1.2.3.4:443?encryption=none&flow=xtls-rprx-vision&security=reality&sni=example.com&fp=chrome&pbk=PUBLICKEY&sid=abcd1234&spx=%2F&type=tcp#vless%20node",
   vlessXhttp:
     "vless://b831381d-6324-4d53-ad4f-8cda48b30811@1.2.3.4:443?encryption=none&security=tls&sni=example.com&type=xhttp&path=%2Fx&xhttpMode=packet-up&xmuxMaxConcurFrom=8&xmuxMaxConcurTo=16&xhttpHeaders=%7B%22X-A%22%3A%22b%22%7D#vless%20xhttp",
+  // The same settings in the shape other clients write: `mode`, one
+  // `x_padding_bytes` range, an `extra` object, and a real encryption value.
+  vlessXhttpStandard:
+    "vless://b831381d-6324-4d53-ad4f-8cda48b30811@1.2.3.4:443?encryption=mlkem.testonly&security=tls&sni=example.com&type=xhttp&path=%2Fx&host=example.com&mode=packet-up&x_padding_bytes=100-1000#vless%20xhttp%20standard",
   ss:
     "ss://" +
     b64("chacha20-ietf-poly1305:passw0rd") +

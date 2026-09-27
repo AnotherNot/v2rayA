@@ -47,6 +47,7 @@ type V2Ray struct {
 	ShortId                string `json:"sid,omitempty"`
 	SpiderX                string `json:"spx,omitempty"`
 	Flow                   string `json:"flow,omitempty"`
+	Encryption             string `json:"encryption,omitempty"`
 	Alpn                   string `json:"alpn,omitempty"`
 	PinnedPeerCertSha256   string `json:"pinnedPeerCertSha256,omitempty"`
 	VerifyPeerCertByName   string `json:"verifyPeerCertByName,omitempty"`
@@ -86,6 +87,29 @@ type V2Ray struct {
 	InitialWindowsSize     string `json:"initialWindowsSize,omitempty"`  // gRPC InitialWindowsSize
 	V                      string `json:"v"`
 	Protocol               string `json:"protocol"`
+}
+
+// parsePaddingRange reads the standard x_padding_bytes form: "min-max", or a
+// bare number meaning at most that much padding.
+func parsePaddingRange(s string) (from, to int, ok bool) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, 0, false
+	}
+	if strings.Contains(s, "-") {
+		parts := strings.SplitN(s, "-", 2)
+		from, err1 := strconv.Atoi(strings.TrimSpace(parts[0]))
+		to, err2 := strconv.Atoi(strings.TrimSpace(parts[1]))
+		if err1 != nil || err2 != nil || from < 0 || to < 0 || from > to {
+			return 0, 0, false
+		}
+		return from, to, true
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil || n < 0 {
+		return 0, 0, false
+	}
+	return 0, n, true
 }
 
 // queryInt parses an integer query parameter; returns 0 if missing or invalid.
@@ -146,8 +170,12 @@ func ParseVlessURL(vless string) (data *V2Ray, err error) {
 		PinnedPeerCertSha256: u.Query().Get("pinnedPeerCertSha256"),
 		VerifyPeerCertByName: u.Query().Get("verifyPeerCertByName"),
 		Key:                  u.Query().Get("key"),
-		V:                    vless,
-		Protocol:             "vless",
+		// VLESS encryption ("none" or the key material of the new format).
+		// Absent in links written before the format existed, so empty stays
+		// empty here and the configuration defaults it.
+		Encryption: u.Query().Get("encryption"),
+		V:          vless,
+		Protocol:   "vless",
 	}
 	if data.Net == "" {
 		data.Net = "tcp"
@@ -173,7 +201,8 @@ func ParseVlessURL(vless string) (data *V2Ray, err error) {
 	if data.Net == "xhttp" {
 		data.XHTTPMode = u.Query().Get("xhttpMode")
 		if data.XHTTPMode == "" {
-			data.XHTTPMode = "auto"
+			// links written by other clients name it `mode`
+			data.XHTTPMode = u.Query().Get("mode")
 		}
 		data.XHTTPHeaders = u.Query().Get("xhttpHeaders")
 		data.NoGRPCHeader = u.Query().Get("noGRPCHeader") == "true"
@@ -188,6 +217,33 @@ func ParseVlessURL(vless string) (data *V2Ray, err error) {
 		data.ScStreamUpServerTo = queryInt(u, "scStreamUpServerTo")
 		data.XPaddingBytesFrom = queryInt(u, "xPaddingBytesFrom")
 		data.XPaddingBytesTo = queryInt(u, "xPaddingBytesTo")
+		if data.XPaddingBytesFrom == 0 && data.XPaddingBytesTo == 0 {
+			// the standard single-range form
+			if from, to, ok := parsePaddingRange(u.Query().Get("x_padding_bytes")); ok {
+				data.XPaddingBytesFrom, data.XPaddingBytesTo = from, to
+			}
+		}
+		// `extra` nests the same settings as JSON in links written by other
+		// clients; it fills whatever the flat parameters did not say.
+		if raw := u.Query().Get("extra"); raw != "" {
+			var ex struct {
+				Mode          string `json:"mode"`
+				XPaddingBytes string `json:"xPaddingBytes"`
+			}
+			if jsoniter.UnmarshalFromString(raw, &ex) == nil {
+				if data.XHTTPMode == "" && ex.Mode != "" {
+					data.XHTTPMode = ex.Mode
+				}
+				if data.XPaddingBytesFrom == 0 && data.XPaddingBytesTo == 0 {
+					if from, to, ok := parsePaddingRange(ex.XPaddingBytes); ok {
+						data.XPaddingBytesFrom, data.XPaddingBytesTo = from, to
+					}
+				}
+			}
+		}
+		if data.XHTTPMode == "" {
+			data.XHTTPMode = "auto"
+		}
 		data.XmuxMaxConcurFrom = queryInt(u, "xmuxMaxConcurFrom")
 		data.XmuxMaxConcurTo = queryInt(u, "xmuxMaxConcurTo")
 		data.XmuxMaxConnFrom = queryInt(u, "xmuxMaxConnFrom")
@@ -413,6 +469,13 @@ func (v *V2Ray) Configuration(info PriorInfo) (c Configuration, err error) {
 			if security == "" {
 				security = "auto"
 			}
+			// An empty encryption is what links written before the VLESS
+			// encryption format carry; dropping the parameter of a link that
+			// has it builds a tunnel the server cannot read, so it is kept.
+			encryption := v.Encryption
+			if encryption == "" {
+				encryption = "none"
+			}
 			core.Settings.Vnext = []coreObj.Vnext{
 				{
 					Address: v.Add,
@@ -420,7 +483,7 @@ func (v *V2Ray) Configuration(info PriorInfo) (c Configuration, err error) {
 					Users: []coreObj.User{
 						{
 							ID:         id,
-							Encryption: "none",
+							Encryption: encryption,
 						},
 					},
 				},
@@ -778,6 +841,11 @@ func (v *V2Ray) ExportToURL() string {
 			if v.XmuxHKeepAlive != 0 {
 				setValue(&query, "xmuxHKeepAlive", strconv.FormatInt(v.XmuxHKeepAlive, 10))
 			}
+		}
+		// A shared link that drops the encryption builds a tunnel the server
+		// cannot read. "none" is the default, so only a real value is written.
+		if v.Encryption != "" && v.Encryption != "none" {
+			setValue(&query, "encryption", v.Encryption)
 		}
 		if v.TLS != "none" {
 			setValue(&query, "flow", v.Flow)

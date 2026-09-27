@@ -9,6 +9,35 @@ import { decodeSafe, generateURL as buildURL, parseURL } from "@/lib/url";
 
 export type ShareForm = Record<string, any>;
 
+/**
+ * standardXhttp reads the XHTTP settings other clients write: `mode` instead
+ * of `xhttpMode`, one `x_padding_bytes` range instead of a From/To pair, and
+ * an `extra` object nesting both. Explicit values win; the result fills
+ * whatever they did not say.
+ */
+export function standardXhttp(params: Record<string, string>): {
+  mode: string;
+  paddingFrom: string;
+  paddingTo: string;
+} {
+  const out = { mode: "", paddingFrom: "", paddingTo: "" };
+  const extra = (() => {
+    try {
+      return params.extra ? JSON.parse(params.extra) : {};
+    } catch {
+      return {};
+    }
+  })() as Record<string, string>;
+  out.mode = params.mode || extra.mode || "";
+  const range = params.x_padding_bytes || extra.xPaddingBytes || "";
+  const m = range.match(/^\s*(\d+)\s*(?:-\s*(\d+)\s*)?$/);
+  if (m) {
+    out.paddingFrom = m[2] === undefined ? "0" : m[1];
+    out.paddingTo = m[2] ?? m[1];
+  }
+  return out;
+}
+
 /** parseShareLink turns a share link into the editor's form object, or null for an unknown scheme. */
 export function parseShareLink(url: string): ShareForm | null {
   if (url.toLowerCase().startsWith("vmess://")) {
@@ -53,6 +82,9 @@ export function parseShareLink(url: string): ShareForm | null {
       port: u.port,
       id: decodeSafe(u.username),
       flow: u.params.flow || "",
+      // VLESS encryption ("none" or the key material of the new format).
+      // Dropping it builds a tunnel the server cannot read.
+      encryption: u.params.encryption || "",
       net: u.params.type || "tcp",
       type: u.params.headerType || "none",
       host: u.params.host || "",
@@ -68,7 +100,10 @@ export function parseShareLink(url: string): ShareForm | null {
       pinnedPeerCertSha256: u.params.pinnedPeerCertSha256 || "",
       verifyPeerCertByName: u.params.verifyPeerCertByName || "",
       key: u.params.key,
-      xhttpMode: u.params.xhttpMode || "auto",
+      // Links written by other clients name the mode `mode`, carry padding
+      // as one `x_padding_bytes` range, and nest both in an `extra` object.
+      // All three fill the same fields the GUI writes.
+      xhttpMode: u.params.xhttpMode || standardXhttp(u.params).mode || "auto",
       noGRPCHeader: u.params.noGRPCHeader === "true",
       noSSEHeader: u.params.noSSEHeader === "true",
       uplinkHTTPMethod: u.params.uplinkHTTPMethod || "",
@@ -79,8 +114,10 @@ export function parseShareLink(url: string): ShareForm | null {
       scMaxBufferedPosts: u.params.scMaxBufferedPosts || "",
       scStreamUpServerFrom: u.params.scStreamUpServerFrom || "",
       scStreamUpServerTo: u.params.scStreamUpServerTo || "",
-      xPaddingBytesFrom: u.params.xPaddingBytesFrom || "",
-      xPaddingBytesTo: u.params.xPaddingBytesTo || "",
+      xPaddingBytesFrom:
+        u.params.xPaddingBytesFrom || standardXhttp(u.params).paddingFrom || "",
+      xPaddingBytesTo:
+        u.params.xPaddingBytesTo || standardXhttp(u.params).paddingTo || "",
       xmuxMaxConcurFrom: u.params.xmuxMaxConcurFrom || "",
       xmuxMaxConcurTo: u.params.xmuxMaxConcurTo || "",
       xmuxMaxConnFrom: u.params.xmuxMaxConnFrom || "",
@@ -479,6 +516,10 @@ export function generateShareLink(srcObj: ShareForm): string | null {
             query.xhttpHeaders = JSON.stringify(hdrsObj);
         }
       }
+      // A shared link that drops the encryption builds a tunnel the server
+      // cannot read. "none" is the default, so only a real value is written.
+      if (srcObj.encryption && srcObj.encryption !== "none")
+        query.encryption = srcObj.encryption;
       if (query.security == "reality") {
         query.pbk = srcObj.pbk;
         query.sid = srcObj.sid;
