@@ -98,18 +98,12 @@ describe("onboarding", () => {
     expect(localStorage.getItem("onboardingSeen")).toBeNull();
   });
 
-  test("changes the page behind the tutorial, then finishes on the dashboard", async () => {
+  test("goes to proxies and closes the tutorial as seen", async () => {
     const handle = await openTutorial();
     await button(tutorial, en.onboarding.next).trigger("click");
     await button(tutorial, en.onboarding.goToProxies).trigger("click");
     expect(useAppStore().view).toBe("proxies");
-    expect(host.findComponent(OnboardingDialog).exists()).toBe(true);
-    expect(localStorage.getItem("onboardingSeen")).toBeNull();
-    await button(tutorial, en.onboarding.next).trigger("click");
-    await button(tutorial, en.onboarding.next).trigger("click");
-    await button(tutorial, en.onboarding.finish).trigger("click");
-    expect(await handle.result).toBe(true);
-    expect(useAppStore().view).toBe("dashboard");
+    expect(await handle.result).toBe(false);
     expect(host.findComponent(OnboardingDialog).exists()).toBe(false);
     expect(localStorage.getItem("onboardingSeen")).toBe("1");
     expect(shouldShowOnboarding()).toBe(false);

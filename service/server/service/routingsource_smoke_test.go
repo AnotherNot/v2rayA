@@ -14,6 +14,8 @@ import (
 	"github.com/v2rayA/RoutingA"
 	"github.com/v2rayA/v2rayA/conf"
 	"github.com/v2rayA/v2rayA/db/configure"
+	"github.com/v2fly/v2ray-core/v5/app/router/routercommon"
+	"google.golang.org/protobuf/proto"
 )
 
 // The whole point of the source is that a user can point v2rayA at a rule set
@@ -190,6 +192,43 @@ func TestImportRoutingSourceFailures(t *testing.T) {
 		t.Error("a process-name rule set was accepted")
 	}
 	var after string
+	configure.GetRoutingARaw(&after)
+	if before != after {
+		t.Errorf("a rejected import changed the stored rules:\nbefore %q\nafter  %q", before, after)
+	}
+
+	// a set naming a geo tag the installed files do not hold must be
+	// refused with the tag named, the way the "all but RF" set was refused
+	// by the core after import
+	geoDir := t.TempDir()
+	sites, err := proto.Marshal(&routercommon.GeoSiteList{Entry: []*routercommon.GeoSite{
+		{CountryCode: "PRIVATE", Domain: []*routercommon.Domain{{Type: routercommon.Domain_Plain, Value: "example"}}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(geoDir, "geosite.dat"), sites, 0644); err != nil {
+		t.Fatal(err)
+	}
+	ips, err := proto.Marshal(&routercommon.GeoIPList{Entry: []*routercommon.GeoIP{
+		{CountryCode: "PRIVATE"},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(geoDir, "geoip.dat"), ips, 0644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("XRAY_LOCATION_ASSET", geoDir)
+	unknownGeo := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"version":"X","routingItems":[{"remarks":"u","ruleSet":"[{\"outboundTag\":\"proxy\",\"domain\":[\"geosite:no-such-category\"]}]"}]}`))
+	}))
+	t.Cleanup(unknownGeo.Close)
+	if _, err := ImportRoutingSource(unknownGeo.URL, ""); err == nil {
+		t.Error("a rule set with an unknown geo tag was accepted")
+	} else if !strings.Contains(err.Error(), "geosite:no-such-category") {
+		t.Errorf("the error does not name the unknown tag: %v", err)
+	}
 	configure.GetRoutingARaw(&after)
 	if before != after {
 		t.Errorf("a rejected import changed the stored rules:\nbefore %q\nafter  %q", before, after)

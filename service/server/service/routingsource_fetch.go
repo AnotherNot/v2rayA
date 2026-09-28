@@ -9,10 +9,12 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/v2rayA/RoutingA"
 	"github.com/v2rayA/v2rayA/common"
 	"github.com/v2rayA/v2rayA/common/httpClient"
 	"github.com/v2rayA/v2rayA/db/configure"
 	"github.com/v2rayA/v2rayA/kernel/v2ray"
+	"github.com/v2rayA/v2rayA/kernel/v2ray/asset/dat"
 	"github.com/v2rayA/v2rayA/pkg/util/log"
 )
 
@@ -155,6 +157,25 @@ func ImportRoutingSource(url, remarks string) (RoutingSource, error) {
 		return out, common.Coded("ROUTING_RULES_INCOMPATIBLE", err, map[string]interface{}{
 			"set":    item.Remarks,
 			"detail": err.Error(),
+		})
+	}
+	// Name what the core would reject before storing: a restart with an
+	// unparsable set or an unknown geo tag fails and rolls the import back,
+	// and the core's log line is all the user would get. PutRoutingA does
+	// the same for hand-written rules.
+	if _, err := RoutingA.Parse(source); err != nil {
+		return out, common.Coded("ROUTING_RULES_INCOMPATIBLE", fmt.Errorf("the rule set %q does not parse: %w", item.Remarks, err), map[string]interface{}{
+			"set":    item.Remarks,
+			"detail": err.Error(),
+		})
+	}
+	if missing := dat.Missing(dat.RoutingATags(source)); len(missing) > 0 {
+		names := make([]string, len(missing))
+		for i, r := range missing {
+			names[i] = r.String()
+		}
+		return out, common.Coded("UNKNOWN_GEO_TAGS", fmt.Errorf("the rule set %q needs geo tags this machine does not have: %v; install the geo files that hold them or pick another set", item.Remarks, strings.Join(names, ", ")), map[string]interface{}{
+			"tags": names,
 		})
 	}
 	if err := configure.SetRoutingA(&source); err != nil {

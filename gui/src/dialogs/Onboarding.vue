@@ -45,6 +45,13 @@ function close(finished = false) {
   emit("close", finished);
 }
 
+// Leaving for the proxies page ends the tour: a modal cannot stay open
+// over another page, and the tour reopens from About.
+function goToProxies() {
+  store.view = "proxies";
+  close();
+}
+
 // Escape and scrim dismissal remove the component through DialogHost.
 onBeforeUnmount(markSeen);
 </script>
@@ -115,7 +122,7 @@ onBeforeUnmount(markSeen);
             v-else-if="index === 1"
             variant="text"
             class="mt-6"
-            @click="store.view = 'proxies'"
+            @click="goToProxies"
           >
             {{ t("onboarding.goToProxies") }}
           </v-btn>
