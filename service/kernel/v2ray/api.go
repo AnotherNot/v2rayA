@@ -214,6 +214,9 @@ func TrafficProducer(apiPort int) (closeFunc func()) {
 			}
 		}()
 		var counter trafficCounter
+		// The core is down during restarts, so dial failures come in bursts;
+		// warn once per burst instead of once per second.
+		dialFailed := false
 		for {
 			select {
 			case <-ctx.Done():
@@ -233,9 +236,15 @@ func TrafficProducer(apiPort int) (closeFunc func()) {
 					if ctx.Err() != nil {
 						return
 					}
-					log.Warn("TrafficProducer: did not connect: %v", err)
+					if !dialFailed {
+						log.Warn("TrafficProducer: did not connect: %v", err)
+					} else {
+						log.Debug("TrafficProducer: still not connected: %v", err)
+					}
+					dialFailed = true
 					continue
 				}
+				dialFailed = false
 				conn = c
 			}
 			queryCtx, queryCancel := context.WithTimeout(ctx, ApiFeedInterval)
