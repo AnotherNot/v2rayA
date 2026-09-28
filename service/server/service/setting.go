@@ -29,7 +29,7 @@ func UpdateSetting(setting *configure.Setting) (err error) {
 	if setting.LogLevel == "" {
 		setting.LogLevel = conf.GetEnvironmentConfig().LogLevel
 	}
-	if (setting.Transparent == configure.TransparentGfwlist || setting.RulePortMode == configure.GfwlistMode) && !asset.DoesV2rayAssetExist("LoyalsoldierSite.dat") {
+	if (setting.Transparent == configure.TransparentGfwlist || setting.RulePortMode == configure.GfwlistMode) && !asset.DoesV2rayAssetExist(asset.BlocklistAsset) {
 		return asset.GFWListMissingError()
 	}
 	previousIpForward := ipforward.IsIpForwardOn()

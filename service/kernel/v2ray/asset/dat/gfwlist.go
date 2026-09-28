@@ -28,6 +28,10 @@ type GFWList struct {
 	Tag        string
 }
 
+// The updater serves the blocklist mode with a named geosite set. GFWList is
+// the default provider, not the mechanism: a custom link can supply any
+// geosite database under the blocklist asset name, and the stored mode value
+// ("gfwlist") is kept so existing installations keep working.
 var g GFWList
 var gFetchedAt time.Time
 var gMutex sync.Mutex
@@ -69,24 +73,24 @@ func GetRemoteGFWListUpdateTime(c *http.Client) (gfwlist GFWList, err error) {
 	resp, err := httpClient.HttpGetUsingSpecificClient(c, "https://api.github.com/repos/v2rayA/dist-v2ray-rules-dat/tags")
 	if err != nil {
 		detail = unwrappedReason(err)
-		err = fmt.Errorf("failed to get latest version of GFWList: %w", err)
+		err = fmt.Errorf("failed to get latest version of the blocklist data: %w", err)
 		return
 	}
 	status = resp.Status
 	defer resp.Body.Close()
 	b, err := asset.ReadAssetBody(resp)
 	if err != nil {
-		err = fmt.Errorf("cannot read the GFWList tag list: %w", err)
+		err = fmt.Errorf("cannot read the blocklist tag list: %w", err)
 		return
 	}
 	tag := gjson.GetBytes(b, "0.name").Str
 	if tag == "" {
-		err = fmt.Errorf("GitHub returned no GFWList tag list (HTTP %s); it may be rate-limiting this IP, try again later or use a custom download link", resp.Status)
+		err = fmt.Errorf("GitHub returned no blocklist tag list (HTTP %s); it may be rate-limiting this IP, try again later or use a custom download link", resp.Status)
 		return
 	}
 	t, err := time.Parse("200601021504", tag)
 	if err != nil {
-		err = fmt.Errorf("latest GFWList tag %q has an invalid timestamp: %w", tag, err)
+		err = fmt.Errorf("latest blocklist tag %q has an invalid timestamp: %w", tag, err)
 		return
 	}
 	g.Tag = tag
@@ -100,7 +104,7 @@ func IsGFWListUpdate() (update bool, remoteTime time.Time, err error) {
 		return
 	}
 	remoteTime = gfwlist.UpdateTime
-	if !asset.DoesV2rayAssetExist("LoyalsoldierSite.dat") {
+	if !asset.DoesV2rayAssetExist(asset.BlocklistAsset) {
 		//本地文件不存在，那远端必定比本地新
 		return false, remoteTime, nil
 	}
@@ -151,16 +155,16 @@ func installGeoSiteFile(downloadedPath, targetPath string) error {
 	}
 	var sites routercommon.GeoSiteList
 	if err := proto.Unmarshal(data, &sites); err != nil {
-		return fmt.Errorf("downloaded GFWList is not a valid geosite database: %w", err)
+		return fmt.Errorf("downloaded blocklist data is not a valid geosite database: %w", err)
 	}
 	if len(sites.Entry) == 0 {
-		return fmt.Errorf("downloaded GFWList contains no geosite entries")
+		return fmt.Errorf("downloaded blocklist data contains no geosite entries")
 	}
 	return os.Rename(downloadedPath, targetPath)
 }
 
 func UpdateLocalGFWListByCustomLink(downloadLink string) (localGFWListVersionAfterUpdate string, err error) {
-	pathSiteDat, err := asset.GetV2rayLocationAsset("LoyalsoldierSite.dat")
+	pathSiteDat, err := asset.GetV2rayLocationAsset(asset.BlocklistAsset)
 	if err != nil {
 		return "", err
 	}
@@ -190,7 +194,7 @@ func UpdateLocalGFWList() (localGFWListVersionAfterUpdate string, err error) {
 	if err != nil {
 		return
 	}
-	pathSiteDat, err := asset.GetV2rayLocationAsset("LoyalsoldierSite.dat")
+	pathSiteDat, err := asset.GetV2rayLocationAsset(asset.BlocklistAsset)
 	if err != nil {
 		return "", err
 	}
@@ -202,7 +206,7 @@ func UpdateLocalGFWList() (localGFWListVersionAfterUpdate string, err error) {
 	u2 := fmt.Sprintf(`https://github.com/v2rayA/dist-v2ray-rules-dat/raw/%v/geosite.dat.sha256sum`, gfwlist.Tag)
 	siteDatSha256, err := httpGet(u2)
 	if err != nil {
-		err = common.Coded("ASSET_DOWNLOAD_FAILED", fmt.Errorf("%w for GFWList: %w", FailCheckSha, err), map[string]interface{}{
+		err = common.Coded("ASSET_DOWNLOAD_FAILED", fmt.Errorf("%w for the blocklist data: %w", FailCheckSha, err), map[string]interface{}{
 			"host":   "github.com",
 			"status": "",
 		})
@@ -214,7 +218,7 @@ func UpdateLocalGFWList() (localGFWListVersionAfterUpdate string, err error) {
 		sha256 = fields[0]
 	}
 	if ok, actual := checkSha256(pathSiteDat+".new", sha256); !ok {
-		err = fmt.Errorf("%w for GFWList (expected %s, got %s); try again", DamagedFile, sha256, actual)
+		err = fmt.Errorf("%w for the blocklist data (expected %s, got %s); try again", DamagedFile, sha256, actual)
 		log.Warn("UpdateLocalGFWList: sha mismatch, expected %s, got %s", sha256, actual)
 		return
 	}
@@ -230,9 +234,9 @@ func UpdateLocalGFWList() (localGFWListVersionAfterUpdate string, err error) {
 	return
 }
 
-// ErrGFWListUpToDate reports that the local GFWList already matches the latest
-// release, so no download was needed.
-var ErrGFWListUpToDate = errors.New("GFWList is already up to date")
+// ErrGFWListUpToDate reports that the local blocklist data already matches
+// the latest release, so no download was needed.
+var ErrGFWListUpToDate = errors.New("blocklist data is already up to date")
 
 func CheckAndUpdateGFWList(downloadLink string) (localGFWListVersionAfterUpdate string, err error) {
 	if downloadLink == "" {
@@ -242,8 +246,8 @@ func CheckAndUpdateGFWList(downloadLink string) (localGFWListVersionAfterUpdate 
 		}
 		if update {
 			// Nothing to download. This is not a failure, and reporting it as
-			// one made the GUI say "could not update GFWList: GFWList is up to
-			// date"; the caller decides how to present it.
+			// one made the GUI say the update failed when the blocklist data
+			// was up to date; the caller decides how to present it.
 			return tRemote.Local().Format("2006-01-02"), ErrGFWListUpToDate
 		}
 
@@ -270,7 +274,7 @@ func CheckAndUpdateGFWList(downloadLink string) (localGFWListVersionAfterUpdate 
 }
 
 func DeleteGFWList() error {
-	pathSiteDat, err := asset.GetV2rayLocationAsset("LoyalsoldierSite.dat")
+	pathSiteDat, err := asset.GetV2rayLocationAsset(asset.BlocklistAsset)
 	if err != nil {
 		return err
 	}

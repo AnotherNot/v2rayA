@@ -203,8 +203,8 @@ export default {
     pacMode: "Режим разделения трафика для порта правил",
     mux: "Мультиплексирование",
     autoUpdateSub: "Автоматически обновлять подписки",
-    autoUpdateGfwlist: "Автоматически обновлять GFWList",
-    preferModeWhenUpdate: "Режим при обновлении подписок и GFWList",
+    autoUpdateGfwlist: "Автоматически обновлять данные blocklist",
+    preferModeWhenUpdate: "Режим при обновлении подписок и данных blocklist",
     tproxyExcludedInterfaces: "Префиксы исключаемых интерфейсов",
     tproxyExcludedInterfacesPlaceholder: "docker*, veth*, wg*, ppp*, br-*",
     tunAutoRoute: "Автоматическая маршрутизация",
@@ -234,8 +234,9 @@ export default {
       off: "Выключено",
       updateSubWhenStart: "Обновлять подписки при запуске сервиса",
       updateSubAtIntervals: "Регулярно обновлять подписки (единица: час)",
-      updateGfwlistWhenStart: "Обновлять GFWList при запуске сервиса",
-      updateGfwlistAtIntervals: "Регулярно обновлять GFWList (единица: час)",
+      updateGfwlistWhenStart: "Обновлять данные blocklist при запуске сервиса",
+      updateGfwlistAtIntervals:
+        "Регулярно обновлять данные blocklist (единица: час)",
       dependTransparentMode: "Следовать режиму прозрачного/системного прокси",
       leastPing: "Сначала узлы с наименьшей задержкой",
       systemProxy: "Системный прокси",
@@ -669,18 +670,18 @@ export default {
   },
   gfwList: {
     geosite: "{date} (geosite)",
-    title: "Обновить GFWList",
+    title: "Обновить данные blocklist",
     messages: [
       "Если в вашей среде сложно получить доступ к GitHub, скачайте последнюю версию GFWList（geosite.dat）с GitHub（https://github.com/v2rayA/dist-v2ray-rules-dat）, загрузите её на сервер, а затем введите здесь адрес сервера для скачивания.",
       "Если поле ввода пусто, файл будет автоматически скачан с GitHub; в противном случае будет использована пользовательская ссылка.",
-      "Обратите внимание: неправильный файл может привести к сбою запуска сервиса. Если после скачивания сервис не запускается, нажмите кнопку «Удалить GFWList».",
+      "Обратите внимание: неправильный файл может привести к сбою запуска сервиса. Если после скачивания сервис не запускается, нажмите кнопку «Удалить».",
     ],
     formName: "Пользовательская ссылка для скачивания",
     wrongCustomLink:
       "Пользовательская ссылка для скачивания должна начинаться с http:// или https://",
-    updated: "GFWList обновлён",
-    saveFailed: "Не удалось обновить GFWList: {message}",
-    alreadyUpToDate: "GFWList уже последней версии ({version})",
+    updated: "Данные blocklist обновлены",
+    saveFailed: "Не удалось обновить данные blocklist: {message}",
+    alreadyUpToDate: "Данные blocklist уже последней версии ({version})",
   },
   tun: {
     routeScript: {
@@ -772,7 +773,7 @@ export default {
     SESSION_INVALID: "Сеанс недействителен. Войдите снова.",
     ADMIN_REQUIRED: "Требуются права администратора.",
     REQUEST_IN_PROGRESS: "the last request is being processed",
-    GFWLIST_MISSING: "Файл GFWList отсутствует в каталоге {dir}.",
+    GFWLIST_MISSING: "Данные blocklist отсутствуют в каталоге {dir}.",
     INVALID_CONFIG: "invalid config: {detail}",
     ASSET_UNREACHABLE: "Не удалось соединиться с {host}: {detail}",
     ASSET_DOWNLOAD_FAILED:

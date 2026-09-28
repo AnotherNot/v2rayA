@@ -78,13 +78,13 @@ func (t *Template) AppendRoutingRuleByMode(mode configure.RulePortMode, inbounds
 	switch mode {
 	case configure.WhitelistMode:
 		// foreign domains with intranet IP should be proxied first rather than directly connected
-		if asset.DoesV2rayAssetExist("LoyalsoldierSite.dat") {
+		if asset.DoesV2rayAssetExist(asset.BlocklistAsset) {
 			t.Routing.Rules = append(t.Routing.Rules,
 				coreObj.RoutingRule{
 					Type:        "field",
 					OutboundTag: firstOutboundTag,
 					InboundTag:  deepcopy.Copy(inbounds).([]string),
-					Domain:      []string{"ext:LoyalsoldierSite.dat:geolocation-!cn"},
+					Domain:      []string{"ext:" + asset.BlocklistAsset + ":geolocation-!cn"},
 				})
 		} else {
 			t.Routing.Rules = append(t.Routing.Rules,
@@ -123,19 +123,19 @@ func (t *Template) AppendRoutingRuleByMode(mode configure.RulePortMode, inbounds
 			},
 		)
 	case configure.GfwlistMode:
-		if asset.DoesV2rayAssetExist("LoyalsoldierSite.dat") {
+		if asset.DoesV2rayAssetExist(asset.BlocklistAsset) {
 			t.Routing.Rules = append(t.Routing.Rules,
 				coreObj.RoutingRule{
 					Type:        "field",
 					OutboundTag: firstOutboundTag,
 					InboundTag:  deepcopy.Copy(inbounds).([]string),
-					Domain:      []string{"ext:LoyalsoldierSite.dat:gfw"},
+					Domain:      []string{"ext:" + asset.BlocklistAsset + ":gfw"},
 				},
 				coreObj.RoutingRule{
 					Type:        "field",
 					OutboundTag: firstOutboundTag,
 					InboundTag:  deepcopy.Copy(inbounds).([]string),
-					Domain:      []string{"ext:LoyalsoldierSite.dat:greatfire"},
+					Domain:      []string{"ext:" + asset.BlocklistAsset + ":greatfire"},
 				})
 		} else {
 			t.Routing.Rules = append(t.Routing.Rules,

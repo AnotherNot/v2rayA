@@ -417,7 +417,7 @@ func (m *CoreProcessManager) Start(t *Template) (err error) {
 	// previous process is running.  Port occupancy is checked by NewProcess
 	// after the old process has been stopped.
 	resolv.CheckResolvConf()
-	if (t.Setting.Transparent == configure.TransparentGfwlist || t.Setting.RulePortMode == configure.GfwlistMode) && !asset.DoesV2rayAssetExist("LoyalsoldierSite.dat") {
+	if (t.Setting.Transparent == configure.TransparentGfwlist || t.Setting.RulePortMode == configure.GfwlistMode) && !asset.DoesV2rayAssetExist(asset.BlocklistAsset) {
 		_ = t.Close()
 		return asset.GFWListMissingError()
 	}

@@ -204,8 +204,8 @@ export default {
     pacMode: "Modo de divisão de tráfego da porta de regras",
     mux: "Multiplexação",
     autoUpdateSub: "Atualizar assinaturas automaticamente",
-    autoUpdateGfwlist: "Atualizar GFWList automaticamente",
-    preferModeWhenUpdate: "Modo ao atualizar assinaturas e GFWList",
+    autoUpdateGfwlist: "Atualizar dados de blocklist automaticamente",
+    preferModeWhenUpdate: "Modo ao atualizar assinaturas e dados de blocklist",
     tproxyExcludedInterfaces: "Prefixos de interfaces excluídos",
     tproxyExcludedInterfacesPlaceholder: "docker*, veth*, wg*, ppp*, br-*",
     tunAutoRoute: "Rota automática",
@@ -236,9 +236,10 @@ export default {
       updateSubWhenStart: "Atualizar assinaturas ao iniciar o serviço",
       updateSubAtIntervals:
         "Atualizar assinaturas regularmente (unidade: hora)",
-      updateGfwlistWhenStart: "Atualizar GFWList ao iniciar o serviço",
+      updateGfwlistWhenStart:
+        "Atualizar dados de blocklist ao iniciar o serviço",
       updateGfwlistAtIntervals:
-        "Atualizar GFWList regularmente (unidade: hora)",
+        "Atualizar dados de blocklist regularmente (unidade: hora)",
       dependTransparentMode: "Segue o proxy transparente/proxy do sistema",
       leastPing: "Menor latência primeiro",
       systemProxy: "Proxy do sistema",
@@ -672,18 +673,19 @@ export default {
   },
   gfwList: {
     geosite: "{date} (geosite)",
-    title: "Atualizar GFWList",
+    title: "Atualizar dados de blocklist",
     messages: [
       "Se o acesso ao GitHub for difícil no seu ambiente, baixe a GFWList (geosite.dat) mais recente do GitHub (https://github.com/v2rayA/dist-v2ray-rules-dat), envie-a para o servidor e insira aqui o endereço do servidor para baixá-la.",
       "Se o formulário estiver vazio, o arquivo será baixado automaticamente do GitHub; caso contrário, será usado o link personalizado.",
-      "Atenção: um arquivo incorreto pode impedir a inicialização do serviço. Se o serviço não iniciar após o download, clique no botão Excluir GFWList.",
+      "Atenção: um arquivo incorreto pode impedir a inicialização do serviço. Se o serviço não iniciar após o download, clique no botão Excluir.",
     ],
     formName: "Link de download personalizado",
     wrongCustomLink:
       "O link de download personalizado deve começar com http:// ou https://",
-    updated: "GFWList atualizada",
-    saveFailed: "Falha ao atualizar a GFWList: {message}",
-    alreadyUpToDate: "A GFWList já está na versão mais recente ({version})",
+    updated: "Dados de blocklist atualizados",
+    saveFailed: "Falha ao atualizar os dados de blocklist: {message}",
+    alreadyUpToDate:
+      "Os dados de blocklist já estão na versão mais recente ({version})",
   },
   tun: {
     routeScript: {
@@ -775,7 +777,7 @@ export default {
     SESSION_INVALID: "Sua sessão é inválida. Entre novamente.",
     ADMIN_REQUIRED: "É necessário acesso de administrador.",
     REQUEST_IN_PROGRESS: "the last request is being processed",
-    GFWLIST_MISSING: "A GFWList está ausente no diretório {dir}.",
+    GFWLIST_MISSING: "Os dados de blocklist estão ausentes no diretório {dir}.",
     INVALID_CONFIG: "invalid config: {detail}",
     ASSET_UNREACHABLE: "Não foi possível conectar a {host}: {detail}",
     ASSET_DOWNLOAD_FAILED:

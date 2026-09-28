@@ -122,9 +122,16 @@ func GetV2rayLocationAsset(filename string) (string, error) {
 	}
 }
 
+// BlocklistAsset is the geosite database the blocklist mode matches against.
+// The filename stays the upstream one: renaming it would orphan the file on
+// every existing installation and diverge from the provider that publishes
+// it (v2rayA/dist-v2ray-rules-dat). Any geosite database can be supplied
+// under this name through a custom download link.
+const BlocklistAsset = "LoyalsoldierSite.dat"
+
 // coreAssets are the files v2raya_core itself loads by name; it is given
 // XRAY_LOCATION_ASSET and looks nowhere else.
-var coreAssets = []string{"geoip.dat", "geosite.dat", "LoyalsoldierSite.dat", "geoip-only-cn-private.dat"}
+var coreAssets = []string{"geoip.dat", "geosite.dat", BlocklistAsset, "geoip-only-cn-private.dat"}
 
 // EnsureCoreAssets links the dat files the core needs into assetDir when they
 // live somewhere else. v2rayA only ever created those links as a side effect
@@ -195,11 +202,11 @@ func DoesV2rayAssetExist(filename string) bool {
 
 func GFWListMissingError() error {
 	dir := GetV2rayLocationAssetOverride()
-	return common.Coded("GFWLIST_MISSING", fmt.Errorf("GFWList mode needs LoyalsoldierSite.dat, which is missing from %s; update GFWList first", dir), map[string]interface{}{"dir": dir})
+	return common.Coded("GFWLIST_MISSING", fmt.Errorf("blocklist mode needs %s, which is missing from %s; update the blocklist data first", BlocklistAsset, dir), map[string]interface{}{"dir": dir})
 }
 
 func GetGFWListModTime() (time.Time, error) {
-	fullpath, err := GetV2rayLocationAsset("LoyalsoldierSite.dat")
+	fullpath, err := GetV2rayLocationAsset(BlocklistAsset)
 	if err != nil {
 		return time.Now(), err
 	}
