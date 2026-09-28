@@ -4,12 +4,12 @@ With the transparent proxy on, traffic reaches the core without any application 
 
 ## Policies
 
-| Policy                | Traffic through the proxy                                                                                                                                                                                        |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Do not split          | everything                                                                                                                                                                                                       |
-| Proxy except CN sites | everything except Chinese domains and addresses (`geosite:cn`, `geoip:cn`) and private addresses; sites outside China, Google and Hong Kong and Macao addresses are proxied even when a Chinese rule would match |
-| Proxy only GFWList    | the domains on the GFWList (`gfw` and `greatfire` from Loyalsoldier's file) and Telegram's address ranges; run **Update GFWList** first, the mode is refused without the file                                    |
-| Same as the rule port | the rule port's mode, including RoutingA                                                                                                                                                                         |
+| Policy                | Traffic through the proxy                                                                                                                                                                           |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Do not split          | everything                                                                                                                                                                                          |
+| Proxy except allowlist | everything except the allowlist domains and addresses (`geosite:cn`, `geoip:cn`) and private addresses; sites outside the allowlist, Google and Hong Kong and Macao addresses are proxied even when an allowlist rule would match |
+| Proxy only blocklist  | the domains in the blocklist set (`gfw` and `greatfire` from Loyalsoldier's file) and Telegram's address ranges; run **Update blocklist data** first, the mode is refused without the file          |
+| Same as the rule port | the rule port's mode, including RoutingA                                                                                                                                                            |
 
 ## Implementations
 
@@ -38,7 +38,7 @@ Known limitation: on Windows and macOS an application that queries a LAN resolve
 
 ## DNS
 
-**Settings → DNS Settings** holds the rules the core's DNS module follows: which upstream answers which domains, and whether the query goes out directly. The defaults send private names to `127.0.0.1:53` (`localhost`, which needs a resolver listening there), `geosite:cn` to `223.5.5.5` directly, and everything else to `1.0.0.1` through the proxy. An outbound of `direct` queries directly; a single outbound name (such as `proxy`) is forced on the query, bypassing the routing rules; a group name sends the query through the local SOCKS inbound, where the routing rules — balancers included — pick the member. The rule with an empty domain list answers every domain no other rule names. An upstream is an address (`8.8.8.8`, `dns.google`), `tcp://host`, `tls://host` for DNS over TLS or `https://host/dns-query` for DNS over HTTPS; DNS over QUIC is not supported and is refused on save.
+**Settings → DNS Settings** holds the rules the core's DNS module follows: which upstream answers which domains, and whether the query goes out directly. The defaults send private names to `127.0.0.1:53` (`localhost`, which needs a resolver listening there) and everything else to `1.0.0.1` through the proxy. An outbound of `direct` queries directly; a single outbound name (such as `proxy`) is forced on the query, bypassing the routing rules; a group name sends the query through the local SOCKS inbound, where the routing rules — balancers included — pick the member. The rule with an empty domain list answers every domain no other rule names. An upstream is an address (`8.8.8.8`, `dns.google`), `tcp://host`, `tls://host` for DNS over TLS or `https://host/dns-query` for DNS over HTTPS; DNS over QUIC is not supported and is refused on save.
 
 The rules can be imported from a URL instead of written by hand: the **Rule source** panel in the same dialog. It shows the address and the version last served. The source publishes rules in this project's own shape (an upstream and an outbound per rule) — not the DNS template other clients exchange, which carries no per-domain mapping and no outbound assignment. Importing the same version twice answers that nothing changed, and forgetting the source keeps the rules.
 

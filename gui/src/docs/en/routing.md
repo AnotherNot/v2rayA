@@ -38,7 +38,7 @@ domain(domain: corp.example) -> office
 
 `geosite:` categories come from the v2fly [domain-list-community](https://github.com/v2fly/domain-list-community) and `geoip:` codes from [v2fly/geoip](https://github.com/v2fly/geoip); v2rayA downloads whichever file is missing on first start, a package may ship its own build. Frequently used: `geosite:cn`, `geosite:geolocation-!cn`, `geosite:private`, `geosite:category-ads-all`, `geosite:greatfire`, `geosite:netflix`, `geosite:youtube`, `geosite:telegram`, `geosite:openai`; `geoip:cn`, `geoip:private` and the country codes. An attribute narrows a category: `geosite:apple@cn`, `geosite:category-games@cn`.
 
-Names that exist only in Loyalsoldier's builds (`gfw`, `apple-cn`, `google-cn`, `geoip:telegram`) are not in these files; the core refuses them with `illegal domain rule` or `illegal ip rule`. **Update GFWList** downloads that build (from `v2rayA/dist-v2ray-rules-dat`) as `LoyalsoldierSite.dat`, and rules can then use it as `domain(ext:"LoyalsoldierSite.dat:gfw")`.
+Names that exist only in Loyalsoldier's builds (`gfw`, `apple-cn`, `google-cn`, `geoip:telegram`) are not in these files; the core refuses them with `illegal domain rule` or `illegal ip rule`. **Update blocklist data** downloads that build (from `v2rayA/dist-v2ray-rules-dat`) as `LoyalsoldierSite.dat`, and rules can then use it as `domain(ext:"LoyalsoldierSite.dat:gfw")`.
 
 ## The editor
 

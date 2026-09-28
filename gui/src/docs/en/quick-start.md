@@ -42,7 +42,7 @@ The ports are changed under **Settings → Address and Ports**; 0 closes an inbo
 
 ## Routing
 
-**Settings → Traffic splitting** picks how the rule port and the transparent proxy split traffic: proxy everything except Chinese sites, proxy only the GFWList, or your own RoutingA rules. RoutingA is described in its own section.
+**Settings → Traffic splitting** picks how the rule port and the transparent proxy split traffic: proxy everything except the allowlist, proxy only the blocklist, or your own RoutingA rules. RoutingA is described in its own section.
 
 ## Keyboard
 

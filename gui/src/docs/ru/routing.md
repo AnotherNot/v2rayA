@@ -38,7 +38,7 @@ domain(domain: corp.example) -> office
 
 Категории `geosite:` берутся из [domain-list-community](https://github.com/v2fly/domain-list-community) проекта v2fly, а коды `geoip:` — из [v2fly/geoip](https://github.com/v2fly/geoip); при первом запуске v2rayA скачивает недостающие файлы, пакет может содержать собственную сборку этих файлов. Часто используются: `geosite:cn`, `geosite:geolocation-!cn`, `geosite:private`, `geosite:category-ads-all`, `geosite:greatfire`, `geosite:netflix`, `geosite:youtube`, `geosite:telegram`, `geosite:openai`; `geoip:cn`, `geoip:private` и коды стран. Атрибут сужает категорию: `geosite:apple@cn`, `geosite:category-games@cn`.
 
-Имена, которые есть только в сборках Loyalsoldier (`gfw`, `apple-cn`, `google-cn`, `geoip:telegram`), отсутствуют в этих файлах; ядро отклоняет их с ошибкой `illegal domain rule` или `illegal ip rule`. Кнопка **Обновить GFWList** скачивает эту сборку (из `v2rayA/dist-v2ray-rules-dat`) как `LoyalsoldierSite.dat`, после чего правила могут использовать её как `domain(ext:"LoyalsoldierSite.dat:gfw")`.
+Имена, которые есть только в сборках Loyalsoldier (`gfw`, `apple-cn`, `google-cn`, `geoip:telegram`), отсутствуют в этих файлах; ядро отклоняет их с ошибкой `illegal domain rule` или `illegal ip rule`. Кнопка **Обновить данные blocklist** скачивает эту сборку (из `v2rayA/dist-v2ray-rules-dat`) как `LoyalsoldierSite.dat`, после чего правила могут использовать её как `domain(ext:"LoyalsoldierSite.dat:gfw")`.
 
 ## Редактор
 
