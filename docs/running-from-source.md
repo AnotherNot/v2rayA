@@ -59,7 +59,10 @@ ls -la v2raya v2raya_core
 ```
 
 **You should see** two files listed with sizes. If the first command fails, the
-usual cause is no `web/` output, which every later step also needs.
+usual cause is no `web/` output, which every later step also needs. If
+`docker run` itself fails with a bridge-networking error, see the
+`--network host` variant in [testing-on-a-real-machine.md](testing-on-a-real-machine.md)
+section 1.1.
 
 ## Step 2 — start
 

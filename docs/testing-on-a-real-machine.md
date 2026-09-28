@@ -72,6 +72,27 @@ docker run --rm -v "$PWD:/repo" -w /repo/service golang:1.26 \
 
 `./build.sh` does the same with a local Go 1.26 and yarn.
 
+The `-v "$PWD:/repo"` mount is what makes local changes build: the
+container sees the working tree, uncommitted edits included, so there is no
+separate step to "pick up" modifications — edit, rerun the commands above,
+restart the service.
+
+If `docker run` fails after pulling the image with
+`failed to add the host <=> sandbox pair interfaces: operation not
+supported`, the host cannot create the bridge network's virtual interfaces
+and the container never starts. Share the host's network stack instead, on
+all three commands:
+
+```sh
+docker run --rm --network host -v "$PWD:/repo" -w /repo/gui node:24 \
+  bash -c 'corepack enable >/dev/null && yarn install --frozen-lockfile && yarn build'
+```
+
+Without Docker at all, the same commands run natively with a local Node 24
+(+ yarn, `corepack enable` first) and a local Go 1.26 — from the repository
+root, in `gui`, `core` and `service` in that order, keeping the
+`mkdir`/`cp` step between the interface and the service.
+
 ### 1.2 Launch without touching the system
 
 ```sh
