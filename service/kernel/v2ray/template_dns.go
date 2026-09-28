@@ -463,7 +463,7 @@ func (t *Template) generateDnsModuleConfig(serverInfos []serverInfo) error {
 	}
 	nodeDomains = common.Deduplicate(nodeDomains)
 	if len(nodeDomains) > 0 {
-		nodeUpstreamAddr := "223.5.5.5:53"
+		nodeUpstreamAddr := "1.0.0.1:53"
 		for _, s := range append(directDnsServers(), bootstrapDns...) {
 			if host, _, err := net.SplitHostPort(s); err == nil {
 				if ip := net.ParseIP(host); ip != nil && !ip.IsLoopback() {

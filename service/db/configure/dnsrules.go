@@ -40,7 +40,6 @@ type DnsRule struct {
 // DefaultDnsRules 是内置的默认 DNS 规则。
 var DefaultDnsRules = []DnsRule{
 	{Server: "localhost", Domains: "geosite:private", Outbound: "direct"},
-	{Server: "223.5.5.5", Domains: "geosite:cn", Outbound: "direct"},
 	{Server: "1.0.0.1", Domains: "", Outbound: "proxy"},
 }
 

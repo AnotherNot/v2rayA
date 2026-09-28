@@ -85,7 +85,7 @@ func fallbackResolver() string {
 			return host
 		}
 	}
-	return "119.29.29.29"
+	return "1.0.0.1"
 }
 
 const (

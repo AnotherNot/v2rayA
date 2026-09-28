@@ -26,10 +26,10 @@ func (r *DnsReporter) DialDefaultDns() (ok bool, report string) {
 
 func (r *DnsReporter) Dial() (ok bool, report string) {
 	var list = [][2]string{
-		{"223.6.6.6:53", "udp"},
-		{"119.29.29.29:53", "udp"},
-		{"223.6.6.6:53", "tcp"},
-		{"119.29.29.29:53", "tcp"},
+		{"1.0.0.1:53", "udp"},
+		{"8.8.8.8:53", "udp"},
+		{"1.0.0.1:53", "tcp"},
+		{"8.8.8.8:53", "tcp"},
 	}
 	var lines []string
 	for i := range list {

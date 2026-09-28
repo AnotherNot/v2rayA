@@ -16,8 +16,7 @@ const { t } = useI18n();
 const notify = useNotify();
 const defaults: DnsRule[] = [
   { server: "localhost", domains: "geosite:private", outbound: "direct" },
-  { server: "223.5.5.5", domains: "geosite:cn", outbound: "direct" },
-  { server: "8.8.8.8", domains: "", outbound: "proxy" },
+  { server: "1.0.0.1", domains: "", outbound: "proxy" },
 ];
 const rules = ref<DnsRule[]>(defaults.map((rule) => ({ ...rule })));
 const outbounds = ref(["proxy"]);
