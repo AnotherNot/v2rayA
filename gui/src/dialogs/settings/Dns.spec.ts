@@ -142,14 +142,13 @@ describe("the DNS settings dialog", () => {
     ]);
   });
 
-  test("uses and restores the three legacy defaults when no rules are stored", async () => {
+  test("uses and restores the two neutral defaults when no rules are stored", async () => {
     api.getDnsRules.mockResolvedValue({ rules: [] });
     const w = mountWithApp(Dns);
     await flushPromises();
     expect(servers(w).map((input) => input.element.value)).toEqual([
       "localhost",
-      "223.5.5.5",
-      "8.8.8.8",
+      "1.0.0.1",
     ]);
     await servers(w)[0].setValue("changed");
     await w.findAll('button[aria-label="Delete"]')[1].trigger("click");
@@ -158,8 +157,7 @@ describe("the DNS settings dialog", () => {
     await flushPromises();
     expect(api.putDnsRules).toHaveBeenCalledExactlyOnceWith([
       { server: "localhost", domains: "geosite:private", outbound: "direct" },
-      { server: "223.5.5.5", domains: "geosite:cn", outbound: "direct" },
-      { server: "8.8.8.8", domains: "", outbound: "proxy" },
+      { server: "1.0.0.1", domains: "", outbound: "proxy" },
     ]);
   });
 

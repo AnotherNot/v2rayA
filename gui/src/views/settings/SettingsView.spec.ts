@@ -100,7 +100,7 @@ describe("settings list", () => {
     await mountPage();
     await choose("Log Level", "Debug");
     await wrapper
-      .get('input[aria-label="Update GFWList Regularly (Unit: hour)"]')
+      .get('input[aria-label="Update Blocklist Data Regularly (Unit: hour)"]')
       .setValue("48");
     await wrapper.get('input[aria-label="Concurrency"]').setValue("16");
     // the dashboard's quick controls are here too, in the same form
@@ -134,14 +134,14 @@ describe("settings list", () => {
       false,
     );
     await wrapper
-      .get('input[aria-label="Update GFWList Regularly (Unit: hour)"]')
+      .get('input[aria-label="Update Blocklist Data Regularly (Unit: hour)"]')
       .setValue("0");
     await wrapper.get('button[type="submit"]').trigger("click");
     await flushPromises();
     expect(putSetting).not.toHaveBeenCalled();
     expect(wrapper.text()).toContain("Required");
     await wrapper
-      .get('input[aria-label="Update GFWList Regularly (Unit: hour)"]')
+      .get('input[aria-label="Update Blocklist Data Regularly (Unit: hour)"]')
       .setValue("12");
     await wrapper.get('button[type="submit"]').trigger("click");
     await flushPromises();
