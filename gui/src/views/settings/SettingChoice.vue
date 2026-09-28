@@ -60,6 +60,11 @@ const current = computed(
   text-align: end;
   overflow-wrap: anywhere;
 }
+/* the button internals clip with an ellipsis by default; a choice like the
+long routing-mode title must wrap instead of being cut mid-word */
+.setting-choice :deep(.v-btn__content) {
+  white-space: normal;
+}
 @media (max-width: 599px) {
   .setting-choice {
     max-width: 112px;

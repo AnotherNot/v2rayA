@@ -59,6 +59,14 @@ function select([value]: unknown[]) {
 }
 watch([section, locale], show, { immediate: true });
 watch(section, (value) => (store.docsSection = value));
+// a docs link clicked while the docs are already open changes only the
+// store: without this the article stays on the previous section
+watch(
+  () => store.docsSection,
+  (value) => {
+    if (isSection(value) && value !== section.value) section.value = value;
+  },
+);
 </script>
 
 <template>

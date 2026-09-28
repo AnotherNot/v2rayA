@@ -68,4 +68,18 @@ describe("the documentation page", () => {
     expect(useAppStore().docsSection).toBe("parameters");
     w.unmount();
   });
+
+  test("follows a docs link while already open", async () => {
+    const w = mountWithApp(DocsView);
+    await settle(w);
+    expect(w.find(".docs__body h1").text()).toBe("Quick start");
+    // a DocsLink clicked on the open docs page changes only the store, the
+    // way a hash navigation does; the article must follow it
+    useAppStore().docsSection = "routing";
+    await vi.waitFor(async () => {
+      await flushPromises();
+      expect(w.find(".docs__body h1").text()).toBe("Routing rules");
+    });
+    w.unmount();
+  });
 });

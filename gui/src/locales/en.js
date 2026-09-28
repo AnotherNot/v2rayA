@@ -243,6 +243,8 @@ export default {
     messages: {
       inboundSniffing:
         "Sniff inbound traffic. If it is not turned on, some traffic may not be diverted correctly.",
+      routeOnly:
+        "Use the sniffed domain for routing decisions only; the connection itself still goes to the original address.",
       gfwlist:
         "Based on modified time of file which sometimes is after latest version online.",
       transparentProxy:

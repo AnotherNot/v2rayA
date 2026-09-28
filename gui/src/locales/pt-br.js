@@ -247,6 +247,8 @@ export default {
     messages: {
       inboundSniffing:
         "Inspeciona o tráfego de entrada. Se estiver desativado, parte do tráfego poderá não ser redirecionada corretamente.",
+      routeOnly:
+        "Usa o domínio inspecionado apenas para decidir o roteamento; a conexão em si continua para o endereço original.",
       gfwlist:
         "Baseia-se na data de modificação do arquivo, que às vezes é posterior à versão mais recente online.",
       transparentProxy:

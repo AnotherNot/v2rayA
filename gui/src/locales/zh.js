@@ -237,6 +237,7 @@ export default {
     },
     messages: {
       inboundSniffing: "嗅探入站域名，如不开启，可能导致部分域名分流错误",
+      routeOnly: "嗅探到的域名仅用于路由判断；连接本身仍发往原始地址",
       gfwlist: "该时间是指本地文件最后修改时间，因此可能会领先最新版本",
       transparentProxy:
         "全局代理开启后，无需经过额外设置，任何TCP流量均会经过V2RayA。另外，如需作为网关使得连接本机的其他主机或docker也享受代理，请勾选“开启局域网共享”。",

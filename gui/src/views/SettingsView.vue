@@ -387,7 +387,7 @@ defineExpose({ sync: () => settings.load() });
         />
         <v-expand-transition>
           <div v-if="form.inboundSniffing !== 'disable'">
-            <SettingRow title="RouteOnly">
+            <SettingRow title="RouteOnly" :hint="t('setting.messages.routeOnly')">
               <v-switch
                 v-model="form.routeOnly"
                 aria-label="RouteOnly"

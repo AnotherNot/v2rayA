@@ -240,6 +240,8 @@ export default {
     messages: {
       inboundSniffing:
         "인바운드 트래픽을 스니핑합니다. 활성화하지 않으면 일부 트래픽이 올바르게 분할되지 않을 수 있습니다.",
+      routeOnly:
+        "스니핑된 도메인은 라우팅 판단에만 사용되며, 연결 자체는 원래 주소로 향합니다.",
       gfwlist:
         "파일의 수정 시각을 기준으로 하므로 온라인 최신 버전보다 이후일 수 있습니다.",
       transparentProxy:
