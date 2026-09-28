@@ -225,8 +225,8 @@ export default {
       global: "Do not Split Traffic",
       direct: "Direct",
       pac: "Depend on Rule Port",
-      whitelistCn: "Proxy except CN Sites",
-      gfwlist: "Proxy only GFWList",
+      whitelistCn: "Proxy except allowlist",
+      gfwlist: "Proxy only blocklist",
       sameAsPacMode: "Traffic Splitting Mode is the Same as the Rule Port",
       default: "Keep Default",
       on: "On",
@@ -247,6 +247,8 @@ export default {
         "Use the sniffed domain for routing decisions only; the connection itself still goes to the original address.",
       gfwlist:
         "Based on modified time of file which sometimes is after latest version online.",
+      gfwlistUnused:
+        "Needed by the blocklist mode; update before switching to it.",
       transparentProxy:
         "If transparent proxy on, no extra configure needed and all TCP traffic will pass through the v2rayA. Providing proxy service to other computers and docker as the gateway should make option 'Share in LAN' on.",
       transparentType:
@@ -257,7 +259,7 @@ export default {
         "When enabled, v2rayA installs the routes and DNS settings itself. When disabled, you must provide setup/teardown scripts that configure routing yourself.",
       tunExcludeProcesses:
         "Process names whose traffic bypasses the proxy, one per line, e.g. chrome.exe or firefox. v2rayA and the core are always excluded. A process is identified by the executable name of the socket owner; a socket that closed before the lookup, or a port reused by another process, cannot be attributed. Their DNS queries are still answered by the core's DNS module.",
-      pacMode: `Here you can set the splitting traffic rule of the rule port. By default, "Rule of Splitting Traffic" port is 20172 and HTTP protocol.`,
+      pacMode: `Here you can set the splitting traffic rule of the rule port. By default, "Rule of Splitting Traffic" port is 20172 and HTTP protocol. Allowlist goes direct, blocklist goes through the proxy; custom rules live in the RoutingA editor below.`,
       tcpFastOpen:
         "Simplify TCP handshake process to speed up connection establishment. Risk of emphasizing characteristics of packets exists. It may cause failed to connect if your system does not support it.",
       mux:

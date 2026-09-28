@@ -222,8 +222,8 @@ export default {
       global: "트래픽을 분할하지 않음",
       direct: "직접 연결",
       pac: "규칙 포트를 따름",
-      whitelistCn: "중국 사이트 외 프록시",
-      gfwlist: "GFWList만 프록시",
+      whitelistCn: "allowlist 외 프록시",
+      gfwlist: "blocklist만 프록시",
       sameAsPacMode: "트래픽 분할 모드가 규칙 포트와 동일",
       default: "기본값 유지",
       on: "켜기",
@@ -244,6 +244,7 @@ export default {
         "스니핑된 도메인은 라우팅 판단에만 사용되며, 연결 자체는 원래 주소로 향합니다.",
       gfwlist:
         "파일의 수정 시각을 기준으로 하므로 온라인 최신 버전보다 이후일 수 있습니다.",
+      gfwlistUnused: "blocklist 모드에 필요하며, 전환하기 전에 업데이트하세요.",
       transparentProxy:
         "투명 프록시를 켜면 추가 설정 없이 모든 TCP 트래픽이 v2rayA를 통과합니다. 다른 컴퓨터와 Docker에 게이트웨이로 프록시 서비스를 제공하려면 'LAN에서 공유' 옵션을 켜세요.",
       transparentType:
@@ -254,7 +255,7 @@ export default {
         "활성화하면 v2rayA가 라우트와 DNS 설정을 직접 설치합니다. 비활성화하면 라우팅을 직접 구성할 시작/종료 스크립트를 제공해야 합니다.",
       tunExcludeProcesses:
         "트래픽이 프록시를 우회할 프로세스 이름을 한 줄에 하나씩 입력합니다. 예: chrome.exe 또는 firefox. v2rayA와 코어는 항상 제외됩니다. 소켓 소유자의 실행 파일 이름으로 식별하므로, 조회 전에 닫힌 소켓이나 다른 프로세스가 재사용한 포트는 식별할 수 없습니다. 제외된 프로세스의 DNS 질의는 여전히 코어의 DNS 모듈이 응답합니다.",
-      pacMode: `여기에서 규칙 포트의 트래픽 분할 규칙을 설정할 수 있습니다. 기본적으로 "트래픽 분할 규칙" 포트는 20172이며 HTTP 프로토콜입니다.`,
+      pacMode: `여기에서 규칙 포트의 트래픽 분할 규칙을 설정할 수 있습니다. 기본적으로 "트래픽 분할 규칙" 포트는 20172이며 HTTP 프로토콜입니다. allowlist는 직접 연결되고 blocklist는 프록시를 거칩니다. 사용자 규칙은 아래 RoutingA 편집기에서 작성하세요.`,
       tcpFastOpen:
         "TCP 핸드셰이크를 단순화하여 연결 수립을 빠르게 합니다. 패킷 특성이 강조될 위험이 있으며 시스템이 지원하지 않으면 연결에 실패할 수 있습니다.",
       mux:

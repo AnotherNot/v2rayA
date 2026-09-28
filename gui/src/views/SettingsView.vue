@@ -334,7 +334,13 @@ defineExpose({ sync: () => settings.load() });
         />
         <SettingRow
           :title="t('gfwList.title')"
-          :hint="localVersionAhead ? t('setting.messages.gfwlist') : undefined"
+          :hint="
+            !gfwlistInUse
+              ? t('setting.messages.gfwlistUnused')
+              : localVersionAhead
+                ? t('setting.messages.gfwlist')
+                : undefined
+          "
           :subtitle="`${t('common.latest')}: ${remoteGFWListVersion || t('common.checkRunning')}  ${t('common.local')}: ${localVersionDisplay}`"
           action
           @click="openGfwList"

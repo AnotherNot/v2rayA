@@ -220,8 +220,8 @@ export default {
       global: "不进行分流",
       direct: "直连模式",
       pac: "跟随规则端口",
-      whitelistCn: "大陆白名单模式",
-      gfwlist: "GFWList模式",
+      whitelistCn: "除 allowlist 外走代理",
+      gfwlist: "仅 blocklist 走代理",
       sameAsPacMode: "分流规则与规则端口所选模式一致",
       default: "保持系统默认",
       on: "启用",
@@ -239,6 +239,7 @@ export default {
       inboundSniffing: "嗅探入站域名，如不开启，可能导致部分域名分流错误",
       routeOnly: "嗅探到的域名仅用于路由判断；连接本身仍发往原始地址",
       gfwlist: "该时间是指本地文件最后修改时间，因此可能会领先最新版本",
+      gfwlistUnused: "供 blocklist 模式使用；切换到该模式前请先更新",
       transparentProxy:
         "全局代理开启后，无需经过额外设置，任何TCP流量均会经过V2RayA。另外，如需作为网关使得连接本机的其他主机或docker也享受代理，请勾选“开启局域网共享”。",
       transparentType:
@@ -250,7 +251,7 @@ export default {
       tunExcludeProcesses:
         "流量直连的进程名，一行一个，例如：chrome.exe、firefox。v2rayA 与核心始终排除。按 socket 属主的可执行文件名识别；查找前已关闭的 socket 或被其他进程复用的端口无法归属。被排除进程的 DNS 查询仍由核心 DNS 模块回答。",
       pacMode:
-        "该选项设置规则分流端口所使用的路由模式。默认情况下规则分流端口为20172，HTTP协议。",
+        "该选项设置规则分流端口所使用的路由模式。默认情况下规则分流端口为20172，HTTP协议。allowlist 直连，blocklist 走代理；自定义规则在下方的 RoutingA 编辑器中编写。",
       tcpFastOpen:
         "简化TCP握手流程以加速建立连接，可能会增加封包的特征。若系统不支持可能会导致无法正常连接。",
       mux: "复用TCP连接以减少握手次数，但会影响吞吐量大的使用场景，如观看视频、下载、测速。当前仅支持vmess节点。可能会增加特征造成断流。",
