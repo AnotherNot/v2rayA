@@ -203,6 +203,9 @@ func TestHttpSpeed(which []*configure.Which, timeout time.Duration, maxParallel 
 	} else {
 		v2ray.ProcessManager.Stop(true)
 	}
+	if err := configure.NewWhiches(which).SaveSpeeds(); err != nil {
+		return nil, fmt.Errorf("failed to save the speed test result: %v", err)
+	}
 	return which, nil
 }
 
