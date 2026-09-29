@@ -67,7 +67,7 @@ func checkAssetsExist(setting *configure.Setting) error {
 	if !asset.DoesV2rayAssetExist("geoip.dat") || !asset.DoesV2rayAssetExist("geosite.dat") {
 		return fmt.Errorf("geoip.dat or geosite.dat is missing from %s; put the files there or set --v2ray-assetsdir", asset.GetV2rayLocationAssetOverride())
 	}
-	if setting.RulePortMode == configure.GfwlistMode || setting.Transparent == configure.TransparentGfwlist {
+	if setting.RulePortMode == configure.BlocklistMode || setting.Transparent == configure.TransparentBlocklist {
 		if !asset.DoesV2rayAssetExist(asset.BlocklistAsset) {
 			return asset.GFWListMissingError()
 		}

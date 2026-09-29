@@ -118,7 +118,7 @@ beforeEach(() => {
       pacMode: "routingA",
       logLevel: "info",
     },
-    localGFWListVersion: "",
+    localBlocklistVersion: "",
     localGeositeVersion: "",
   });
   vi.mocked(postV2ray).mockResolvedValue(response(true));

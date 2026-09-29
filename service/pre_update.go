@@ -106,12 +106,12 @@ func checkUpdate() {
 	// check for PAC file updates
 	if setting.GFWListAutoUpdateMode == configure.AutoUpdate ||
 		setting.GFWListAutoUpdateMode == configure.AutoUpdateAtIntervals ||
-		setting.Transparent == configure.TransparentGfwlist {
+		setting.Transparent == configure.TransparentBlocklist {
 		if setting.GFWListAutoUpdateMode == configure.AutoUpdateAtIntervals {
 			conf.TickerUpdateGFWList.Reset(configure.IntervalHours(setting.GFWListAutoUpdateIntervalHour))
 		}
 		switch setting.RulePortMode {
-		case configure.GfwlistMode:
+		case configure.BlocklistMode:
 			go func() {
 				/* Update LoyalsoldierSite.dat */
 				localGFWListVersion, err := dat.CheckAndUpdateGFWList("")

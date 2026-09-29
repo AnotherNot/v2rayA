@@ -27,7 +27,7 @@ export const defaultForm = () => ({
   tunSetupScript: "",
   tunTeardownScript: "",
   tunExcludeProcesses: "",
-  pacMode: "whitelist",
+  pacMode: "allowlist",
   pacAutoUpdateMode: "none",
   pacAutoUpdateIntervalHour: 0,
   subscriptionAutoUpdateMode: "none",
@@ -62,9 +62,9 @@ export function useSettings() {
   const dirty = computed(
     () => ready.value && JSON.stringify(form) !== saved.value,
   );
-  const localGFWListVersion = ref("");
+  const localBlocklistVersion = ref("");
   const localGeositeVersion = ref("");
-  const remoteGFWListVersion = ref("");
+  const remoteBlocklistVersion = ref("");
   // a load that failed leaves the form on its defaults, so the page says so
   // instead of showing them as the stored settings
   const loadError = ref("");
@@ -77,7 +77,7 @@ export function useSettings() {
         if (key in res.setting)
           (form as Record<string, unknown>)[key] = res.setting[key];
       }
-      localGFWListVersion.value = res.localGFWListVersion ?? "";
+      localBlocklistVersion.value = res.localBlocklistVersion ?? "";
       localGeositeVersion.value = res.localGeositeVersion ?? "";
       if (store.lite) form.transparentType = "system_proxy";
       saved.value = JSON.stringify(form);
@@ -89,9 +89,9 @@ export function useSettings() {
   }
 
   async function loadRemoteVersion(): Promise<void> {
-    remoteGFWListVersion.value = (
+    remoteBlocklistVersion.value = (
       await getRemoteGFWListVersion()
-    ).remoteGFWListVersion;
+    ).remoteBlocklistVersion;
   }
 
   /** save applies the settings; an invalid config stops the core, which the store then shows. */
@@ -127,9 +127,9 @@ export function useSettings() {
     form,
     ready,
     dirty,
-    localGFWListVersion,
+    localBlocklistVersion,
     localGeositeVersion,
-    remoteGFWListVersion,
+    remoteBlocklistVersion,
     loadError,
     load,
     loadRemoteVersion,

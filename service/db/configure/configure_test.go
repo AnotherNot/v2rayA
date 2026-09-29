@@ -117,3 +117,50 @@ func TestSetSubscriptionAndConnectsRollsBackConnections(t *testing.T) {
 		t.Fatalf("connections were not committed with subscription: %+v", got)
 	}
 }
+
+func TestRuleModesNormalize(t *testing.T) {
+	if got := NormalizeRulePortMode("whitelist"); got != AllowlistMode {
+		t.Errorf("rule port whitelist -> %q", got)
+	}
+	if got := NormalizeRulePortMode("gfwlist"); got != BlocklistMode {
+		t.Errorf("rule port gfwlist -> %q", got)
+	}
+	if got := NormalizeTransparentMode("whitelist"); got != TransparentAllowlist {
+		t.Errorf("transparent whitelist -> %q", got)
+	}
+	if got := NormalizeTransparentMode("gfwlist"); got != TransparentBlocklist {
+		t.Errorf("transparent gfwlist -> %q", got)
+	}
+	// canonical spellings and unknown values pass through
+	for _, m := range []RulePortMode{AllowlistMode, BlocklistMode, RoutingAMode, "custom", "from-the-future"} {
+		if got := NormalizeRulePortMode(m); got != m {
+			t.Errorf("rule port %q became %q", m, got)
+		}
+	}
+	for _, m := range []TransparentMode{TransparentClose, TransparentProxy, TransparentAllowlist, TransparentBlocklist, TransparentFollowRule, "from-the-future"} {
+		if got := NormalizeTransparentMode(m); got != m {
+			t.Errorf("transparent %q became %q", m, got)
+		}
+	}
+}
+
+func TestStoredRuleModesReadBackMigrated(t *testing.T) {
+	s := NewSetting()
+	s.RulePortMode = "gfwlist"
+	s.Transparent = "whitelist"
+	if err := SetSetting(s); err != nil {
+		t.Fatal(err)
+	}
+	got := GetSettingNotNil()
+	if got.RulePortMode != BlocklistMode {
+		t.Errorf("stored gfwlist reads back as %q", got.RulePortMode)
+	}
+	if got.Transparent != TransparentAllowlist {
+		t.Errorf("stored whitelist reads back as %q", got.Transparent)
+	}
+	// the next save persists the canonical spellings
+	fresh := NewSetting()
+	if err := SetSetting(fresh); err != nil {
+		t.Fatal(err)
+	}
+}

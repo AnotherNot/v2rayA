@@ -29,7 +29,7 @@ async function update() {
     // "already the latest" is a result, not a failure
     if (res.alreadyUpToDate)
       notify.info(
-        t("gfwList.alreadyUpToDate", { version: res.localGFWListVersion }),
+        t("gfwList.alreadyUpToDate", { version: res.localBlocklistVersion }),
       );
     else notify.success(t("gfwList.updated"));
     emit("close", true);

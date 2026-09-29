@@ -46,9 +46,9 @@ const {
   form,
   ready,
   loadError,
-  localGFWListVersion,
+  localBlocklistVersion,
   localGeositeVersion,
-  remoteGFWListVersion,
+  remoteBlocklistVersion,
 } = settings;
 const saving = ref(false);
 const formRef = ref<{ validate(): Promise<{ valid: boolean }> } | null>(null);
@@ -149,16 +149,18 @@ const gfwUpdateModes = computed(() => [
 ]);
 
 const gfwlistInUse = computed(
-  () => form.pacMode === "gfwlist" || form.transparent === "gfwlist",
+  () => form.pacMode === "blocklist" || form.transparent === "blocklist",
 );
 const localVersionAhead = computed(
   () =>
-    !!localGFWListVersion.value &&
-    !!remoteGFWListVersion.value &&
-    dayjs(localGFWListVersion.value).isAfter(dayjs(remoteGFWListVersion.value)),
+    !!localBlocklistVersion.value &&
+    !!remoteBlocklistVersion.value &&
+    dayjs(localBlocklistVersion.value).isAfter(
+      dayjs(remoteBlocklistVersion.value),
+    ),
 );
 const localVersionDisplay = computed(() => {
-  if (localGFWListVersion.value) return localGFWListVersion.value;
+  if (localBlocklistVersion.value) return localBlocklistVersion.value;
   if (localGeositeVersion.value)
     return t("gfwList.geosite", { date: localGeositeVersion.value });
   return t("common.none");
@@ -171,7 +173,7 @@ const positive = (v: unknown) =>
 async function openGfwList() {
   const changed = await open<boolean>(
     GfwListDialog,
-    { localVersion: localGFWListVersion.value },
+    { localVersion: localBlocklistVersion.value },
     { width: 520 },
   ).result;
   if (changed) settings.load().catch(() => {});
@@ -341,7 +343,7 @@ defineExpose({ sync: () => settings.load() });
                 ? t('setting.messages.gfwlist')
                 : undefined
           "
-          :subtitle="`${t('common.latest')}: ${remoteGFWListVersion || t('common.checkRunning')}  ${t('common.local')}: ${localVersionDisplay}`"
+          :subtitle="`${t('common.latest')}: ${remoteBlocklistVersion || t('common.checkRunning')}  ${t('common.local')}: ${localVersionDisplay}`"
           action
           @click="openGfwList"
         />

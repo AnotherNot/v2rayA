@@ -285,10 +285,15 @@ func Run() error {
 		auth.GET("httpSpeed", controller.GetHttpSpeed)
 		auth.GET("sharingAddress", controller.GetSharingAddress)
 		auth.GET("remoteGFWListVersion", controller.GetRemoteGFWListVersion)
+		auth.GET("remoteBlocklistVersion", controller.GetRemoteGFWListVersion)
 		auth.GET("setting", controller.GetSetting)
 		auth.PUT("setting", controller.PutSetting)
 		auth.PUT("gfwList", controller.PutGFWList)
 		auth.DELETE("gfwList", controller.DeleteGFWList)
+		// Neutral spellings of the blocklist-data routes; the GFWList
+		// spellings above stay for older GUIs.
+		auth.PUT("blocklist", controller.PutGFWList)
+		auth.DELETE("blocklist", controller.DeleteGFWList)
 		auth.PUT("subscription", controller.PutSubscription)
 		auth.PATCH("subscription", controller.PatchSubscription)
 		auth.GET("ports", controller.GetPorts)

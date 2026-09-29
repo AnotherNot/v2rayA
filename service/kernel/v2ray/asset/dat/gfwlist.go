@@ -266,8 +266,8 @@ func CheckAndUpdateGFWList(downloadLink string) (localGFWListVersionAfterUpdate 
 
 	setting := configure.GetSettingNotNil()
 	if v2ray.ProcessManager.Running() && //正在使用GFWList模式再重启
-		(setting.Transparent == configure.TransparentGfwlist ||
-			!v2ray.IsTransparentOn(setting) && setting.RulePortMode == configure.GfwlistMode) {
+		(setting.Transparent == configure.TransparentBlocklist ||
+			!v2ray.IsTransparentOn(setting) && setting.RulePortMode == configure.BlocklistMode) {
 		err = v2ray.UpdateV2RayConfig()
 	}
 	return

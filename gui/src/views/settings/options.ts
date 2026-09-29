@@ -7,15 +7,15 @@ export const transparentModes = (t: T) => {
   return [
     { value: "close", title: t("setting.options.off") },
     { value: "proxy", title: on(t("setting.options.global")) },
-    { value: "whitelist", title: on(t("setting.options.whitelistCn")) },
-    { value: "gfwlist", title: on(t("setting.options.gfwlist")) },
+    { value: "allowlist", title: on(t("setting.options.whitelistCn")) },
+    { value: "blocklist", title: on(t("setting.options.gfwlist")) },
     { value: "pac", title: on(t("setting.options.sameAsPacMode")) },
   ];
 };
 
 export const pacModes = (t: T) => [
-  { value: "whitelist", title: t("setting.options.whitelistCn") },
-  { value: "gfwlist", title: t("setting.options.gfwlist") },
+  { value: "allowlist", title: t("setting.options.whitelistCn") },
+  { value: "blocklist", title: t("setting.options.gfwlist") },
   { value: "routingA", title: "RoutingA" },
 ];
 

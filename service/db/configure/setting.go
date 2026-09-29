@@ -50,7 +50,7 @@ type Setting struct {
 func NewSetting() (setting *Setting) {
 	return &Setting{
 		LogLevel:                           "info",
-		RulePortMode:                       WhitelistMode,
+		RulePortMode:                       AllowlistMode,
 		ProxyModeWhenSubscribe:             ProxyModeDirect,
 		GFWListAutoUpdateMode:              NotAutoUpdate,
 		GFWListAutoUpdateIntervalHour:      0,

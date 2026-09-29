@@ -151,7 +151,7 @@ func TestHttpLatency(which []*configure.Which, timeout time.Duration, maxParalle
 	}
 	if tmpl == nil {
 		tmpl = v2ray.NewEmptyTemplate(&configure.Setting{
-			RulePortMode: configure.WhitelistMode,
+			RulePortMode: configure.AllowlistMode,
 			TcpFastOpen:  configure.Default,
 			MuxOn:        configure.No,
 			Transparent:  configure.TransparentClose,
@@ -355,7 +355,7 @@ func setHTTPLatencyResult(which *configure.Which, resp *http.Response, err error
 
 func isSupportedObj(obj serverObj.ServerObj) (bool, error) {
 	tmpl := v2ray.NewEmptyTemplate(&configure.Setting{
-		RulePortMode: configure.WhitelistMode,
+		RulePortMode: configure.AllowlistMode,
 		TcpFastOpen:  configure.Default,
 		MuxOn:        configure.No,
 		Transparent:  configure.TransparentClose,

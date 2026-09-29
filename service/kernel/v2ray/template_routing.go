@@ -76,7 +76,7 @@ func (t *Template) AppendRoutingRuleByMode(mode configure.RulePortMode, inbounds
 		Domain:      []string{"domain:push-apple.com.akadns.net", "domain:push.apple.com"},
 	})
 	switch mode {
-	case configure.WhitelistMode:
+	case configure.AllowlistMode:
 		// foreign domains with intranet IP should be proxied first rather than directly connected
 		if asset.DoesV2rayAssetExist(asset.BlocklistAsset) {
 			t.Routing.Rules = append(t.Routing.Rules,
@@ -122,7 +122,7 @@ func (t *Template) AppendRoutingRuleByMode(mode configure.RulePortMode, inbounds
 				IP:          []string{"geoip:private", "geoip:cn"},
 			},
 		)
-	case configure.GfwlistMode:
+	case configure.BlocklistMode:
 		if asset.DoesV2rayAssetExist(asset.BlocklistAsset) {
 			t.Routing.Rules = append(t.Routing.Rules,
 				coreObj.RoutingRule{
@@ -483,10 +483,10 @@ func (t *Template) setTransparentRouting() (err error) {
 			InboundTag:  []string{"transparent"},
 			OutboundTag: defaultOutbound,
 		})
-	case configure.TransparentWhitelist:
-		return t.AppendRoutingRuleByMode(configure.WhitelistMode, []string{"transparent"})
-	case configure.TransparentGfwlist:
-		return t.AppendRoutingRuleByMode(configure.GfwlistMode, []string{"transparent"})
+	case configure.TransparentAllowlist:
+		return t.AppendRoutingRuleByMode(configure.AllowlistMode, []string{"transparent"})
+	case configure.TransparentBlocklist:
+		return t.AppendRoutingRuleByMode(configure.BlocklistMode, []string{"transparent"})
 	case configure.TransparentFollowRule:
 		// transparent mode is the same as rule
 		for i := range t.Routing.Rules {

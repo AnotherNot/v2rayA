@@ -94,7 +94,7 @@ export type Setting = Record<string, unknown> & {
 /** GET /setting */
 export interface SettingResponse {
   setting: Setting;
-  localGFWListVersion: string;
+  localBlocklistVersion: string;
   localGeositeVersion: string;
 }
 

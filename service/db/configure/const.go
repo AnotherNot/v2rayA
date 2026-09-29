@@ -17,8 +17,8 @@ type (
 const (
 	TransparentClose      = TransparentMode("close")
 	TransparentProxy      = TransparentMode("proxy") // proxy all traffic
-	TransparentWhitelist  = TransparentMode("whitelist")
-	TransparentGfwlist    = TransparentMode("gfwlist")
+	TransparentAllowlist  = TransparentMode("allowlist")
+	TransparentBlocklist  = TransparentMode("blocklist")
 	TransparentFollowRule = TransparentMode("pac")
 
 	TransparentTproxy      = TransparentType("tproxy")
@@ -38,8 +38,8 @@ const (
 	ProxyModePac    = ProxyMode("pac")
 	ProxyModeProxy  = ProxyMode("proxy")
 
-	WhitelistMode = RulePortMode("whitelist")
-	GfwlistMode   = RulePortMode("gfwlist")
+	AllowlistMode = RulePortMode("allowlist")
+	BlocklistMode = RulePortMode("blocklist")
 	CustomMode    = RulePortMode("custom")
 	RoutingAMode  = RulePortMode("routingA")
 

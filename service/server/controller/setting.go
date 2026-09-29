@@ -23,9 +23,10 @@ func GetSetting(ctx *gin.Context) {
 		localGeositeVersion = t.Local().Format("2006-01-02")
 	}
 	common.ResponseSuccess(ctx, gin.H{
-		"setting":             s,
-		"localGFWListVersion": localGFWListVersion,
-		"localGeositeVersion": localGeositeVersion,
+		"setting":               s,
+		"localGFWListVersion":   localGFWListVersion,
+		"localBlocklistVersion": localGFWListVersion,
+		"localGeositeVersion":   localGeositeVersion,
 	})
 }
 

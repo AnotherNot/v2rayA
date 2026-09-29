@@ -29,7 +29,7 @@ const loaded: Setting = {
   tunSetupScript: "ip route add default dev tun0",
   tunTeardownScript: "ip route del default dev tun0",
   tunExcludeProcesses: "firefox,chrome",
-  pacMode: "gfwlist",
+  pacMode: "blocklist",
   pacAutoUpdateMode: "auto_update_at_intervals",
   pacAutoUpdateIntervalHour: 24,
   subscriptionAutoUpdateMode: "auto_update_at_intervals",
@@ -47,11 +47,11 @@ let wrapper: VueWrapper;
 beforeEach(() => {
   vi.mocked(getSetting).mockResolvedValue({
     setting: { ...loaded },
-    localGFWListVersion: "2026-09-15",
+    localBlocklistVersion: "2026-09-15",
     localGeositeVersion: "",
   });
   vi.mocked(getRemoteGFWListVersion).mockResolvedValue({
-    remoteGFWListVersion: "2026-09-15",
+    remoteBlocklistVersion: "2026-09-15",
   });
   vi.mocked(putSetting).mockResolvedValue(undefined);
 });
@@ -169,11 +169,11 @@ describe("settings list", () => {
   test("shows the standard GeoSite date without treating it as a GFWList version", async () => {
     vi.mocked(getSetting).mockResolvedValue({
       setting: { ...loaded },
-      localGFWListVersion: "",
+      localBlocklistVersion: "",
       localGeositeVersion: "2026-09-16",
     });
     vi.mocked(getRemoteGFWListVersion).mockResolvedValue({
-      remoteGFWListVersion: "2026-09-15",
+      remoteBlocklistVersion: "2026-09-15",
     });
     await mountPage();
     expect(wrapper.text()).toContain("Local: 2026-09-16 (geosite)");
@@ -191,7 +191,7 @@ describe("settings list", () => {
 
     vi.mocked(getSetting).mockResolvedValue({
       setting: { ...loaded },
-      localGFWListVersion: "2026-09-15",
+      localBlocklistVersion: "2026-09-15",
       localGeositeVersion: "",
     });
     const retry = wrapper

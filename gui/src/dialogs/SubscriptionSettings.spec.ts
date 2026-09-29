@@ -30,7 +30,7 @@ beforeEach(async () => {
   vi.clearAllMocks();
   vi.mocked(getSetting).mockResolvedValue({
     setting: { ...loaded },
-    localGFWListVersion: "",
+    localBlocklistVersion: "",
     localGeositeVersion: "",
   });
   vi.mocked(putSetting).mockResolvedValue(undefined);

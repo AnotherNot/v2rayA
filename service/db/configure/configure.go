@@ -191,6 +191,10 @@ func SetSubscriptionAndConnects(index int, subscription *SubscriptionRaw, ws *No
 	})
 }
 func SetSetting(setting *Setting) (err error) {
+	// Every writer converges on the canonical mode spellings, so an old
+	// value sent by an earlier GUI (or lingering in a decoded struct) is
+	// stored migrated rather than preserved.
+	MigrateRuleModes(setting)
 	return db.Set("system", "setting", setting)
 }
 func SetPorts(ports *Ports) (err error) {
@@ -278,6 +282,8 @@ func GetSettingNotNil() *Setting {
 	}
 	// 执行新 DNS 模块配置迁移（处理旧配置升级场景）
 	MigrateSetting(r)
+	// Old mode spellings read back canonical; the next save persists them.
+	MigrateRuleModes(r)
 	// 处理 DNS 缓存布尔字段默认值：common.FillEmpty 跳过布尔字段，
 	// 因此如果旧配置中缺少这些字段，它们会保持 false。
 	if e == nil && b != nil {

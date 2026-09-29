@@ -182,19 +182,19 @@ export const putTproxyWhiteIpGroups = (body: {
   customIps: string[];
 }) => call<unknown>({ url: "tproxyWhiteIpGroups", method: "put", data: body });
 export const getRemoteGFWListVersion = () =>
-  call<{ remoteGFWListVersion: string }>({
-    url: "remoteGFWListVersion",
+  call<{ remoteBlocklistVersion: string }>({
+    url: "remoteBlocklistVersion",
     method: "get",
   });
 export const putGfwList = (body: { downloadLink: string }) =>
-  call<{ localGFWListVersion: string; alreadyUpToDate?: boolean }>({
-    url: "gfwList",
+  call<{ localBlocklistVersion: string; alreadyUpToDate?: boolean }>({
+    url: "blocklist",
     method: "put",
     data: body,
     timeout: timeouts.none,
   });
 export const deleteGfwList = () =>
-  call<unknown>({ url: "gfwList", method: "delete" });
+  call<unknown>({ url: "blocklist", method: "delete" });
 
 // ---- logs ------------------------------------------------------------------------
 /** GET /logger answers plain text from the byte offset `skip`, not the envelope. */
