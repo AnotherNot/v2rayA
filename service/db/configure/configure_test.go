@@ -27,6 +27,23 @@ func TestGetLenSubscriptionServersPanicsOnMissingSubscription(t *testing.T) {
 	GetLenSubscriptionServers(-1)
 }
 
+func TestSetOutboundSettingSkipsProbeValidationForRandom(t *testing.T) {
+	const outbound = "probe-validation-test"
+	if err := AddOutbound(outbound); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = RemoveOutbound(outbound) })
+	if err := SetOutboundSetting(outbound, OutboundSetting{Type: Random}); err != nil {
+		t.Fatalf("random with empty probe fields was rejected: %v", err)
+	}
+	if err := SetOutboundSetting(outbound, OutboundSetting{Type: LeastPing}); err == nil {
+		t.Fatal("leastping with an empty probe interval was accepted")
+	}
+	if err := SetOutboundSetting(outbound, DefaultOutboundSetting()); err != nil {
+		t.Fatalf("default leastping setting was rejected: %v", err)
+	}
+}
+
 func TestSetSubscriptionAndConnectsRollsBackConnections(t *testing.T) {
 	const outbound = "transaction-test"
 	if err := AddOutbound(outbound); err != nil {

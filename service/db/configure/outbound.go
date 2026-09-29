@@ -8,6 +8,12 @@ func (t ObservatoryType) String() string {
 
 const (
 	LeastPing ObservatoryType = "leastping"
+	// Random spreads connections across the members without probing them.
+	// The core this fork builds on also knows leastload, but serving it
+	// needs strategy settings this generator does not write; roundrobin
+	// does not exist there at all and fails the core with
+	// "unrecognized balancer type".
+	Random ObservatoryType = "random"
 )
 
 type OutboundSetting struct {

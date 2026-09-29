@@ -41,7 +41,9 @@ func (t *Template) SetAPI(serverData *ServerData) (port int, err error) {
 				continue
 			}
 
-			//TODO: random, leastload
+			// random needs no observatory: the core picks a member per
+			// connection. leastload would need strategy settings this
+			// generator does not write, so only leastping probes here.
 			strategy := serverData.OutboundName2Setting[outbound].Type
 			interval, err := time.ParseDuration(serverData.OutboundName2Setting[outbound].ProbeInterval)
 			if err != nil {

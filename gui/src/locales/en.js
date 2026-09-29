@@ -237,6 +237,7 @@ export default {
       updateGfwlistAtIntervals: "Update Blocklist Data Regularly (Unit: hour)",
       dependTransparentMode: "Follows Transparent Proxy/System Proxy",
       leastPing: "Least Latency First",
+      random: "Random",
       systemProxy: "System Proxy",
       tunUnsupported: "not supported on this platform",
     },
@@ -602,6 +603,8 @@ export default {
     settingSaveFailed: "Failed to save proxy group settings: {message}",
     probeUrl: "Probe URL",
     probeInterval: "Probe Interval",
+    probeUnused:
+      "Random spreads connections without probing; these fields are ignored.",
     type: "Type",
   },
   proxyGroup: {

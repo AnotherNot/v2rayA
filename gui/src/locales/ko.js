@@ -235,6 +235,7 @@ export default {
         "blocklist 데이터를 주기적으로 업데이트 (단위: 시간)",
       dependTransparentMode: "투명 프록시/시스템 프록시를 따름",
       leastPing: "최저 지연 우선",
+      random: "무작위",
       systemProxy: "시스템 프록시",
       tunUnsupported: "이 플랫폼에서는 지원되지 않음",
     },
@@ -594,6 +595,8 @@ export default {
     settingSaveFailed: "프록시 그룹 설정 저장 실패: {message}",
     probeUrl: "탐색 URL",
     probeInterval: "탐색 간격",
+    probeUnused:
+      "무작위 모드는 탐색 없이 연결마다 분산합니다. 이 필드는 무시됩니다.",
     type: "유형",
   },
   proxyGroup: {

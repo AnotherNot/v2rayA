@@ -68,19 +68,24 @@ async function save() {
         <v-text-field
           v-model="setting.probeURL"
           :label="t('outbound.probeUrl')"
-          :rules="[required]"
+          :rules="setting.type === 'random' ? [] : [required]"
+          :hint="
+            setting.type === 'random' ? t('outbound.probeUnused') : undefined
+          "
+          persistent-hint
           dir="ltr"
         />
         <v-text-field
           v-model="setting.probeInterval"
           :label="t('outbound.probeInterval')"
-          :rules="[required]"
+          :rules="setting.type === 'random' ? [] : [required]"
           dir="ltr"
         />
         <v-select
           v-model="setting.type"
           :items="[
             { value: 'leastping', title: t('setting.options.leastPing') },
+            { value: 'random', title: t('setting.options.random') },
           ]"
           :label="t('outbound.type')"
         />

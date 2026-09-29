@@ -242,6 +242,7 @@ export default {
         "Atualizar dados de blocklist regularmente (unidade: hora)",
       dependTransparentMode: "Segue o proxy transparente/proxy do sistema",
       leastPing: "Menor latência primeiro",
+      random: "Aleatório",
       systemProxy: "Proxy do sistema",
       tunUnsupported: "não suportado nesta plataforma",
     },
@@ -611,6 +612,8 @@ export default {
       "Falha ao salvar as configurações do grupo de proxy: {message}",
     probeUrl: "URL de sondagem",
     probeInterval: "Intervalo de sondagem",
+    probeUnused:
+      "O modo aleatório distribui por conexão sem sondar; estes campos são ignorados.",
     type: "Tipo",
   },
   proxyGroup: {

@@ -529,8 +529,12 @@ func AddOutbound(outbound string) (err error) {
 }
 
 func SetOutboundSetting(outbound string, setting OutboundSetting) (err error) {
-	if _, err := time.ParseDuration(setting.ProbeInterval); err != nil {
-		return err
+	// random spreads connections without probing, so its probe fields may
+	// stay empty; any probing type needs a parseable interval.
+	if setting.Type != Random {
+		if _, err := time.ParseDuration(setting.ProbeInterval); err != nil {
+			return err
+		}
 	}
 	return db.Set(fmt.Sprintf("outbound.%v", outbound), "setting", setting)
 }

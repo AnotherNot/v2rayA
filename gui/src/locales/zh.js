@@ -232,6 +232,7 @@ export default {
       updateGfwlistAtIntervals: "每隔一段时间更新 blocklist 数据（单位：小时）",
       dependTransparentMode: "跟随透明代理/系统代理",
       leastPing: "最小时延优先",
+      random: "随机",
       systemProxy: "系统代理",
       tunUnsupported: "此平台不支持",
     },
@@ -583,6 +584,7 @@ export default {
     settingSaveFailed: "无法保存代理分组设置：{message}",
     probeUrl: "探测 URL",
     probeInterval: "探测间隔",
+    probeUnused: "随机模式不探测，按连接分配；这些字段会被忽略。",
     type: "类型",
   },
   proxyGroup: {
