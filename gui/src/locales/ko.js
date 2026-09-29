@@ -485,6 +485,9 @@ export default {
       blacklist: "중국 외 사이트는 프록시, 나머지는 직접 연결",
       global: "모두 프록시, LAN은 직접 연결",
       minimal: "자주 쓰는 해외 서비스만 프록시, 나머지는 직접 연결",
+      ruDirect: "러시아는 직접 연결, 나머지는 프록시",
+      ruBlocked: "러시아에서 차단된 미디어는 프록시로",
+      ruServices: "러시아 서비스 직접 연결(은행, 정부)",
       ads: "광고 도메인 차단",
       streaming:
         "스트리밍은 프록시 (Netflix, Disney, HBO, Prime Video, YouTube, Spotify, TikTok)",

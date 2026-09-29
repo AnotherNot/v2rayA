@@ -475,6 +475,9 @@ export default {
       blacklist: "国外站点走代理，其余直连",
       global: "全部走代理，仅局域网直连",
       minimal: "只让常用海外服务走代理，其余直连",
+      ruDirect: "俄罗斯直连，其余走代理",
+      ruBlocked: "在俄被封锁的媒体走代理",
+      ruServices: "俄罗斯服务直连（银行、政府）",
       ads: "拦截广告域名",
       streaming:
         "流媒体走代理（Netflix、Disney、HBO、Prime Video、YouTube、Spotify、TikTok）",

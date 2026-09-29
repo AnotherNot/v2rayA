@@ -497,6 +497,9 @@ export default {
       blacklist: "Sites fora da China pelo proxy, o resto direto",
       global: "Tudo pelo proxy, rede local direto",
       minimal: "Só os serviços estrangeiros comuns pelo proxy, o resto direto",
+      ruDirect: "Rússia direto, o resto pelo proxy",
+      ruBlocked: "Mídias bloqueadas na Rússia pelo proxy",
+      ruServices: "Serviços russos diretos (bancos, governo)",
       ads: "Bloquear domínios de publicidade",
       streaming:
         "Streaming pelo proxy (Netflix, Disney, HBO, Prime Video, YouTube, Spotify, TikTok)",

@@ -18,6 +18,7 @@ describe("the rule templates", () => {
       "blacklist",
       "global",
       "minimal",
+      "ruDirect",
     ]);
   });
 });

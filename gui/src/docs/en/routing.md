@@ -40,6 +40,8 @@ domain(domain: corp.example) -> office
 
 Names that exist only in Loyalsoldier's builds (`gfw`, `apple-cn`, `google-cn`, `geoip:telegram`) are not in these files; the core refuses them with `illegal domain rule` or `illegal ip rule`. **Update blocklist data** downloads that build (from `v2rayA/dist-v2ray-rules-dat`) as `LoyalsoldierSite.dat`, and rules can then use it as `domain(ext:"LoyalsoldierSite.dat:gfw")`.
 
+Check a tag against the files on this machine before borrowing it from someone else's list: `geosite:category-ru` and `geoip:ru` exist in the standard builds, but bare `geosite:ru`, `geosite:ru-blocked` and `geoip:ru-blocked` do not — they live only in custom geo builds, as do single-service names like `geosite:gosuslugi` (covered by `geosite:category-gov-ru`). Saving rules with an unknown tag is refused with the tag named, and so is importing a set that carries one.
+
 ## The editor
 
 The list mode edits each rule with a form; the text mode shows line numbers, colouring and a check per line. The reference beside the editor inserts examples at the cursor, and its **Templates** section holds complete rule sets for the common policies: insert one above your own rules, or replace the whole rule set with it. Rules are imported and exported as a text file.

@@ -35,6 +35,25 @@ domain(geosite:google, geosite:youtube, geosite:github, geosite:telegram)->proxy
 domain(geosite:category-social-media-!cn, geosite:category-ai-!cn)->proxy
 ${telegramRanges}`,
   },
+  {
+    key: "ruDirect",
+    code: `default: proxy
+# Russia direct, everything else through the proxy
+domain(geosite:category-ru)->direct
+ip(geoip:ru)->direct
+domain(geosite:private)->direct
+ip(geoip:private)->direct`,
+  },
+  {
+    key: "ruBlocked",
+    code: `# media blocked in Russia through the proxy
+domain(geosite:category-media-ru-blocked)->proxy`,
+  },
+  {
+    key: "ruServices",
+    code: `# Russian services direct
+domain(geosite:category-ru, geosite:category-bank-ru, geosite:category-gov-ru)->direct`,
+  },
   { key: "ads", code: "domain(geosite:category-ads-all)->block" },
   {
     key: "streaming",

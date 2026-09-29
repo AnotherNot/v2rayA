@@ -492,6 +492,9 @@ export default {
       global: "Everything through the proxy, LAN direct",
       minimal:
         "Only common foreign services through the proxy, everything else direct",
+      ruDirect: "Russia direct, everything else through the proxy",
+      ruBlocked: "Media blocked in Russia through the proxy",
+      ruServices: "Russian services direct (banks, government)",
       ads: "Block advertising domains",
       streaming:
         "Streaming through the proxy (Netflix, Disney, HBO, Prime Video, YouTube, Spotify, TikTok)",
