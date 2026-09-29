@@ -282,6 +282,8 @@ export default {
     portVmessLink: "پیوند پورت VMess",
     portApi: "پورت API (۰ برای تصادفی)",
     apiServices: "سرویس‌های API فعال",
+    apiServicesHint:
+      "LoggerService (گزارش‌های هسته) و StatsService (آمار ترافیک) همیشه فعال‌اند: صفحه گزارش‌ها و داشبورد به آن‌ها نیاز دارند.",
     noVmessLink:
       "هنوز پیوند VMess وجود ندارد. ابتدا پورت VMess را تنظیم و ذخیره کنید",
     saveFailed: "ذخیره تنظیمات نشانی و پورت ناموفق بود: {message}",

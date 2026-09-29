@@ -29,6 +29,15 @@ const ports = reactive({
 });
 const services = ref<string[]>(["LoggerService"]);
 const supportedServices = ["HandlerService", "LoggerService", "StatsService"];
+// LoggerService feeds the Logs page, StatsService feeds the dashboard
+// traffic: the backend and the config generator keep both on no matter
+// what is stored, so the menu locks them instead of offering removal.
+const lockedServices = ["LoggerService", "StatsService"];
+const serviceItems = supportedServices.map((name) => ({
+  title: name,
+  value: name,
+  props: lockedServices.includes(name) ? { disabled: true } : {},
+}));
 const vmessLink = ref("");
 const loading = ref(true);
 const backendReady = ref(false);
@@ -73,7 +82,9 @@ onMounted(async () => {
     for (const { key } of fields) {
       ports[key] = String(key === "api" ? res.api.port : res[key]);
     }
-    services.value = res.api.services ?? [];
+    services.value = [
+      ...new Set([...(res.api.services ?? []), ...lockedServices]),
+    ];
     vmessLink.value = res.vmessLink ?? "";
     backendReady.value = true;
   } catch (err) {
@@ -120,7 +131,10 @@ async function save(event: Event) {
         socks5WithPac: parseInt(ports.socks5WithPac),
         httpWithPac: parseInt(ports.httpWithPac),
         vmess: parseInt(ports.vmess),
-        api: { port: parseInt(ports.api), services: services.value },
+        api: {
+          port: parseInt(ports.api),
+          services: [...new Set([...services.value, ...lockedServices])],
+        },
       });
       store.setBackendAddress(nextAddress);
       emit("close", true);
@@ -195,11 +209,12 @@ async function save(event: Event) {
             <v-col cols="12">
               <v-select
                 v-model="services"
-                :items="supportedServices"
+                :items="serviceItems"
                 :label="t('customAddressPort.apiServices')"
+                :hint="t('customAddressPort.apiServicesHint')"
+                persistent-hint
                 multiple
                 chips
-                closable-chips
                 :disabled="saving"
                 dir="ltr"
               />

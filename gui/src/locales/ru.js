@@ -285,6 +285,8 @@ export default {
     portVmessLink: "Ссылка на порт VMess",
     portApi: "Порт API (0 — случайный)",
     apiServices: "Включённые службы API",
+    apiServicesHint:
+      "LoggerService (журнал ядра) и StatsService (статистика трафика) всегда включены: они нужны странице журналов и дашборду.",
     noVmessLink:
       "Ссылки VMess пока нет. Сначала задайте порт VMess и сохраните настройки.",
     saveFailed: "Не удалось сохранить настройки адресов и портов: {message}",

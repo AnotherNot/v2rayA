@@ -90,7 +90,10 @@ describe("the address and ports dialog", () => {
       socks5WithPac: 1081,
       httpWithPac: 20173,
       vmess: 12346,
-      api: { port: 23457, services: ["HandlerService"] },
+      api: {
+        port: 23457,
+        services: ["HandlerService", "LoggerService", "StatsService"],
+      },
     });
     expect(api.probe).not.toHaveBeenCalled();
     expect(w.emitted("close")).toEqual([[true]]);

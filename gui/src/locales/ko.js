@@ -282,6 +282,8 @@ export default {
     portVmessLink: "VMess 포트 링크",
     portApi: "API 포트 (0이면 무작위)",
     apiServices: "활성화된 API 서비스",
+    apiServicesHint:
+      "LoggerService(코어 로그)와 StatsService(트래픽 통계)는 항상 켜져 있습니다. 로그 페이지와 대시보드에 필요합니다.",
     noVmessLink: "VMess 링크가 없습니다. VMess 포트를 설정하고 먼저 저장하세요",
     saveFailed: "주소 및 포트 설정 저장 실패: {message}",
     messages: [

@@ -285,6 +285,8 @@ export default {
     portVmessLink: "Link of VMess port",
     portApi: "Port of api (0 for random)",
     apiServices: "Enabled api service",
+    apiServicesHint:
+      "LoggerService (core logs) and StatsService (traffic statistics) stay on: the Logs page and the dashboard need them.",
     noVmessLink: "No VMess link yet. Set a VMess port and save first",
     saveFailed: "Failed to save address and port settings: {message}",
     messages: [

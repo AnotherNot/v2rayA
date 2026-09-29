@@ -288,6 +288,8 @@ export default {
     portVmessLink: "Link da porta VMess",
     portApi: "Porta da API (0 para aleatória)",
     apiServices: "Serviços de API ativados",
+    apiServicesHint:
+      "LoggerService (registros do núcleo) e StatsService (estatísticas de tráfego) ficam sempre ativados: a página de registros e o painel precisam deles.",
     noVmessLink:
       "Ainda não há um link VMess. Defina uma porta VMess e salve primeiro.",
     saveFailed:

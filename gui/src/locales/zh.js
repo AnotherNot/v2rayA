@@ -275,6 +275,8 @@ export default {
     portVmessLink: "VMess端口链接",
     portApi: "Api 端口（0 表示随机）",
     apiServices: "API 启用服务",
+    apiServicesHint:
+      "LoggerService（核心日志）和 StatsService（流量统计）始终启用：日志页面和仪表盘需要它们。",
     noVmessLink: "没有 VMess 链接，请先设置 VMess 端口并保存",
     saveFailed: "无法保存地址和端口设置：{message}",
     messages: [
