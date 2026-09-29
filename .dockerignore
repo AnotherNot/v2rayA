@@ -7,3 +7,10 @@
 **/*_test.go
 **/.tr
 **/node_modules/**
+# source builds (install/docker/Dockerfile) copy gui/, core/ and service/
+# explicitly; keep the context lean and secret-free
+.git/
+external_repos/
+service/server/router/web/
+.web-build/
+.e2e-bin/
