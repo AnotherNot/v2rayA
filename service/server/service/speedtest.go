@@ -82,7 +82,7 @@ func TestHttpSpeed(which []*configure.Which, timeout time.Duration, maxParallel 
 	}
 	if tmpl == nil {
 		tmpl = v2ray.NewEmptyTemplate(&configure.Setting{
-			RulePortMode: configure.WhitelistMode,
+			RulePortMode: configure.AllowlistMode,
 			TcpFastOpen:  configure.Default,
 			MuxOn:        configure.No,
 			Transparent:  configure.TransparentClose,

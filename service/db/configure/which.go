@@ -204,8 +204,8 @@ type Which struct {
 	// Speed carries a one-off throughput probe result ("12.4 Mbit/s").
 	// Unlike Latency it is never persisted: the draft test reports it and
 	// drops it.
-	Speed    string `json:"speed,omitempty"`
-	Link     string //optional
+	Speed string `json:"speed,omitempty"`
+	Link  string //optional
 	// Selected marks, in a touch, the member the group routes through alone.
 	Selected bool `json:"selected,omitempty"`
 }

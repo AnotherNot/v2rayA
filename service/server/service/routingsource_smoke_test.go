@@ -11,10 +11,10 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/v2fly/v2ray-core/v5/app/router/routercommon"
 	"github.com/v2rayA/RoutingA"
 	"github.com/v2rayA/v2rayA/conf"
 	"github.com/v2rayA/v2rayA/db/configure"
-	"github.com/v2fly/v2ray-core/v5/app/router/routercommon"
 	"google.golang.org/protobuf/proto"
 )
 
