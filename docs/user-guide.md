@@ -58,38 +58,31 @@ local ports:
 
 | Port | What it is |
 | --- | --- |
-| `127.0.0.1:20170` | SOCKS5, everything through the proxy |
-| `127.0.0.1:20171` | HTTP, everything through the proxy |
-| `127.0.0.1:20172` | HTTP **with your routing rules** |
+| `127.0.0.1:20170` | SOCKS5 **with your routing rules** (the only inbound on by default) |
 
-Point a browser at the 20172 port (or set the system proxy to it) and open a
+Point a browser at the 20170 port (or set the system proxy to it) and open a
 site that shows your address. Then open the same site directly: the two
 addresses must differ. If they are equal, the node carries no traffic —
 check that the core is running and the node is selected before touching any
 rule.
 
-Why only 20172 sees your rules — every inbound carries a tag, and a rule
+Why 20170 sees your rules — every inbound carries a tag, and a rule
 fires only when its tags include that inbound:
 
 ```
                         inbound tag         what matches it
-                        ───────────         ───────────────
-client ──► 20170 SOCKS ──► socks ──────► your rules: NEVER ──► default route ──► proxy
-   │                                     node hosts ──► direct (loop protection)
-   │
-   ├──► 20171 HTTP ───► http ───────► your rules: NEVER ──► default route ──► proxy
-   │
-   └──► 20172 HTTP ───► rule-http ──► YOUR RULES ──► direct / proxy / block / group
-
-(optional socks5WithPac ──► rule-socks ──► YOUR RULES, off by default)
+                        ─────────         ───────────────
+client ──► 20170 SOCKS ──► rule-socks ──► YOUR RULES ──► direct / proxy / block / group
+    │                                     node hosts ──► direct (loop protection)
+    │
+    └──► (optional plain SOCKS/HTTP/VMess inbounds ──► default route ──► proxy)
 ```
 
-So 20170 and 20171 always mean "everything through the proxy" (except the
-nodes' own hosts, which go direct so the tunnel never tries to carry
-itself). If the default outbound is a balancing group, the default route
-balances between its members — user rules still do not apply there. SOCKS
-**with** rules exists separately: enable `socks5WithPac` under
-**Settings → Address and Ports**.
+So extra inbounds you enable under **Settings → Address and Ports** mean
+"everything through the proxy" (except the nodes’ own hosts, which go
+direct so the tunnel never tries to carry itself). If the default outbound
+is a balancing group, the default route balances between its members —
+user rules still do not apply there.
 
 ## Everyday management
 
@@ -105,15 +98,17 @@ decides whether the update itself goes through the proxy.
 Nodes are used through proxy groups. `proxy` always exists; more are created
 from the group button in the top bar. A node joins a group from its menu, or
 select several nodes and use **Add to proxy group**. A group with several
-connected members uses the one with the lowest measured latency; the node
-menu on the dashboard pins one member so the group uses it alone. The group
+connected members uses the one with the lowest measured latency, or spreads
+connections when its type is Random; the node menu on the dashboard pins
+one member so the group uses it alone. A pinned member has no failover,
+a balanced group routes around dead members. The group
 settings set the probe address and interval.
 
 ### Routing modes
 
 **Settings → Traffic Splitting Mode of Rule Port** decides what the rule
-port (20172) and the transparent proxy do with traffic: everything through
-the proxy, proxy except CN sites, proxy only the GFWList, or your own
+inbounds and the transparent proxy do with traffic: everything through
+the proxy, proxy except the allowlist, proxy only the blocklist, or your own
 RoutingA rules. RoutingA is documented in the interface under
 **Documentation → Routing rules**.
 
@@ -134,8 +129,8 @@ system resolver there automatically.
 
 ### Ports and sharing
 
-**Settings → Address and Ports** changes every inbound; `0` closes one. The
-extra SOCKS5-with-rules port is off by default. Sharing the ports beyond
+**Settings → Address and Ports** changes every inbound; `0` closes one. Only
+the SOCKS5-with-rules inbound is on by default. Sharing the ports beyond
 this machine (port sharing, LAN sharing) exposes an open proxy to the
 network — protect it with a custom inbound carrying a username and password.
 
@@ -152,5 +147,10 @@ Every setting — nodes, subscriptions, groups, rules, sources — lives in one
 database file. Stop the service and copy it:
 
 ```sh
-sudo systemctl s
-...[truncated 911 chars]
+sudo systemctl stop v2raya
+cp ~/.config/v2raya/v2raya.db ~/v2raya-backup-$(date +%F).db
+sudo systemctl start v2raya
+```
+
+To restore, stop the service, copy the file back and start again. A package
+upgrade does not touch the settings, but take a copy before it anyway.

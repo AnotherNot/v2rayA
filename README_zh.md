@@ -128,7 +128,19 @@ sudo rc-service v2raya start
 <details>
 <summary><strong>Docker</strong></summary>
 
-镜像为 `ghcr.io/v2raya/v2raya`，Docker Hub 上是 `mzz2017/v2raya`。以下示例针对 Linux 宿主机，赋予容器宿主机网络与特权，透明代理需要这两项：
+该分支尚未向 registry 发布镜像：用 Docker 从源码构建（只需要 Docker），或先运行一键构建脚本再启动容器：
+
+```sh
+docker build -f install/docker/Dockerfile -t v2raya-local .
+docker run -d --restart=always --privileged --network=host --name v2raya \
+  -e V2RAYA_LOG_FILE=/tmp/v2raya.log \
+  -v /lib/modules:/lib/modules:ro \
+  -v /etc/resolv.conf:/etc/resolv.conf \
+  -v /etc/v2raya:/etc/v2raya \
+  v2raya-local
+```
+
+以下示例针对 Linux 宿主机，赋予容器宿主机网络与特权，透明代理需要这两项：
 
 ```sh
 docker run -d --restart=always --privileged --network=host --name v2raya \
@@ -136,7 +148,7 @@ docker run -d --restart=always --privileged --network=host --name v2raya \
   -v /lib/modules:/lib/modules:ro \
   -v /etc/resolv.conf:/etc/resolv.conf \
   -v /etc/v2raya:/etc/v2raya \
-  ghcr.io/v2raya/v2raya
+  v2raya-local
 ```
 
 改用桥接网络时，需要映射 2017 端口和使用的入站端口，并在设置中开启端口共享，否则入站只监听容器的回环地址。这种方式不提供透明代理。
@@ -194,7 +206,7 @@ sudo systemctl enable --now v2raya
 
 打开界面并创建管理员。随后的引导流程依次导入订阅或分享链接、把节点加入组、选择路由规则；内核由仪表板的启动按钮或页面顶部的状态按钮启动。
 
-内核运行后，把应用指向 SOCKS5 `127.0.0.1:20170` 或 HTTP `127.0.0.1:20171`（`20172` 对 HTTP 应用路由规则），或者在仪表板开启透明代理并从下表选择模式。组内有多个已连接成员时，使用实测延迟最低的成员；固定某个成员后，该组只经它出站。订阅可在订阅页手动更新，也可按设置中的间隔自动更新。
+内核运行后，把应用指向带规则的 SOCKS5 `127.0.0.1:20170`（默认唯一开启的入站；其余在设置 → 地址与端口中），或者在仪表板开启透明代理并从下表选择模式。组内有多个已连接成员时，使用实测延迟最低的成员，类型为 Random 时分散连接；固定某个成员后，该组只经它出站。订阅可在订阅页手动更新，也可按设置中的间隔自动更新。
 
 <img src="docs/images/screenshot.png" alt="仪表板，明暗两种主题" width="100%">
 

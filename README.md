@@ -128,7 +128,19 @@ sudo rc-service v2raya start
 <details>
 <summary><strong>Docker</strong></summary>
 
-The image is `ghcr.io/v2raya/v2raya` (also `mzz2017/v2raya` on Docker Hub). This example is for a Linux host and gives the container the host network and privileges, which transparent proxy needs:
+This fork publishes no registry image yet: build it from source (needs only Docker) or run the one-command build and then the container from it:
+
+```sh
+docker build -f install/docker/Dockerfile -t v2raya-local .
+docker run -d --restart=always --privileged --network=host --name v2raya \
+  -e V2RAYA_LOG_FILE=/tmp/v2raya.log \
+  -v /lib/modules:/lib/modules:ro \
+  -v /etc/resolv.conf:/etc/resolv.conf \
+  -v /etc/v2raya:/etc/v2raya \
+  v2raya-local
+```
+
+This example is for a Linux host and gives the container the host network and privileges, which transparent proxy needs.
 
 ```sh
 docker run -d --restart=always --privileged --network=host --name v2raya \
@@ -136,7 +148,7 @@ docker run -d --restart=always --privileged --network=host --name v2raya \
   -v /lib/modules:/lib/modules:ro \
   -v /etc/resolv.conf:/etc/resolv.conf \
   -v /etc/v2raya:/etc/v2raya \
-  ghcr.io/v2raya/v2raya
+  v2raya-local
 ```
 
 With bridge networking instead, publish port 2017 and the inbound ports you use, and turn on port sharing in the settings; the inbounds listen on the container's loopback otherwise. Transparent proxy is not available in that setup.
@@ -194,7 +206,7 @@ The service listens on `0.0.0.0:2017`, so on a router or NAS the interface is at
 
 Open the interface and create the administrator. The tutorial then walks through importing a subscription or a share link, adding the nodes to a group and choosing the routing rules; start the core with Start on the dashboard or the status button at the top of the page.
 
-Once the core runs, point an application at SOCKS5 `127.0.0.1:20170` or HTTP `127.0.0.1:20171` (`20172` applies the routing rules to HTTP), or turn on transparent proxy on the dashboard and pick a mode from the table below. A group with several connected members uses the one with the lowest measured latency; pinning a member routes the group through it alone. Subscriptions update from the subscriptions page or on the interval set in the settings.
+Once the core runs, point an application at SOCKS5 with rules `127.0.0.1:20170` (the only inbound on by default; the rest are under Settings → Address and Ports), or turn on transparent proxy on the dashboard and pick a mode from the table below. A group with several connected members uses the one with the lowest measured latency, or spreads connections when its type is Random; pinning a member routes the group through it alone. Subscriptions update from the subscriptions page or on the interval set in the settings.
 
 The day-to-day operation — nodes, groups, modes, DNS, logs, backups — is
 covered step by step in [docs/user-guide.md](docs/user-guide.md) (in Russian:
@@ -236,7 +248,7 @@ Do not use this project for anything illegal.
 
 ## Credits
 
-Founded by [@mzz2017](https://github.com/mzz2017). The Material Design 3 interface, the in-core TUN and the 2.5 service rework are by [@Zakkaus](https://github.com/Zakkaus). The OpenRC files come from the [gentoo-zh community](https://gentoozh.org). Routing data from [v2fly/domain-list-community](https://github.com/v2fly/domain-list-community), [v2fly/geoip](https://github.com/v2fly/geoip) and, for the GFWList mode, [Loyalsoldier/v2ray-rules-dat](https://github.com/Loyalsoldier/v2ray-rules-dat); the transparent-proxy rules were learnt from [zfl9/ss-tproxy](https://github.com/zfl9/ss-tproxy) and [hq450/fancyss](https://github.com/hq450/fancyss).
+Founded by [@mzz2017](https://github.com/mzz2017). The Material Design 3 interface, the in-core TUN and the 2.5 service rework are by [@Zakkaus](https://github.com/Zakkaus). The OpenRC files come from the [gentoo-zh community](https://gentoozh.org). Routing data from [v2fly/domain-list-community](https://github.com/v2fly/domain-list-community), [v2fly/geoip](https://github.com/v2fly/geoip) and, for the blocklist mode, [Loyalsoldier/v2ray-rules-dat](https://github.com/Loyalsoldier/v2ray-rules-dat); the transparent-proxy rules were learnt from [zfl9/ss-tproxy](https://github.com/zfl9/ss-tproxy) and [hq450/fancyss](https://github.com/hq450/fancyss).
 
 ## License
 

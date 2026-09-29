@@ -128,7 +128,19 @@ sudo rc-service v2raya start
 <details>
 <summary><strong>Docker</strong></summary>
 
-Образ — `ghcr.io/v2raya/v2raya` (на Docker Hub — `mzz2017/v2raya`). Пример для хоста Linux: контейнер получает сеть хоста и привилегии, без которых прозрачный прокси не работает:
+Этот форк пока не публикует образ в registry: соберите его из исходников (нужен только Docker) или запустите односкриптовую сборку, а затем контейнер из неё:
+
+```sh
+docker build -f install/docker/Dockerfile -t v2raya-local .
+docker run -d --restart=always --privileged --network=host --name v2raya \
+  -e V2RAYA_LOG_FILE=/tmp/v2raya.log \
+  -v /lib/modules:/lib/modules:ro \
+  -v /etc/resolv.conf:/etc/resolv.conf \
+  -v /etc/v2raya:/etc/v2raya \
+  v2raya-local
+```
+
+Пример для хоста Linux: контейнер получает сеть хоста и привилегии, без которых прозрачный прокси не работает:
 
 ```sh
 docker run -d --restart=always --privileged --network=host --name v2raya \
@@ -136,7 +148,7 @@ docker run -d --restart=always --privileged --network=host --name v2raya \
   -v /lib/modules:/lib/modules:ro \
   -v /etc/resolv.conf:/etc/resolv.conf \
   -v /etc/v2raya:/etc/v2raya \
-  ghcr.io/v2raya/v2raya
+  v2raya-local
 ```
 
 При сети bridge опубликуйте порт 2017 и используемые входящие порты и включите общий доступ к портам в настройках, иначе входящие подключения принимаются только на loopback контейнера. Прозрачный прокси в такой схеме недоступен.
@@ -194,7 +206,7 @@ sudo systemctl enable --now v2raya
 
 Откройте интерфейс и создайте администратора. Затем мастер проведёт через импорт подписки или ссылки, добавление узлов в группу и выбор правил маршрутизации; ядро запускается кнопкой запуска на панели или кнопкой состояния вверху страницы.
 
-Когда ядро работает, укажите приложению SOCKS5 `127.0.0.1:20170` или HTTP `127.0.0.1:20171` (`20172` применяет к HTTP правила маршрутизации) либо включите прозрачный прокси на панели и выберите режим из таблицы ниже. Группа с несколькими подключёнными узлами использует узел с наименьшей измеренной задержкой; после закрепления узла весь трафик группы направляется через него. Подписки обновляются со страницы подписок или с интервалом, заданным в настройках.
+Когда ядро работает, укажите приложению SOCKS5 с правилами `127.0.0.1:20170` (единственный включённый по умолчанию входящий порт; остальные — в разделе «Настройки → Адреса и порты») либо включите прозрачный прокси на панели и выберите режим из таблицы ниже. Группа с несколькими подключёнными узлами использует узел с наименьшей измеренной задержкой, а при типе Random распределяет соединения; после закрепления узла весь трафик группы направляется через него. Подписки обновляются со страницы подписок или с интервалом, заданным в настройках.
 
 Повседневная работа — узлы, группы, режимы, DNS, журналы, резервные копии —
 пошагово описана в [docs/user-guide-ru.md](docs/user-guide-ru.md) (на
@@ -236,7 +248,7 @@ sudo systemctl enable --now v2raya
 
 ## Благодарности
 
-Основан [@mzz2017](https://github.com/mzz2017). Интерфейс на Material Design 3, встроенный в ядро TUN и переработка службы в 2.5 — [@Zakkaus](https://github.com/Zakkaus). Файлы OpenRC предоставлены [сообществом gentoo-zh](https://gentoozh.org). Данные маршрутизации — [v2fly/domain-list-community](https://github.com/v2fly/domain-list-community) и [v2fly/geoip](https://github.com/v2fly/geoip), для режима GFWList — [Loyalsoldier/v2ray-rules-dat](https://github.com/Loyalsoldier/v2ray-rules-dat); правила прозрачного прокси основаны на опыте [zfl9/ss-tproxy](https://github.com/zfl9/ss-tproxy) и [hq450/fancyss](https://github.com/hq450/fancyss).
+Основан [@mzz2017](https://github.com/mzz2017). Интерфейс на Material Design 3, встроенный в ядро TUN и переработка службы в 2.5 — [@Zakkaus](https://github.com/Zakkaus). Файлы OpenRC предоставлены [сообществом gentoo-zh](https://gentoozh.org). Данные маршрутизации — [v2fly/domain-list-community](https://github.com/v2fly/domain-list-community) и [v2fly/geoip](https://github.com/v2fly/geoip), для режима blocklist — [Loyalsoldier/v2ray-rules-dat](https://github.com/Loyalsoldier/v2ray-rules-dat); правила прозрачного прокси основаны на опыте [zfl9/ss-tproxy](https://github.com/zfl9/ss-tproxy) и [hq450/fancyss](https://github.com/hq450/fancyss).
 
 ## Лицензия
 
