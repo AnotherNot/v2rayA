@@ -31,6 +31,7 @@ export default {
     cards: "카드",
     list: "목록",
     testLatency: "지연 시간 테스트",
+    testSpeed: "속도 테스트",
     sources: { all: "전체", local: "로컬" },
     membersOnly: "구성원만",
     source: "출처",

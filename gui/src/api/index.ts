@@ -72,6 +72,13 @@ export const getHttpLatency = (whiches: Which[]) =>
     params: { whiches },
     timeout: timeouts.none,
   });
+export const getHttpSpeed = (whiches: Which[]) =>
+  call<{ whiches: Which[] }>({
+    url: "httpSpeed",
+    method: "get",
+    params: { whiches },
+    timeout: timeouts.none,
+  });
 
 // ---- connections and the core ---------------------------------------------
 export const putOutboundConnections = (body: {

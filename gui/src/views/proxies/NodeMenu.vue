@@ -54,6 +54,11 @@ function pick(action: NodeAction, group?: string) {
         :disabled="testing"
         @click="pick('test')"
       />
+      <v-list-item
+        :title="t('proxies.testSpeed')"
+        :disabled="testing"
+        @click="pick('speed')"
+      />
       <template v-if="compact">
         <v-list-subheader>{{ t("proxies.addToGroup") }}</v-list-subheader>
         <v-list-item

@@ -194,6 +194,12 @@ onMounted(sync);
                 @click="model.testRows(selected)"
                 >{{ t("proxies.testLatency") }}</v-btn
               >
+              <v-btn
+                variant="text"
+                :disabled="disabled || testing"
+                @click="model.speedRows(selected)"
+                >{{ t("proxies.testSpeed") }}</v-btn
+              >
               <v-menu v-if="compact">
                 <template #activator="{ props: menu }">
                   <v-btn

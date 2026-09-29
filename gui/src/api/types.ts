@@ -11,6 +11,8 @@ export interface Which {
   /** subscription index, only for subscriptionServer */
   sub?: number;
   pingLatency?: string;
+  /** one-off throughput probe result, never persisted */
+  speed?: string;
   Link?: string;
   outbound?: string;
   /** in a touch's connectedServer: the member its group routes through alone */

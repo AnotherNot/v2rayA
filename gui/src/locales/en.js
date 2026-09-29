@@ -31,6 +31,7 @@ export default {
     cards: "Cards",
     list: "List",
     testLatency: "Test latency",
+    testSpeed: "Test speed",
     sources: { all: "All", local: "Local" },
     membersOnly: "Members only",
     source: "Source",

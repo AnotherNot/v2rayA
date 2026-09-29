@@ -30,6 +30,7 @@ export default {
     cards: "卡片",
     list: "列表",
     testLatency: "测试延迟",
+    testSpeed: "测试速度",
     sources: { all: "全部", local: "本地" },
     membersOnly: "仅成员",
     source: "来源",

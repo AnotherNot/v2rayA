@@ -201,7 +201,11 @@ func (ws *Whiches) GetNonDuplicated() (w []*Which) {
 type Which struct {
 	NodeRef
 	Latency string `json:"pingLatency,omitempty"` //历史遗留问题，前后端通信还是使用pingLatency这个名字，该值仅作为ping的返回值
-	Link    string //optional
+	// Speed carries a one-off throughput probe result ("12.4 Mbit/s").
+	// Unlike Latency it is never persisted: the draft test reports it and
+	// drops it.
+	Speed    string `json:"speed,omitempty"`
+	Link     string //optional
 	// Selected marks, in a touch, the member the group routes through alone.
 	Selected bool `json:"selected,omitempty"`
 }
@@ -212,10 +216,11 @@ func (w Which) MarshalJSON() ([]byte, error) {
 		ID       int       `json:"id"`
 		Sub      int       `json:"sub"`
 		Latency  string    `json:"pingLatency,omitempty"`
+		Speed    string    `json:"speed,omitempty"`
 		Link     string    `json:"Link"`
 		Outbound string    `json:"outbound"`
 		Selected bool      `json:"selected,omitempty"`
-	}{w.TYPE, w.ID, w.Sub, w.Latency, w.Link, w.Outbound, w.Selected})
+	}{w.TYPE, w.ID, w.Sub, w.Latency, w.Speed, w.Link, w.Outbound, w.Selected})
 }
 
 func (w *NodeRef) EqualTo(another NodeRef) (ok bool) {

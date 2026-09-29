@@ -31,6 +31,7 @@ export default {
     cards: "Карточки",
     list: "Список",
     testLatency: "Проверить задержку",
+    testSpeed: "Проверить скорость",
     sources: { all: "Все", local: "Локальные" },
     membersOnly: "Только участники",
     source: "Источник",

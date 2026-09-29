@@ -11,11 +11,13 @@ import timezone from "dayjs/plugin/timezone";
 import { mountWithApp } from "@/test/mount";
 import { groupMembers, useProxies } from "./model";
 import { fixture } from "./fixture";
+import { noticeState } from "@/composables/useNotify";
 
 const api = vi.hoisted(() => ({
   getTouch: vi.fn(),
   getPingLatency: vi.fn(),
   getHttpLatency: vi.fn(),
+  getHttpSpeed: vi.fn(),
   putOutboundConnections: vi.fn(),
   getSharingAddress: vi.fn(),
 }));
@@ -220,6 +222,23 @@ describe("proxy node management", () => {
       { id: 1, _type: "subscriptionServer", sub: 0 },
     ]);
     expect(model.listed.value[0].pingLatency).toBe("40ms");
+  });
+  test("reports a draft speed per node without touching latency", async () => {
+    const model = getModel();
+    model.source.value = response.touch.subscriptions[0].address;
+    model.query.value = "West";
+    api.getHttpSpeed.mockResolvedValue({
+      whiches: [
+        { id: 1, _type: "subscriptionServer", sub: 0, speed: "12.4 Mbit/s" },
+      ],
+    });
+    await model.nodeAction(model.listed.value[0], "speed");
+    expect(api.getHttpSpeed).toHaveBeenCalledWith([
+      { id: 1, _type: "subscriptionServer", sub: 0 },
+    ]);
+    expect(noticeState.current?.kind).toBe("info");
+    expect(noticeState.current?.text).toContain("12.4 Mbit/s");
+    expect(model.listed.value[0].pingLatency).toBe("");
   });
   test("exports the selected nodes to the clipboard or to a timestamped TXT file", async () => {
     const model = getModel();

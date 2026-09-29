@@ -1,6 +1,11 @@
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { deleteTouch, getSharingAddress, putOutboundConnections } from "@/api";
+import {
+  deleteTouch,
+  getHttpSpeed,
+  getSharingAddress,
+  putOutboundConnections,
+} from "@/api";
 import { errorText } from "@/api/errors";
 import { copyText } from "@/lib/clipboard";
 import { exportName, saveText } from "@/lib/download";
@@ -24,7 +29,13 @@ import {
 import { useSubscriptions } from "../subscriptions/model";
 
 export type NodeAction =
-  "test" | "addToGroup" | "removeFromGroup" | "edit" | "share" | "delete";
+  | "test"
+  | "speed"
+  | "addToGroup"
+  | "removeFromGroup"
+  | "edit"
+  | "share"
+  | "delete";
 export type SubscriptionAction = "update" | "edit" | "share" | "delete";
 
 export function groupMembers(
@@ -214,6 +225,24 @@ export function useProxies() {
     }
   }
   const testListed = (http = false) => testRows(listed.value, http);
+  /** draft throughput probe: reports per node, persists nothing */
+  async function speedRows(targets: Row[]) {
+    if (testing.value || !targets.length) return;
+    testing.value = true;
+    try {
+      const res = await getHttpSpeed(
+        targets.map((r) => ({ ...whichOf(r), sub: r.sub ?? null }) as Which),
+      );
+      for (const w of res.whiches) {
+        const row = locate(nodes.touch.value, w);
+        notify.info(`${row?.name ?? ""}: ${w.speed ?? ""}`.trim());
+      }
+    } catch (err) {
+      notify.warning(t("latency.failed", { message: errorText(err) }));
+    } finally {
+      testing.value = false;
+    }
+  }
   async function removeRows(targets: Row[]) {
     if (!targets.length || targets.some((r) => r._type !== "server")) return;
     await run(async () => {
@@ -277,6 +306,7 @@ export function useProxies() {
     group = store.outboundName,
   ) {
     if (action === "test") return testRows([row]);
+    if (action === "speed") return speedRows([row]);
     if (action === "addToGroup") return setMembership(row, group, true);
     if (action === "removeFromGroup") return setMembership(row, group, false);
     if (action === "delete") return removeRows([row]);
@@ -383,6 +413,7 @@ export function useProxies() {
     batchMembership,
     testRows,
     testListed,
+    speedRows,
     removeRows,
     exportSelected,
     newNode,

@@ -282,6 +282,7 @@ func Run() error {
 		auth.DELETE("v2ray", controller.DeleteV2ray)
 		auth.GET("pingLatency", controller.GetPingLatency)
 		auth.GET("httpLatency", controller.GetHttpLatency)
+		auth.GET("httpSpeed", controller.GetHttpSpeed)
 		auth.GET("sharingAddress", controller.GetSharingAddress)
 		auth.GET("remoteGFWListVersion", controller.GetRemoteGFWListVersion)
 		auth.GET("setting", controller.GetSetting)

@@ -31,6 +31,7 @@ export default {
     cards: "Cartões",
     list: "Lista",
     testLatency: "Testar latência",
+    testSpeed: "Testar velocidade",
     sources: { all: "Todos", local: "Locais" },
     membersOnly: "Somente membros",
     source: "Origem",

@@ -31,6 +31,7 @@ export default {
     cards: "کارت‌ها",
     list: "فهرست",
     testLatency: "آزمایش تأخیر",
+    testSpeed: "آزمایش سرعت",
     sources: { all: "همه", local: "محلی" },
     membersOnly: "فقط اعضا",
     source: "منبع",
