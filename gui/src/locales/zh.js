@@ -251,7 +251,7 @@ export default {
       tunExcludeProcesses:
         "流量直连的进程名，一行一个，例如：chrome.exe、firefox。v2rayA 与核心始终排除。按 socket 属主的可执行文件名识别；查找前已关闭的 socket 或被其他进程复用的端口无法归属。被排除进程的 DNS 查询仍由核心 DNS 模块回答。",
       pacMode:
-        "该选项设置规则分流端口所使用的路由模式。默认情况下规则分流端口为20172，HTTP协议。allowlist 直连，blocklist 走代理；自定义规则在下方的 RoutingA 编辑器中编写。",
+        "该选项设置规则分流端口所使用的路由模式。默认由 SOCKS5 端口 20170 进行规则分流。allowlist 直连，blocklist 走代理；自定义规则在下方的 RoutingA 编辑器中编写。",
       tcpFastOpen:
         "简化TCP握手流程以加速建立连接，可能会增加封包的特征。若系统不支持可能会导致无法正常连接。",
       mux: "复用TCP连接以减少握手次数，但会影响吞吐量大的使用场景，如观看视频、下载、测速。当前仅支持vmess节点。可能会增加特征造成断流。",

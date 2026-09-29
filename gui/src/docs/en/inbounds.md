@@ -8,10 +8,10 @@ An inbound is a port on which the core accepts connections from applications or 
 
 | Inbound           | Default | Routing                                                            |
 | ----------------- | ------- | ------------------------------------------------------------------ |
-| SOCKS5            | `20170` | everything through `proxy`                                         |
-| HTTP              | `20171` | everything through `proxy`                                         |
-| SOCKS5 with rules | off     | the rule port's mode                                               |
-| HTTP with rules   | `20172` | the rule port's mode                                               |
+| SOCKS5            | off     | everything through `proxy`                                         |
+| HTTP              | off     | everything through `proxy`                                         |
+| SOCKS5 with rules | `20170` | the rule port's mode                                               |
+| HTTP with rules   | off     | the rule port's mode                                               |
 | VMess with rules  | off     | a VMess inbound for other devices; the page shows its share link   |
 | API               | random  | the core's own API, used by v2rayA for statistics and the balancer |
 

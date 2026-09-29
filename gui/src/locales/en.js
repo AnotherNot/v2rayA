@@ -259,7 +259,7 @@ export default {
         "When enabled, v2rayA installs the routes and DNS settings itself. When disabled, you must provide setup/teardown scripts that configure routing yourself.",
       tunExcludeProcesses:
         "Process names whose traffic bypasses the proxy, one per line, e.g. chrome.exe or firefox. v2rayA and the core are always excluded. A process is identified by the executable name of the socket owner; a socket that closed before the lookup, or a port reused by another process, cannot be attributed. Their DNS queries are still answered by the core's DNS module.",
-      pacMode: `Here you can set the splitting traffic rule of the rule port. By default, "Rule of Splitting Traffic" port is 20172 and HTTP protocol. Allowlist goes direct, blocklist goes through the proxy; custom rules live in the RoutingA editor below.`,
+      pacMode: `Here you can set the splitting traffic rule of the rule port. By default, "Rule of Splitting Traffic" is the SOCKS5 port 20170. Allowlist goes direct, blocklist goes through the proxy; custom rules live in the RoutingA editor below.`,
       tcpFastOpen:
         "Simplify TCP handshake process to speed up connection establishment. Risk of emphasizing characteristics of packets exists. It may cause failed to connect if your system does not support it.",
       mux:

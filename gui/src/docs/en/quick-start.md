@@ -34,9 +34,7 @@ Once the core runs, applications reach it through the local inbounds:
 
 | Inbound         | Address           | Routing                                             |
 | --------------- | ----------------- | --------------------------------------------------- |
-| SOCKS5          | `127.0.0.1:20170` | everything through `proxy`                          |
-| HTTP            | `127.0.0.1:20171` | everything through `proxy`                          |
-| HTTP with rules | `127.0.0.1:20172` | the **Traffic Splitting Mode of Rule Port** setting |
+| SOCKS5 with rules | `127.0.0.1:20170` | the **Traffic Splitting Mode of Rule Port** setting |
 
 The ports are changed under **Settings → Address and Ports**; 0 closes an inbound. To cover applications without configuring each, turn on the transparent proxy.
 

@@ -20,10 +20,10 @@ const { open } = useDialog();
 const notify = useNotify();
 const address = ref(store.backendAddress);
 const ports = reactive({
-  socks5: "20170",
-  http: "20171",
-  socks5WithPac: "0",
-  httpWithPac: "20172",
+  socks5: "0",
+  http: "0",
+  socks5WithPac: "20170",
+  httpWithPac: "0",
   vmess: "0",
   api: "0",
 });
@@ -38,18 +38,18 @@ const fields = [
   {
     key: "socks5",
     label: "customAddressPort.portSocks5",
-    placeholder: "20170",
+    placeholder: "0",
   },
-  { key: "http", label: "customAddressPort.portHttp", placeholder: "20171" },
+  { key: "http", label: "customAddressPort.portHttp", placeholder: "0" },
   {
     key: "socks5WithPac",
     label: "customAddressPort.portSocks5WithPac",
-    placeholder: "0",
+    placeholder: "20170",
   },
   {
     key: "httpWithPac",
     label: "customAddressPort.portHttpWithPac",
-    placeholder: "20172",
+    placeholder: "0",
   },
   { key: "vmess", label: "customAddressPort.portVmess", placeholder: "0" },
   { key: "api", label: "customAddressPort.portApi", placeholder: "0" },

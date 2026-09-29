@@ -264,7 +264,7 @@ export default {
         "Quando ativado, o v2rayA instala as rotas e as configurações de DNS por conta própria. Quando desativado, você deverá fornecer scripts de configuração e remoção que configurem o roteamento.",
       tunExcludeProcesses:
         "Nomes de processos cujo tráfego não passa pelo proxy, um por linha, por exemplo chrome.exe ou firefox. O v2rayA e o núcleo são sempre excluídos. O processo é identificado pelo nome do executável dono do socket; um socket fechado antes da consulta ou uma porta reutilizada por outro processo não podem ser atribuídos. As consultas DNS desses processos continuam sendo respondidas pelo módulo DNS do núcleo.",
-      pacMode: `Aqui você pode definir a regra de divisão de tráfego da porta de regras. Por padrão, a porta da "Regra de divisão de tráfego" é 20172 e usa o protocolo HTTP. O allowlist vai direto, o blocklist passa pelo proxy; regras personalizadas ficam no editor RoutingA abaixo.`,
+      pacMode: `Aqui você pode definir a regra de divisão de tráfego da porta de regras. Por padrão, a divisão é feita pela porta SOCKS5 20170. O allowlist vai direto, o blocklist passa pelo proxy; regras personalizadas ficam no editor RoutingA abaixo.`,
       tcpFastOpen:
         "Simplifica o handshake TCP para acelerar o estabelecimento da conexão. Isso pode destacar as características dos pacotes e causar falha na conexão se o sistema não for compatível.",
       mux: "Multiplexa conexões TCP para reduzir o número de handshakes, mas isso afeta casos de alto throughput, como assistir a vídeos, fazer downloads e testar a velocidade. Isso pode destacar as características dos pacotes. Atualmente, é compatível apenas com vmess.",

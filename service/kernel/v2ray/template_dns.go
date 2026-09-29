@@ -184,8 +184,13 @@ func (t *Template) generateDnsModuleConfig(serverInfos []serverInfo) error {
 
 	// 获取 SOCKS 入站端口（用于 proxy_map）
 	socksPort := 20170
-	if p := configure.GetPortsNotNil(); p != nil && p.Socks5 > 0 {
-		socksPort = p.Socks5
+	if p := configure.GetPortsNotNil(); p != nil {
+		switch {
+		case p.Socks5 > 0:
+			socksPort = p.Socks5
+		case p.Socks5WithPac > 0:
+			socksPort = p.Socks5WithPac
+		}
 	}
 
 	// 读取当前系统 DNS（保存原始配置，用于 v2raya-core 的 bootstrap 解析）。

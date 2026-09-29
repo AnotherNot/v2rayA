@@ -90,10 +90,10 @@ func New() *Configure {
 		Setting:          NewSetting(),
 		Accounts:         map[string]string{},
 		Ports: Ports{
-			Socks5:        20170,
-			Socks5WithPac: 0,
-			Http:          20171,
-			HttpWithPac:   20172,
+			Socks5:        0,
+			Socks5WithPac: 20170,
+			Http:          0,
+			HttpWithPac:   0,
 			Vmess:         0,
 		},
 		RoutingA:        nil,
@@ -303,10 +303,10 @@ func GetPortsNotNil() *Ports {
 	_ = db.Get("system", "ports", &p)
 	if p == nil {
 		p = new(Ports)
-		p.Socks5 = 20170
-		p.Http = 20171
-		p.Socks5WithPac = 0
-		p.HttpWithPac = 20172
+		p.Socks5 = 0
+		p.Http = 0
+		p.Socks5WithPac = 20170
+		p.HttpWithPac = 0
 		p.Vmess = 0
 		p.Api = ApiPort{Port: 0}
 	}

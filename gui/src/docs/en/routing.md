@@ -1,6 +1,6 @@
 # Routing rules
 
-RoutingA is the rule language of v2rayA. **Settings → RoutingA** opens the editor; the rules apply to the rule port (`20172`) when its mode is RoutingA and to the transparent proxy when its policy is _Same as the rule port_. A custom inbound bound to RoutingA has its own rule text, see below.
+RoutingA is the rule language of v2rayA. **Settings → RoutingA** opens the editor; the rules apply to the rule inbounds (SOCKS5/HTTP with rules) when their mode is RoutingA and to the transparent proxy when its policy is _Same as the rule port_. A custom inbound bound to RoutingA has its own rule text, see below.
 
 ## Syntax
 
