@@ -99,6 +99,15 @@ describe("the client sends what the old components sent", () => {
     );
   });
 
+  test("endpoint names starting with http keep the api root", async () => {
+    await call({ url: "httpSpeed", method: "get" });
+    expect(sent[0].url).toBe(`${apiRoot()}/httpSpeed`);
+    await call({ url: "httpLatency", method: "get" });
+    expect(sent[1].url).toBe(`${apiRoot()}/httpLatency`);
+    await call({ url: "https://other.test/x", method: "get" });
+    expect(sent[2].url).toBe("https://other.test/x");
+  });
+
   test("a FAIL envelope is an error with the backend's message", async () => {
     reply = async () => ({
       status: 200,

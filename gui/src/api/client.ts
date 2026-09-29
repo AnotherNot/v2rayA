@@ -198,6 +198,13 @@ const activity = reactive({ inFlight: 0 });
 export const requestActivity = readonly(activity);
 
 /** call performs one backend operation and unwraps the envelope; a FAIL envelope is an ApiError of kind http with status 200. */
+// An endpoint name is never absolute: only http(s):// URLs and root paths
+// skip the api root. A bare startsWith("http") check mistakes endpoint
+// names like httpSpeed for absolute URLs and drops the /api prefix.
+const isAbsoluteUrl = (url: string) =>
+  url.startsWith("http://") ||
+  url.startsWith("https://") ||
+  url.startsWith("/");
 // The backend serves one state-changing request at a time and answers
 // REQUEST_IN_PROGRESS to a read that arrives meanwhile (a touch during a
 // latency test, say). A read waits and asks again a few times before the
@@ -207,10 +214,9 @@ const busyRetries = [400, 800, 1600];
 export async function call<T>(
   config: AxiosRequestConfig & { url: string },
 ): Promise<T> {
-  const url =
-    config.url.startsWith("http") || config.url.startsWith("/")
-      ? config.url
-      : `${apiRoot()}/${config.url}`;
+  const url = isAbsoluteUrl(config.url)
+    ? config.url
+    : `${apiRoot()}/${config.url}`;
   const isRead = (config.method ?? "get").toLowerCase() === "get";
   for (let attempt = 0; ; attempt++) {
     activity.inFlight++;
