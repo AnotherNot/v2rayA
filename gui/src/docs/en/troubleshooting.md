@@ -18,6 +18,26 @@ The service log is the first place to look: `/var/log/v2raya/v2raya.log` under t
 - With `redirect` or `tproxy`, Docker or a firewall may have replaced the iptables rules; stop and start the core to reinstall them.
 - On Windows and macOS, an application that asks a LAN resolver directly for DNS bypasses the TUN.
 
+## Calling the API
+
+Some checks need the API token. Log in once and reuse it (bash first, fish second):
+
+```sh
+TOKEN=$(curl -s -X POST http://127.0.0.1:2017/api/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"pass"}' \
+  | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+```
+
+```fish
+set TOKEN (curl -s -X POST http://127.0.0.1:2017/api/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"pass"}' \
+  | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+```
+
+Pass it as `Authorization: $TOKEN`, e.g. `curl -s http://127.0.0.1:2017/api/touch -H "Authorization: $TOKEN"`. Fish assigns command output with `set VAR (cmd)`, not `VAR=$(cmd)`.
+
 ## Rule data
 
 Once the core is found, a start without `geoip.dat` or `geosite.dat` downloads the missing file from GitHub and exits when the download fails. Copy the files into the rule-data directory by hand (see the parameters section), or install a package that ships them.

@@ -18,6 +18,26 @@
 - При использовании `redirect` или `tproxy` Docker или межсетевой экран могли заменить правила iptables; остановите и запустите ядро, чтобы установить их заново.
 - В Windows и macOS приложение, напрямую запрашивающее DNS-сервер локальной сети, обходит TUN.
 
+## Вызов API
+
+Для некоторых проверок нужен токен API. Войдите один раз и используйте его повторно (сначала bash, затем fish):
+
+```sh
+TOKEN=$(curl -s -X POST http://127.0.0.1:2017/api/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"pass"}' \
+  | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+```
+
+```fish
+set TOKEN (curl -s -X POST http://127.0.0.1:2017/api/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"pass"}' \
+  | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+```
+
+Передавайте его как `Authorization: $TOKEN`, например `curl -s http://127.0.0.1:2017/api/touch -H "Authorization: $TOKEN"`. В fish вывод команды присваивается через `set VAR (cmd)`, а не `VAR=$(cmd)`.
+
 ## Данные правил
 
 После обнаружения ядра запуск без `geoip.dat` или `geosite.dat` приводит к скачиванию недостающего файла с GitHub; если скачивание не удаётся, запуск завершается. Скопируйте файлы в каталог данных правил вручную (см. раздел о параметрах) или установите пакет, который их содержит.
