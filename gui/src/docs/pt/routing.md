@@ -1,6 +1,6 @@
 # Regras de roteamento
 
-RoutingA é a linguagem de regras do v2rayA. **Configurações → RoutingA** abre o editor; as regras se aplicam à porta de regras (`20172`) quando seu modo é RoutingA e ao proxy transparente quando sua política é _Igual ao da porta de regras_. Uma entrada personalizada vinculada ao RoutingA tem seu próprio texto de regras, veja abaixo.
+RoutingA é a linguagem de regras do v2rayA. **Configurações → RoutingA** abre o editor; as regras se aplicam às entradas com regras (SOCKS5/HTTP com regras) quando seu modo é RoutingA e ao proxy transparente quando sua política é _Igual ao da porta de regras_. Uma entrada personalizada vinculada ao RoutingA tem seu próprio texto de regras, veja abaixo.
 
 ## Sintaxe
 
@@ -38,7 +38,7 @@ domain(domain: corp.example) -> office
 
 As categorias `geosite:` vêm do [domain-list-community](https://github.com/v2fly/domain-list-community) do v2fly, e os códigos `geoip:`, do [v2fly/geoip](https://github.com/v2fly/geoip); o v2rayA baixa os arquivos que faltam na primeira inicialização, mas um pacote pode fornecer sua própria compilação. Usados com frequência: `geosite:cn`, `geosite:geolocation-!cn`, `geosite:private`, `geosite:category-ads-all`, `geosite:greatfire`, `geosite:netflix`, `geosite:youtube`, `geosite:telegram`, `geosite:openai`; `geoip:cn`, `geoip:private` e os códigos de países. Um atributo restringe uma categoria: `geosite:apple@cn`, `geosite:category-games@cn`.
 
-Nomes que existem apenas nas compilações de Loyalsoldier (`gfw`, `apple-cn`, `google-cn`, `geoip:telegram`) não estão nesses arquivos; o núcleo os recusa com `illegal domain rule` ou `illegal ip rule`. **Atualizar GFWList** baixa essa compilação (de `v2rayA/dist-v2ray-rules-dat`) como `LoyalsoldierSite.dat`, e as regras podem então usá-la como `domain(ext:"LoyalsoldierSite.dat:gfw")`.
+Nomes que existem apenas nas compilações de Loyalsoldier (`gfw`, `apple-cn`, `google-cn`, `geoip:telegram`) não estão nesses arquivos; o núcleo os recusa com `illegal domain rule` ou `illegal ip rule`. **Atualizar dados de blocklist** baixa essa compilação (de `v2rayA/dist-v2ray-rules-dat`) como `LoyalsoldierSite.dat`, e as regras podem então usá-la como `domain(ext:"LoyalsoldierSite.dat:gfw")`.
 
 ## O editor
 

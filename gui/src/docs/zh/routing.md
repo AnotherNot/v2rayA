@@ -1,6 +1,6 @@
 # 分流规则
 
-RoutingA 是 v2rayA 的规则语言。**设置 → RoutingA** 打开编辑器；规则作用于模式为 RoutingA 的规则端口（`20172`）和策略为“与规则端口相同”的透明代理。绑定到 RoutingA 的自定义入站有自己的规则文本，见下文。
+RoutingA 是 v2rayA 的规则语言。**设置 → RoutingA** 打开编辑器；规则作用于带规则的入站（SOCKS5/HTTP 带规则），当其模式为 RoutingA 时，和策略为“与规则端口相同”的透明代理。绑定到 RoutingA 的自定义入站有自己的规则文本，见下文。
 
 ## 语法
 
@@ -38,7 +38,7 @@ domain(domain: corp.example) -> office
 
 `geosite:` 类别来自 v2fly 的 [domain-list-community](https://github.com/v2fly/domain-list-community)，`geoip:` 代码来自 [v2fly/geoip](https://github.com/v2fly/geoip)；v2rayA 首次启动时下载缺少的文件，软件包也可能自带它们的构建。常用的有 `geosite:cn`、`geosite:geolocation-!cn`、`geosite:private`、`geosite:category-ads-all`、`geosite:greatfire`、`geosite:netflix`、`geosite:youtube`、`geosite:telegram`、`geosite:openai`；`geoip:cn`、`geoip:private` 与各国家代码。属性可缩小类别范围：`geosite:apple@cn`、`geosite:category-games@cn`。
 
-只存在于 Loyalsoldier 构建中的名称（`gfw`、`apple-cn`、`google-cn`、`geoip:telegram`）不在这两个文件里，内核会以 `illegal domain rule` 或 `illegal ip rule` 拒绝。**更新 GFWList** 会把该构建（来自 `v2rayA/dist-v2ray-rules-dat`）下载为 `LoyalsoldierSite.dat`，之后规则可以写成 `domain(ext:"LoyalsoldierSite.dat:gfw")`。
+只存在于 Loyalsoldier 构建中的名称（`gfw`、`apple-cn`、`google-cn`、`geoip:telegram`）不在这两个文件里，内核会以 `illegal domain rule` 或 `illegal ip rule` 拒绝。**更新 blocklist 数据**会把该构建（来自 `v2rayA/dist-v2ray-rules-dat`）下载为 `LoyalsoldierSite.dat`，之后规则可以写成 `domain(ext:"LoyalsoldierSite.dat:gfw")`。
 
 ## 编辑器
 

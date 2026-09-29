@@ -7,8 +7,8 @@ Com o proxy transparente ativado, o tráfego chega ao núcleo sem nenhuma config
 | Política                    | Tráfego pelo proxy                                                                                                                                                                                                    |
 | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Não dividir                 | tudo                                                                                                                                                                                                                  |
-| Proxy exceto sites da China | tudo, exceto domínios e endereços chineses (`geosite:cn`, `geoip:cn`) e endereços privados; sites fora da China, Google e endereços de Hong Kong e Macau passam pelo proxy mesmo quando uma regra chinesa corresponde |
-| Proxy apenas para GFWList   | os domínios da GFWList (`gfw` e `greatfire` do arquivo de Loyalsoldier) e as faixas de endereços do Telegram; execute **Atualizar GFWList** primeiro, pois o modo é recusado sem o arquivo                            |
+| Proxy exceto allowlist     | tudo, exceto domínios e endereços do allowlist (`geosite:cn`, `geoip:cn`) e endereços privados; sites fora do allowlist, Google e endereços de Hong Kong e Macau passam pelo proxy mesmo quando uma regra do allowlist corresponde |
+| Proxy apenas para blocklist | os domínios do conjunto blocklist (`gfw` e `greatfire` do arquivo de Loyalsoldier) e as faixas de endereços do Telegram; execute **Atualizar dados de blocklist** primeiro, pois o modo é recusado sem o arquivo |
 | Igual ao da porta de regras | o modo da porta de regras, incluindo RoutingA                                                                                                                                                                         |
 
 ## Implementações
@@ -38,7 +38,7 @@ Limitação conhecida: no Windows e no macOS, um aplicativo que consulta diretam
 
 ## DNS
 
-**Configurações → Configurações de DNS** contém as regras que o módulo DNS do núcleo segue: qual servidor upstream responde por quais domínios e se a consulta sai diretamente. Os padrões enviam nomes privados para `127.0.0.1:53` (`localhost`, que precisa de um resolvedor escutando ali), `geosite:cn` diretamente para `223.5.5.5` e todo o resto para `1.0.0.1` pelo proxy. Uma saída `direct` consulta diretamente; qualquer outro valor envia a consulta pela entrada SOCKS local, de modo que ela é roteada como tráfego SOCKS. A regra com uma lista de domínios vazia responde por todos os domínios que nenhuma outra regra indica. Um servidor upstream é um endereço (`8.8.8.8`, `dns.google`), `tcp://host`, `tls://host` para DNS sobre TLS ou `https://host/dns-query` para DNS sobre HTTPS; DNS sobre QUIC não é suportado e é recusado ao salvar.
+**Configurações → Configurações de DNS** contém as regras que o módulo DNS do núcleo segue: qual servidor upstream responde por quais domínios e se a consulta sai diretamente. Os padrões enviam nomes privados para `127.0.0.1:53` (`localhost`, que precisa de um resolvedor escutando ali) e todo o resto para `1.0.0.1` pelo proxy. Uma saída `direct` consulta diretamente; qualquer outro valor envia a consulta pela entrada SOCKS local, de modo que ela é roteada como tráfego SOCKS. A regra com uma lista de domínios vazia responde por todos os domínios que nenhuma outra regra indica. Um servidor upstream é um endereço (`8.8.8.8`, `dns.google`), `tcp://host`, `tls://host` para DNS sobre TLS ou `https://host/dns-query` para DNS sobre HTTPS; DNS sobre QUIC não é suportado e é recusado ao salvar.
 
 ## Compartilhamento com a rede local
 

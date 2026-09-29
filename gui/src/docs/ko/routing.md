@@ -1,6 +1,6 @@
 # 라우팅 규칙
 
-RoutingA는 v2rayA의 규칙 언어입니다. **설정 → RoutingA**에서 편집기를 엽니다. 규칙 포트(`20172`)의 모드가 RoutingA일 때 해당 포트에 규칙이 적용되고, 투명 프록시 정책이 _규칙 포트와 동일_일 때 투명 프록시에도 적용됩니다. RoutingA에 연결된 사용자 지정 인바운드는 별도의 규칙 텍스트를 사용합니다. 아래를 참고하세요.
+RoutingA는 v2rayA의 규칙 언어입니다. **설정 → RoutingA**에서 편집기를 엽니다. 규칙 적용 인바운드(SOCKS5/HTTP 규칙 적용)의 모드가 RoutingA일 때 해당 인바운드에 규칙이 적용되고, 투명 프록시 정책이 _규칙 포트와 동일_일 때 투명 프록시에도 적용됩니다. RoutingA에 연결된 사용자 지정 인바운드는 별도의 규칙 텍스트를 사용합니다. 아래를 참고하세요.
 
 ## 문법
 
@@ -38,7 +38,7 @@ domain(domain: corp.example) -> office
 
 `geosite:` 카테고리는 v2fly의 [domain-list-community](https://github.com/v2fly/domain-list-community)에서, `geoip:` 코드는 [v2fly/geoip](https://github.com/v2fly/geoip)에서 가져옵니다. v2rayA는 처음 시작할 때 없는 파일을 다운로드하며, 패키지에서 자체 빌드를 제공할 수도 있습니다. 자주 사용하는 항목은 `geosite:cn`, `geosite:geolocation-!cn`, `geosite:private`, `geosite:category-ads-all`, `geosite:greatfire`, `geosite:netflix`, `geosite:youtube`, `geosite:telegram`, `geosite:openai`, `geoip:cn`, `geoip:private`, 국가 코드입니다. 속성으로 카테고리 범위를 좁힐 수 있습니다: `geosite:apple@cn`, `geosite:category-games@cn`.
 
-Loyalsoldier 빌드에만 있는 이름(`gfw`, `apple-cn`, `google-cn`, `geoip:telegram`)은 이 파일들에 없습니다. 코어는 `illegal domain rule` 또는 `illegal ip rule` 오류로 해당 이름을 거부합니다. **GFWList 업데이트**는 해당 빌드를 `v2rayA/dist-v2ray-rules-dat`에서 `LoyalsoldierSite.dat`로 다운로드합니다. 이후 규칙에서 `domain(ext:"LoyalsoldierSite.dat:gfw")`로 사용할 수 있습니다.
+Loyalsoldier 빌드에만 있는 이름(`gfw`, `apple-cn`, `google-cn`, `geoip:telegram`)은 이 파일들에 없습니다. 코어는 `illegal domain rule` 또는 `illegal ip rule` 오류로 해당 이름을 거부합니다. **blocklist 데이터 업데이트**는 해당 빌드를 `v2rayA/dist-v2ray-rules-dat`에서 `LoyalsoldierSite.dat`로 다운로드합니다. 이후 규칙에서 `domain(ext:"LoyalsoldierSite.dat:gfw")`로 사용할 수 있습니다.
 
 ## 편집기
 

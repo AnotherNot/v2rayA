@@ -32,17 +32,15 @@ As regras de roteamento usam os nomes dos grupos como saídas: `proxy` por padr�
 
 Quando o núcleo está em execução, os aplicativos o acessam pelas entradas locais:
 
-| Entrada         | Endereço          | Roteamento                                                       |
-| --------------- | ----------------- | ---------------------------------------------------------------- |
-| SOCKS5          | `127.0.0.1:20170` | tudo pelo `proxy`                                                |
-| HTTP            | `127.0.0.1:20171` | tudo pelo `proxy`                                                |
-| HTTP com regras | `127.0.0.1:20172` | a configuração **Modo de divisão de tráfego da porta de regras** |
+| Entrada           | Endereço          | Roteamento                                                       |
+| ----------------- | ----------------- | ---------------------------------------------------------------- |
+| SOCKS5 com regras | `127.0.0.1:20170` | a configuração **Modo de divisão de tráfego da porta de regras** |
 
 As portas são alteradas em **Configurações → Endereços e portas**; 0 fecha uma entrada. Para atender aos aplicativos sem configurar cada um, ative o proxy transparente.
 
 ## Roteamento
 
-**Configurações → Divisão de tráfego** define como a porta de regras e o proxy transparente dividem o tráfego: usar o proxy para tudo, exceto sites chineses, usar o proxy apenas para a GFWList ou usar suas próprias regras RoutingA. O RoutingA é descrito em sua própria seção.
+**Configurações → Divisão de tráfego** define como a porta de regras e o proxy transparente dividem o tráfego: usar o proxy para tudo, exceto o allowlist, usar o proxy apenas para o blocklist ou usar suas próprias regras RoutingA. O RoutingA é descrito em sua própria seção.
 
 ## Teclado
 

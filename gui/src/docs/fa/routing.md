@@ -1,6 +1,6 @@
 # قوانین مسیریابی
 
-RoutingA زبان قوانین v2rayA است. **تنظیمات → قوانین RoutingA** ویرایشگر را باز می‌کند؛ این قوانین برای پورت قوانین (`20172`) در حالت RoutingA و برای پروکسی شفاف با سیاست _حالت تفکیک ترافیک مانند پورت قوانین است_ اعمال می‌شوند. ورودی سفارشی متصل به RoutingA متن قوانین خودش را دارد؛ بخش مربوط به آن در ادامه آمده است.
+RoutingA زبان قوانین v2rayA است. **تنظیمات → قوانین RoutingA** ویرایشگر را باز می‌کند؛ این قوانین برای ورودی‌های باقوانین (SOCKS5/HTTP باقوانین) در حالت RoutingA و برای پروکسی شفاف با سیاست _حالت تفکیک ترافیک مانند پورت قوانین است_ اعمال می‌شوند. ورودی سفارشی متصل به RoutingA متن قوانین خودش را دارد؛ بخش مربوط به آن در ادامه آمده است.
 
 ## نحو
 
@@ -38,7 +38,7 @@ domain(domain: corp.example) -> office
 
 دسته‌های `geosite:` از [domain-list-community](https://github.com/v2fly/domain-list-community) متعلق به v2fly و کدهای `geoip:` از [v2fly/geoip](https://github.com/v2fly/geoip) می‌آیند؛ v2rayA در اولین راه‌اندازی هر فایلی را که موجود نباشد بارگیری می‌کند؛ بستهٔ نصب ممکن است نسخهٔ تهیه‌شدهٔ خودش را همراه داشته باشد. موارد پرکاربرد: `geosite:cn`، `geosite:geolocation-!cn`، `geosite:private`، `geosite:category-ads-all`، `geosite:greatfire`، `geosite:netflix`، `geosite:youtube`، `geosite:telegram`، `geosite:openai`؛ `geoip:cn`، `geoip:private` و کدهای کشورها. ویژگی، دسته را محدودتر می‌کند: `geosite:apple@cn`، `geosite:category-games@cn`.
 
-نام‌هایی که فقط در نسخه‌های تهیه‌شده توسط Loyalsoldier وجود دارند (`gfw`، `apple-cn`، `google-cn`، `geoip:telegram`)، در این فایل‌ها نیستند؛ هسته آن‌ها را با خطای `illegal domain rule` یا `illegal ip rule` رد می‌کند. **به‌روزرسانی GFWList** آن نسخه را (از `v2rayA/dist-v2ray-rules-dat`) با نام `LoyalsoldierSite.dat` بارگیری می‌کند؛ سپس قوانین می‌توانند با `domain(ext:"LoyalsoldierSite.dat:gfw")` از آن استفاده کنند.
+نام‌هایی که فقط در نسخه‌های تهیه‌شده توسط Loyalsoldier وجود دارند (`gfw`، `apple-cn`، `google-cn`، `geoip:telegram`)، در این فایل‌ها نیستند؛ هسته آن‌ها را با خطای `illegal domain rule` یا `illegal ip rule` رد می‌کند. **به‌روزرسانی داده blocklist** آن نسخه را (از `v2rayA/dist-v2ray-rules-dat`) با نام `LoyalsoldierSite.dat` بارگیری می‌کند؛ سپس قوانین می‌توانند با `domain(ext:"LoyalsoldierSite.dat:gfw")` از آن استفاده کنند.
 
 ## ویرایشگر
 
