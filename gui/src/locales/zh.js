@@ -31,6 +31,7 @@ export default {
     list: "列表",
     testLatency: "测试延迟",
     testSpeed: "测试速度",
+    speedFailed: "速度测试失败：{message}",
     sources: { all: "全部", local: "本地" },
     membersOnly: "仅成员",
     source: "来源",

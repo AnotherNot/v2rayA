@@ -219,7 +219,7 @@ export function useProxies() {
     try {
       await nodes.testAll(targets, http, t("latency.testing"));
     } catch (err) {
-      notify.warning(t("latency.failed", { message: errorText(err) }));
+      notify.warning(t("proxies.speedFailed", { message: errorText(err) }));
     } finally {
       testing.value = false;
     }

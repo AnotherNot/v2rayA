@@ -32,6 +32,7 @@ export default {
     list: "목록",
     testLatency: "지연 시간 테스트",
     testSpeed: "속도 테스트",
+    speedFailed: "속도 테스트 실패: {message}",
     sources: { all: "전체", local: "로컬" },
     membersOnly: "구성원만",
     source: "출처",

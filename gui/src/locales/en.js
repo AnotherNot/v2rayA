@@ -32,6 +32,7 @@ export default {
     list: "List",
     testLatency: "Test latency",
     testSpeed: "Test speed",
+    speedFailed: "Speed test failed: {message}",
     sources: { all: "All", local: "Local" },
     membersOnly: "Members only",
     source: "Source",

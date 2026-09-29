@@ -32,6 +32,7 @@ export default {
     list: "Список",
     testLatency: "Проверить задержку",
     testSpeed: "Проверить скорость",
+    speedFailed: "Проверка скорости не удалась: {message}",
     sources: { all: "Все", local: "Локальные" },
     membersOnly: "Только участники",
     source: "Источник",

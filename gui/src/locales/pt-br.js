@@ -32,6 +32,7 @@ export default {
     list: "Lista",
     testLatency: "Testar latência",
     testSpeed: "Testar velocidade",
+    speedFailed: "Teste de velocidade falhou: {message}",
     sources: { all: "Todos", local: "Locais" },
     membersOnly: "Somente membros",
     source: "Origem",

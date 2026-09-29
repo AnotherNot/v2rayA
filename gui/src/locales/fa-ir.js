@@ -32,6 +32,7 @@ export default {
     list: "فهرست",
     testLatency: "آزمایش تأخیر",
     testSpeed: "آزمایش سرعت",
+    speedFailed: "آزمایش سرعت ناموفق بود: {message}",
     sources: { all: "همه", local: "محلی" },
     membersOnly: "فقط اعضا",
     source: "منبع",
