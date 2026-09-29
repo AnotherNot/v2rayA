@@ -489,7 +489,8 @@ export default {
       title: "Templates",
       full: "Full rule set, replaces the current rules",
       add: "Add rules, inserted at the cursor",
-      whitelist: "China direct, everything else through the proxy",
+      region: "Regional snippets",
+      starter: "Starter rules: everything through the proxy, LAN direct",
       blacklist:
         "Sites outside China through the proxy, everything else direct",
       global: "Everything through the proxy, LAN direct",
@@ -498,6 +499,11 @@ export default {
       ruDirect: "Russia direct, everything else through the proxy",
       ruBlocked: "Media blocked in Russia through the proxy",
       ruServices: "Russian services direct (banks, government)",
+      uaIps: "Ukraine IPs direct",
+      byIps: "Belarus IPs direct",
+      kzIps: "Kazakhstan IPs direct",
+      irPreset: "Iranian sites direct",
+      trIps: "Türkiye IPs direct",
       ads: "Block advertising domains",
       streaming:
         "Streaming through the proxy (Netflix, Disney, HBO, Prime Video, YouTube, Spotify, TikTok)",

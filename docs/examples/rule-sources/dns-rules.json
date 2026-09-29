@@ -1,0 +1,18 @@
+{
+  "version": "2026-09-29",
+  "remarks": "Neutral defaults: private names direct, everything else through the proxy",
+  "rules": [
+    {
+      "upstream": "localhost",
+      "domain": "geosite:private",
+      "outbound": "direct",
+      "action": "route"
+    },
+    {
+      "upstream": "1.0.0.1",
+      "domain": "",
+      "outbound": "proxy",
+      "action": "route"
+    }
+  ]
+}

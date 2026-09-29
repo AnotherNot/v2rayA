@@ -30,8 +30,12 @@ const templateGroups = computed(() => [
     items: presets.filter((p) => p.code.startsWith("default:")),
   },
   {
+    title: t("routingA.templates.region"),
+    items: presets.filter((p) => p.region),
+  },
+  {
     title: t("routingA.templates.add"),
-    items: presets.filter((p) => !p.code.startsWith("default:")),
+    items: presets.filter((p) => !p.code.startsWith("default:") && !p.region),
   },
 ]);
 const { width } = useDisplay();

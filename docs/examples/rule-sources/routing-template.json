@@ -1,0 +1,14 @@
+{
+  "version": "2026-09-29",
+  "routingItems": [
+    {
+      "remarks": "RU direct",
+      "domainStrategy": "IPOnDemand",
+      "ruleSet": "[{\"outboundTag\":\"direct\",\"domain\":[\"geosite:category-ru\",\"geosite:private\"],\"remarks\":\"Russian and private domains direct\"},{\"outboundTag\":\"direct\",\"ip\":[\"geoip:ru\",\"geoip:private\"],\"remarks\":\"Russian and private addresses direct\"},{\"outboundTag\":\"proxy\",\"domain\":[\"geosite:category-media-ru-blocked\"],\"remarks\":\"Media blocked in Russia through the proxy\"}]"
+    },
+    {
+      "remarks": "Ads blocked",
+      "ruleSet": "[{\"outboundTag\":\"block\",\"domain\":[\"geosite:category-ads-all\"],\"remarks\":\"Advertising domains blocked\"}]"
+    }
+  ]
+}

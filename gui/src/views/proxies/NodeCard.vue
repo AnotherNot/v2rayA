@@ -76,7 +76,7 @@ const { t } = useI18n();
             {{ row.net }} {{ source }}
           </p>
           <v-spacer />
-          <NodeLatency :latency="row.pingLatency" />
+          <NodeLatency :latency="row.pingLatency" :speed="row.speed" />
         </div>
       </div>
     </div>

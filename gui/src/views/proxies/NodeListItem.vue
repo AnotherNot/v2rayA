@@ -42,7 +42,7 @@ const { t } = useI18n();
     >
     <template #append>
       <div class="node-list-item__append d-flex align-center ga-2">
-        <NodeLatency :latency="row.pingLatency" />
+        <NodeLatency :latency="row.pingLatency" :speed="row.speed" />
         <v-chip v-if="inUse" size="small" variant="tonal">{{
           t("proxies.inUse")
         }}</v-chip>

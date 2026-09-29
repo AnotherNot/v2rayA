@@ -26,6 +26,7 @@ type Server struct {
 	Address     string              `json:"address"`
 	Net         string              `json:"net"`
 	PingLatency string              `json:"pingLatency"`
+	Speed       string              `json:"speed,omitempty"`
 }
 type Subscription struct {
 	Remarks    string              `json:"remarks,omitempty"`
@@ -62,6 +63,7 @@ func serverRawsToServers(rss []configure.ServerRaw) (ts []Server) {
 			Address:     address,
 			Net:         v.ServerObj.ProtoToShow(),
 			PingLatency: v.Latency,
+			Speed:       v.Speed,
 		}
 	}
 	return

@@ -52,6 +52,8 @@ Saving reloads a running core with the new rules; when the core rejects them, v2
 
 Rules can be imported from a URL instead of written by hand: the **Rule source** panel above the editor. It shows the address, the version the source last served and — when the index names several sets — a picker for which set to import. An import replaces the rules, so the editor reloads and shows what the source brought. Importing the same version twice answers that nothing changed, and forgetting the source keeps the rules, so an applied set is never left empty.
 
+A source is an index document in the v2rayN routing-template shape: a `version` and `routingItems`, each with `remarks`, an optional `domainStrategy`, and either an inline `ruleSet` string (a JSON array of `{outboundTag, domain, ip, port, network, protocol}` entries) or a `url` pointing at one. Only `port`, `network`, `domain`, `ip`, `protocol` and `outboundTag` survive the conversion — a `process` condition or a missing `outboundTag` rejects the set. A set whose geo tags are absent from the files on this machine is refused with the tags named, before anything is stored. The `docs/examples/rule-sources/routing-template.json` file in the repository is a minimal hostable example: publish it anywhere over HTTP(S) and paste the link into the panel.
+
 ## Custom inbounds
 
 A custom inbound bound to RoutingA has its own rule text that applies to that inbound only. It takes rules, not definitions: `default:` and `outbound:` lines are ignored, and traffic no rule matches goes to the group chosen in the form. End the text with a catch-all such as `network(tcp, udp) -> direct` to route everything else yourself.

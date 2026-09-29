@@ -27,6 +27,8 @@ export interface TouchServer {
   address: string;
   net: string;
   pingLatency: string;
+  /** last throughput probe result, absent until a speed test runs */
+  speed?: string;
   sub?: number;
   connected?: boolean;
 }

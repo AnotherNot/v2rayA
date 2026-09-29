@@ -14,7 +14,7 @@ describe("the rule templates", () => {
   test("only the full rule sets carry a default outbound", () => {
     const full = presets.filter((p) => p.code.startsWith("default:"));
     expect(full.map((p) => p.key)).toEqual([
-      "whitelist",
+      "starter",
       "blacklist",
       "global",
       "minimal",

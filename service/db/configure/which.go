@@ -397,3 +397,51 @@ func (ws *Whiches) SaveLatencies() (err error) {
 	}
 	return nil
 }
+
+// SaveSpeeds stores one-off throughput results the way SaveLatencies stores
+// latency ones. Speed is written only by the speed probe; the latency test
+// leaves it alone.
+func (ws *Whiches) SaveSpeeds() (err error) {
+	whiches := ws.GetNonDuplicated()
+	var (
+		serverIndexes       = make(map[int]*Which)
+		subscriptionIndexes = make(map[int]map[int]*Which)
+	)
+	// deduplicate
+	for _, which := range whiches {
+		ind := which.ID - 1 // to index
+		switch which.TYPE {
+		case ServerType:
+			serverIndexes[ind] = which
+		case SubscriptionServerType:
+			if _, ok := subscriptionIndexes[which.Sub]; !ok {
+				subscriptionIndexes[which.Sub] = make(map[int]*Which)
+			}
+			subscriptionIndexes[which.Sub][ind] = which
+		default:
+		}
+	}
+	// set servers
+	loc := NewLocator()
+	for index, which := range serverIndexes {
+		sRaw, err := loc.Locate(&which.NodeRef)
+		if err != nil {
+			return err
+		}
+		sRaw.Speed = which.Speed
+		if err := SetServer(index, sRaw); err != nil {
+			return err
+		}
+	}
+	// set subscriptions
+	for subIndex, serverIndexes := range subscriptionIndexes {
+		subRaw := GetSubscription(subIndex)
+		for index, which := range serverIndexes {
+			subRaw.Servers[index].Speed = which.Speed
+		}
+		if err := SetSubscription(subIndex, subRaw); err != nil {
+			return err
+		}
+	}
+	return nil
+}

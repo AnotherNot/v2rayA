@@ -10,6 +10,7 @@ import (
 type ServerRaw struct {
 	ServerObj serverObj.ServerObj `json:"serverObj"`
 	Latency   string              `json:"latency"`
+	Speed     string              `json:"speed,omitempty"`
 }
 
 type SubscriptionRaw struct {

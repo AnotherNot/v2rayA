@@ -235,6 +235,7 @@ export function useProxies() {
       );
       for (const w of res.whiches) {
         const row = locate(nodes.touch.value, w);
+        if (row) row.speed = w.speed ?? "";
         notify.info(`${row?.name ?? ""}: ${w.speed ?? ""}`.trim());
       }
     } catch (err) {

@@ -239,6 +239,7 @@ describe("proxy node management", () => {
     expect(noticeState.current?.kind).toBe("info");
     expect(noticeState.current?.text).toContain("12.4 Mbit/s");
     expect(model.listed.value[0].pingLatency).toBe("");
+    expect(model.listed.value[0].speed).toBe("12.4 Mbit/s");
   });
   test("exports the selected nodes to the clipboard or to a timestamped TXT file", async () => {
     const model = getModel();

@@ -2,9 +2,12 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 defineOptions({ name: "NodeLatency" });
-const props = defineProps<{ latency: string }>();
+const props = defineProps<{ latency: string; speed?: string }>();
 const { t } = useI18n();
 const testing = computed(() => props.latency === t("latency.testing"));
+const text = computed(
+  () => [props.speed, props.latency].filter(Boolean).join(" · ") || "—",
+);
 const color = computed(() => {
   if (props.latency === "TIMEOUT") return "text-error";
   const value = parseFloat(props.latency);
@@ -25,7 +28,7 @@ const color = computed(() => {
       width="2"
       :aria-label="t('latency.testing')"
     />
-    <template v-else>{{ latency || "—" }}</template>
+    <template v-else>{{ text }}</template>
   </span>
 </template>
 <style scoped>
