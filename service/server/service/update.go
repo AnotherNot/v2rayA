@@ -3,52 +3,33 @@ package service
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"net/http"
-	"runtime"
-	"strings"
 
+	"github.com/tidwall/gjson"
 	"github.com/v2rayA/v2rayA/common"
 	"github.com/v2rayA/v2rayA/conf"
 )
 
 func CheckUpdate() (foundNew bool, remoteVersion string, err error) {
-	arch := runtime.GOARCH
-	switch arch {
-	case "386":
-		arch = "i386"
-	case "arm":
-		arch = "armhf"
-	case "mipsle":
-		arch = "mips32le"
-	}
-	resp, err := http.Get("https://raw.githubusercontent.com/v2rayA/v2raya-apt/master/dists/v2raya/main/binary-" + arch + "/Packages")
+	resp, err := http.Get("https://api.github.com/repos/AnotherNot/v2rayB/releases/latest")
 	if err != nil {
 		return
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return false, "", fmt.Errorf("the release feed answered HTTP %s", resp.Status)
+	}
 	buf := new(bytes.Buffer)
-	_, err = buf.ReadFrom(resp.Body)
+	_, err = buf.ReadFrom(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
 		return
 	}
-	s := buf.String()
-	l := strings.Index(s, "Package: v2raya")
-	if l < 0 {
-		return false, "", fmt.Errorf("the APT package index has no v2rayA entry; cannot tell whether a newer version exists")
+	tag := gjson.GetBytes(buf.Bytes(), "tag_name").String()
+	if tag == "" {
+		return false, "", fmt.Errorf("the release feed names no tag")
 	}
-	s = s[l:]
-	prefix := "Version: "
-	l = strings.Index(s, prefix)
-	if l < 0 {
-		return false, "", fmt.Errorf("the v2rayA entry in the APT package index has no Version field")
-	}
-	s = s[l+len(prefix):]
-	r := strings.Index(s, "\n")
-	if r < 0 { // Go to end if no newline
-		r = len(s)
-	}
-	s = s[:r]
 	// Remote version obtained
-	ge, err := common.VersionGreaterEqual(conf.Version, s)
-	return !ge, s, err
+	ge, err := common.VersionGreaterEqual(conf.Version, tag)
+	return !ge, tag, err
 }

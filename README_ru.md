@@ -29,6 +29,8 @@ v2rayA работает как служба и управляется из бр�
 
 Пакеты ниже устанавливают `v2raya` и `v2raya_core` вместе с описанием службы. Включите службу командой, указанной для платформы.
 
+> Этот форк публикует собственные [выпуски](https://github.com/AnotherNot/v2rayB/releases) и собственные пакеты winget/scoop (см. ниже). Сторонние каналы — репозитории APT/DNF, AUR, Gentoo, brew, snap, OpenWrt — по-прежнему отдают upstream-оригинал, а не этот форк.
+
 <details>
 <summary><strong>Debian, Ubuntu и другие дистрибутивы с APT</strong></summary>
 
@@ -112,7 +114,7 @@ sudo rc-update add v2raya default
 sudo rc-service v2raya start
 ```
 
-В остальных системах скачайте оба бинарных файла для своей архитектуры со [страницы выпусков](https://github.com/v2rayA/v2rayA/releases) и возьмите файлы OpenRC из [`install/universal/`](install/universal/). Команды выполняются из клона репозитория; `VERSION` — номер выпуска без ведущей `v`; пример для x64:
+В остальных системах скачайте оба бинарных файла для своей архитектуры со [страницы выпусков](https://github.com/AnotherNot/v2rayB/releases) и возьмите файлы OpenRC из [`install/universal/`](install/universal/). Команды выполняются из клона репозитория; `VERSION` — номер выпуска без ведущей `v`; пример для x64:
 
 ```sh
 sudo install -m755 "v2raya_linux_x64_${VERSION}" /usr/bin/v2raya
@@ -158,7 +160,7 @@ docker run -d --restart=always --privileged --network=host --name v2raya \
 <details>
 <summary><strong>Windows</strong></summary>
 
-`installer_windows_inno_x64_<version>.exe` (или `arm64`) со [страницы выпусков](https://github.com/v2rayA/v2rayA/releases) устанавливает оба бинарных файла и регистрирует службу. Тот же установщик стоит за `winget install --id v2rayA.v2rayA` и за [scoop bucket](https://github.com/v2rayA/v2raya-scoop) (`scoop bucket add v2raya https://github.com/v2rayA/v2raya-scoop && scoop install v2raya-np`).
+`installer_windows_inno_x64_<version>.exe` (или `arm64`) со [страницы выпусков](https://github.com/AnotherNot/v2rayB/releases) устанавливает оба бинарных файла и регистрирует службу. Тот же установщик стоит за `winget install --id AnotherNot.v2rayB` и за scoop-бакетом форка (`scoop bucket add v2rayb https://github.com/AnotherNot/scoop-v2rayb && scoop install v2rayb`).
 
 </details>
 
@@ -188,7 +190,7 @@ brew services start v2raya        # вы: системный прокси
 <details>
 <summary><strong>Другой Linux, без пакета</strong></summary>
 
-Скачайте `v2raya_linux_<arch>_<version>` и `v2raya_core_linux_<arch>_<version>` со [страницы выпусков](https://github.com/v2rayA/v2rayA/releases) (`x86`, `x64`, `arm64`, `armv7`, `riscv64`, `loongarch64`, `mips32`, `mips32le`, `mips64`, `mips64le`), сверьте их с соседним `.sha256.txt` и установите оба в `/usr/bin`. Для systemd:
+Скачайте `v2raya_linux_<arch>_<version>` и `v2raya_core_linux_<arch>_<version>` со [страницы выпусков](https://github.com/AnotherNot/v2rayB/releases) (`x86`, `x64`, `arm64`, `armv7`, `riscv64`, `loongarch64`, `mips32`, `mips32le`, `mips64`, `mips64le`), сверьте их с соседним `.sha256.txt` и установите оба в `/usr/bin`. Для systemd:
 
 ```sh
 sudo install -m644 install/universal/v2raya.service /etc/systemd/system/v2raya.service
@@ -236,13 +238,13 @@ sudo systemctl enable --now v2raya
 
 ## Данные и обновления
 
-База SQLite `v2raya.db` и сгенерированная конфигурация ядра лежат в каталоге конфигурации: `/etc/v2raya` в Linux и macOS, `%ProgramData%\SYSTEM\v2rayA` для службы Windows, каталог конфигурации пользователя при `--lite` или путь из `--config`. Журналы пишутся в `/var/log/v2raya/v2raya.log` юнитами systemd и OpenRC либо в `--log-file` / `V2RAYA_LOG_FILE`. Сетевые запросы выполняются для обновления подписок, загрузки данных правил, измерения задержки, DNS, проверки новой версии на GitHub при запуске и раз в неделю, а также запроса NTP (`ntp.aliyun.com`) при сбое узла VMess, чтобы отличить неверные часы от неисправного узла.
+База SQLite `v2raya.db` и сгенерированная конфигурация ядра лежат в каталоге конфигурации: `/etc/v2raya` в Linux и macOS, `%ProgramData%\SYSTEM\v2rayA` для службы Windows, каталог конфигурации пользователя при `--lite` или путь из `--config`. Журналы пишутся в `/var/log/v2raya/v2raya.log` юнитами systemd и OpenRC либо в `--log-file` / `V2RAYA_LOG_FILE`. Сетевые запросы выполняются для обновления подписок, загрузки данных правил, измерения задержки, DNS, проверки новой версии на GitHub при запуске и раз в неделю, а также запроса NTP (`pool.ntp.org`) при сбое узла VMess, чтобы отличить неверные часы от неисправного узла.
 
 Перед обновлением остановите службу и сделайте резервную копию каталога конфигурации. При обновлении с версии ниже 2.4 база BoltDB переносится при первом запуске; старый файл сохраняется как `bolt.db.bak` (`bolt.db.bak.1` и далее, если это имя занято), учётные записи нужно зарегистрировать заново. Обновляйте `v2raya` и `v2raya_core` вместе: панель показывает версию ядра, а о несовпадении сообщает баннер.
 
 ## Поддержка
 
-Задавайте вопросы в [Discussions](https://github.com/v2rayA/v2rayA/discussions) и сообщайте об ошибках в [Issues](https://github.com/v2rayA/v2rayA/issues).
+Задавайте вопросы в [Discussions](https://github.com/AnotherNot/v2rayB/discussions) и сообщайте об ошибках в [Issues](https://github.com/AnotherNot/v2rayB/issues).
 
 Не используйте этот проект в противоправных целях.
 

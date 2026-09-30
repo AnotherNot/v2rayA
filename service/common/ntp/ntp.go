@@ -33,7 +33,7 @@ func IsDatetimeSynced() (ok bool, t time.Time, err error) {
 		ntpSyncCache.lastReq = time.Now()
 		ntpSyncCache.realTime = t
 	}()
-	t, err = ntp.Time("ntp.aliyun.com")
+	t, err = ntp.Time("pool.ntp.org")
 	if err != nil {
 		// Network error. Assume OK.
 		log.Warn("IsDatetimeSynced: %v", err)

@@ -12,7 +12,7 @@ defineOptions({ name: "AboutView" });
 const { t } = useI18n();
 const store = useAppStore();
 
-const repo = "https://github.com/v2rayA/v2rayA";
+const repo = "https://github.com/AnotherNot/v2rayB";
 </script>
 
 <template>

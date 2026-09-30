@@ -29,6 +29,8 @@ v2rayA runs as a service and is used from a browser, on the machine itself or on
 
 The packages below install `v2raya` and `v2raya_core` together with a service definition. Enable the service with the command shown for the platform.
 
+> This fork publishes its own [releases](https://github.com/AnotherNot/v2rayB/releases) and its own winget/scoop packages (see below). Third-party channels — the APT/DNF repositories, AUR, Gentoo, brew, snap, OpenWrt — still serve the upstream original, not this fork.
+
 <details>
 <summary><strong>Debian, Ubuntu and other APT distributions</strong></summary>
 
@@ -112,7 +114,7 @@ sudo rc-update add v2raya default
 sudo rc-service v2raya start
 ```
 
-Elsewhere, download the two binaries for the architecture from the [releases](https://github.com/v2rayA/v2rayA/releases) and use the OpenRC files from [`install/universal/`](install/universal/). Run this from a checkout of the repository, with `VERSION` set to the release number without the leading `v`; the example is for x64:
+Elsewhere, download the two binaries for the architecture from the [releases](https://github.com/AnotherNot/v2rayB/releases) and use the OpenRC files from [`install/universal/`](install/universal/). Run this from a checkout of the repository, with `VERSION` set to the release number without the leading `v`; the example is for x64:
 
 ```sh
 sudo install -m755 "v2raya_linux_x64_${VERSION}" /usr/bin/v2raya
@@ -158,7 +160,7 @@ With bridge networking instead, publish port 2017 and the inbound ports you use,
 <details>
 <summary><strong>Windows</strong></summary>
 
-`installer_windows_inno_x64_<version>.exe` (or `arm64`) from the [releases](https://github.com/v2rayA/v2rayA/releases) installs both binaries and registers a service. The same installer is behind `winget install --id v2rayA.v2rayA` and the [scoop bucket](https://github.com/v2rayA/v2raya-scoop) (`scoop bucket add v2raya https://github.com/v2rayA/v2raya-scoop && scoop install v2raya-np`).
+`installer_windows_inno_x64_<version>.exe` (or `arm64`) from the [releases](https://github.com/AnotherNot/v2rayB/releases) installs both binaries and registers a service. The same installer is behind `winget install --id AnotherNot.v2rayB` and the fork's scoop bucket (`scoop bucket add v2rayb https://github.com/AnotherNot/scoop-v2rayb && scoop install v2rayb`).
 
 </details>
 
@@ -188,7 +190,7 @@ The [v2raya-openwrt](https://github.com/v2rayA/v2raya-openwrt) feed and the offi
 <details>
 <summary><strong>Other Linux, without a package</strong></summary>
 
-Download `v2raya_linux_<arch>_<version>` and `v2raya_core_linux_<arch>_<version>` from the [releases](https://github.com/v2rayA/v2rayA/releases) (`x86`, `x64`, `arm64`, `armv7`, `riscv64`, `loongarch64`, `mips32`, `mips32le`, `mips64`, `mips64le`), check them against the `.sha256.txt` next to each, and install both into `/usr/bin`. With systemd:
+Download `v2raya_linux_<arch>_<version>` and `v2raya_core_linux_<arch>_<version>` from the [releases](https://github.com/AnotherNot/v2rayB/releases) (`x86`, `x64`, `arm64`, `armv7`, `riscv64`, `loongarch64`, `mips32`, `mips32le`, `mips64`, `mips64le`), check them against the `.sha256.txt` next to each, and install both into `/usr/bin`. With systemd:
 
 ```sh
 sudo install -m644 install/universal/v2raya.service /etc/systemd/system/v2raya.service
@@ -236,13 +238,13 @@ RoutingA has a list mode with a form per rule and a text mode with line numbers,
 
 ## Data and upgrades
 
-The SQLite database `v2raya.db` and the generated core config live in the configuration directory: `/etc/v2raya` on Linux and macOS, `%ProgramData%\SYSTEM\v2rayA` for the Windows service, the user's config directory with `--lite`, or the path given by `--config`. Logs go to `/var/log/v2raya/v2raya.log` under the systemd and OpenRC units, or to `--log-file` / `V2RAYA_LOG_FILE`. Network requests are made for subscription updates, rule-data downloads, latency probes, DNS, a release check against GitHub at start and weekly, and an NTP query (`ntp.aliyun.com`) when a VMess node fails, to tell a wrong clock from a bad node.
+The SQLite database `v2raya.db` and the generated core config live in the configuration directory: `/etc/v2raya` on Linux and macOS, `%ProgramData%\SYSTEM\v2rayA` for the Windows service, the user's config directory with `--lite`, or the path given by `--config`. Logs go to `/var/log/v2raya/v2raya.log` under the systemd and OpenRC units, or to `--log-file` / `V2RAYA_LOG_FILE`. Network requests are made for subscription updates, rule-data downloads, latency probes, DNS, a release check against GitHub at start and weekly, and an NTP query (`pool.ntp.org`) when a VMess node fails, to tell a wrong clock from a bad node.
 
 Stop the service and back up the configuration directory before upgrading. Upgrading from a release before 2.4 migrates the BoltDB database on the first start; the old file is kept as `bolt.db.bak` (`bolt.db.bak.1` and up when that name is taken), and accounts have to be registered again. Upgrade `v2raya` and `v2raya_core` together: the dashboard shows the core version, and a mismatch is reported in a banner.
 
 ## Support
 
-Ask questions in the [discussions](https://github.com/v2rayA/v2rayA/discussions) and report bugs in the [issues](https://github.com/v2rayA/v2rayA/issues).
+Ask questions in the [discussions](https://github.com/AnotherNot/v2rayB/discussions) and report bugs in the [issues](https://github.com/AnotherNot/v2rayB/issues).
 
 Do not use this project for anything illegal.
 

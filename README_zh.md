@@ -29,6 +29,8 @@ v2rayA 以服务形式运行，通过浏览器操作，可部署在本机、路�
 
 下列软件包同时安装 `v2raya`、`v2raya_core` 与服务定义。安装后按各平台给出的命令启用服务。
 
+> 本分支发布自己的 [releases](https://github.com/AnotherNot/v2rayB/releases) 与 winget/scoop 包（见下）。第三方渠道（APT/DNF 软件源、AUR、Gentoo、brew、snap、OpenWrt）仍然提供上游原版，而非本分支。
+
 <details>
 <summary><strong>Debian、Ubuntu 与其他 APT 发行版</strong></summary>
 
@@ -112,7 +114,7 @@ sudo rc-update add v2raya default
 sudo rc-service v2raya start
 ```
 
-其他系统从[发布页](https://github.com/v2rayA/v2rayA/releases)下载对应架构的两个二进制文件，并使用 [`install/universal/`](install/universal/) 中的 OpenRC 文件。以下命令在仓库检出目录中执行，`VERSION` 为不带前缀 `v` 的版本号，示例为 x64：
+其他系统从[发布页](https://github.com/AnotherNot/v2rayB/releases)下载对应架构的两个二进制文件，并使用 [`install/universal/`](install/universal/) 中的 OpenRC 文件。以下命令在仓库检出目录中执行，`VERSION` 为不带前缀 `v` 的版本号，示例为 x64：
 
 ```sh
 sudo install -m755 "v2raya_linux_x64_${VERSION}" /usr/bin/v2raya
@@ -158,7 +160,7 @@ docker run -d --restart=always --privileged --network=host --name v2raya \
 <details>
 <summary><strong>Windows</strong></summary>
 
-[发布页](https://github.com/v2rayA/v2rayA/releases)的 `installer_windows_inno_x64_<version>.exe`（或 `arm64`）安装两个二进制文件并注册服务。`winget install --id v2rayA.v2rayA` 与 [scoop bucket](https://github.com/v2rayA/v2raya-scoop)（`scoop bucket add v2raya https://github.com/v2rayA/v2raya-scoop && scoop install v2raya-np`）使用同一个安装程序。
+[发布页](https://github.com/AnotherNot/v2rayB/releases)的 `installer_windows_inno_x64_<version>.exe`（或 `arm64`）安装两个二进制文件并注册服务。`winget install --id AnotherNot.v2rayB` 与本分支的 scoop bucket（`scoop bucket add v2rayb https://github.com/AnotherNot/scoop-v2rayb && scoop install v2rayb`）使用同一个安装程序。
 
 </details>
 
@@ -188,7 +190,7 @@ brew services start v2raya        # 当前用户：系统代理
 <details>
 <summary><strong>其他 Linux，不使用软件包</strong></summary>
 
-从[发布页](https://github.com/v2rayA/v2rayA/releases)下载 `v2raya_linux_<arch>_<version>` 与 `v2raya_core_linux_<arch>_<version>`（`x86`、`x64`、`arm64`、`armv7`、`riscv64`、`loongarch64`、`mips32`、`mips32le`、`mips64`、`mips64le`），用同名的 `.sha256.txt` 校验，两者都安装到 `/usr/bin`。使用 systemd 时：
+从[发布页](https://github.com/AnotherNot/v2rayB/releases)下载 `v2raya_linux_<arch>_<version>` 与 `v2raya_core_linux_<arch>_<version>`（`x86`、`x64`、`arm64`、`armv7`、`riscv64`、`loongarch64`、`mips32`、`mips32le`、`mips64`、`mips64le`），用同名的 `.sha256.txt` 校验，两者都安装到 `/usr/bin`。使用 systemd 时：
 
 ```sh
 sudo install -m644 install/universal/v2raya.service /etc/systemd/system/v2raya.service
@@ -232,13 +234,13 @@ RoutingA 支持列表和文本两种编辑模式。列表模式为每条规则�
 
 ## 数据与升级
 
-SQLite 数据库 `v2raya.db` 与生成的内核配置位于配置目录：Linux 与 macOS 为 `/etc/v2raya`，Windows 服务为 `%ProgramData%\SYSTEM\v2rayA`，`--lite` 为用户配置目录，也可用 `--config` 指定。systemd 与 OpenRC 单元把日志写到 `/var/log/v2raya/v2raya.log`，也可用 `--log-file` 或 `V2RAYA_LOG_FILE` 指定。程序在更新订阅、下载规则数据、测量延迟、解析 DNS、启动时和每周一次向 GitHub 检查新版本，以及 VMess 节点失败时向 `ntp.aliyun.com` 查询时间（用于区分时钟错误与节点故障）时发起网络请求。
+SQLite 数据库 `v2raya.db` 与生成的内核配置位于配置目录：Linux 与 macOS 为 `/etc/v2raya`，Windows 服务为 `%ProgramData%\SYSTEM\v2rayA`，`--lite` 为用户配置目录，也可用 `--config` 指定。systemd 与 OpenRC 单元把日志写到 `/var/log/v2raya/v2raya.log`，也可用 `--log-file` 或 `V2RAYA_LOG_FILE` 指定。程序在更新订阅、下载规则数据、测量延迟、解析 DNS、启动时和每周一次向 GitHub 检查新版本，以及 VMess 节点失败时向 `pool.ntp.org` 查询时间（用于区分时钟错误与节点故障）时发起网络请求。
 
 升级前先停止服务并备份配置目录。从 2.4 以下版本升级时，首次启动会迁移 BoltDB 数据库，旧文件保留为 `bolt.db.bak`（该名称已存在时为 `bolt.db.bak.1` 及后续编号），账户需要重新注册。`v2raya` 与 `v2raya_core` 必须一起升级：仪表板显示内核版本，版本不一致时显示横幅提示。
 
 ## 支持
 
-问题请到 [Discussions](https://github.com/v2rayA/v2rayA/discussions) 提问，缺陷请到 [Issues](https://github.com/v2rayA/v2rayA/issues) 报告。
+问题请到 [Discussions](https://github.com/AnotherNot/v2rayB/discussions) 提问，缺陷请到 [Issues](https://github.com/AnotherNot/v2rayB/issues) 报告。
 
 不要将本项目用于不合法用途。
 

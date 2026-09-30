@@ -207,7 +207,7 @@ async function announceVersion() {
       action: {
         label: "GitHub",
         onClick: () =>
-          window.open("https://github.com/v2rayA/v2rayA/releases", "_blank"),
+          window.open("https://github.com/AnotherNot/v2rayB/releases", "_blank"),
       },
     });
   if (v.coreVersionValid === false)

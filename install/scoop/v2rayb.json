@@ -1,0 +1,25 @@
+{
+  "version": "0.0.0",
+  "description": "A web client for its own Xray-based core with global transparent proxy.",
+  "homepage": "https://github.com/AnotherNot/v2rayB",
+  "license": "GPL-3.0-only",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/AnotherNot/v2rayB/releases/download/v0.0.0/installer_windows_inno_x64_0.0.0.exe",
+      "hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "innosetup": true,
+      "autoupdate": {
+        "url": "https://github.com/AnotherNot/v2rayB/releases/download/v$version/installer_windows_inno_x64_$version.exe"
+      }
+    },
+    "arm64": {
+      "url": "https://github.com/AnotherNot/v2rayB/releases/download/v0.0.0/installer_windows_inno_arm64_0.0.0.exe",
+      "hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+      "innosetup": true,
+      "autoupdate": {
+        "url": "https://github.com/AnotherNot/v2rayB/releases/download/v$version/installer_windows_inno_arm64_$version.exe"
+      }
+    }
+  },
+  "checkver": "github"
+}
