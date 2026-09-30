@@ -29,7 +29,7 @@ v2rayA работает как служба и управляется из бр�
 
 Пакеты ниже устанавливают `v2raya` и `v2raya_core` вместе с описанием службы. Включите службу командой, указанной для платформы.
 
-> Этот форк публикует собственные [выпуски](https://github.com/AnotherNot/v2rayB/releases) и собственные пакеты winget/scoop (см. ниже). Сторонние каналы — репозитории APT/DNF, AUR, Gentoo, brew, snap, OpenWrt — по-прежнему отдают upstream-оригинал, а не этот форк.
+> Этот форк публикует собственные [выпуски](https://github.com/AnotherNot/v2rayA/releases) и собственные пакеты winget/scoop (см. ниже). Сторонние каналы — репозитории APT/DNF, AUR, Gentoo, brew, snap, OpenWrt — по-прежнему отдают upstream-оригинал, а не этот форк.
 
 <details>
 <summary><strong>Debian, Ubuntu и другие дистрибутивы с APT</strong></summary>
@@ -114,7 +114,7 @@ sudo rc-update add v2raya default
 sudo rc-service v2raya start
 ```
 
-В остальных системах скачайте оба бинарных файла для своей архитектуры со [страницы выпусков](https://github.com/AnotherNot/v2rayB/releases) и возьмите файлы OpenRC из [`install/universal/`](install/universal/). Команды выполняются из клона репозитория; `VERSION` — номер выпуска без ведущей `v`; пример для x64:
+В остальных системах скачайте оба бинарных файла для своей архитектуры со [страницы выпусков](https://github.com/AnotherNot/v2rayA/releases) и возьмите файлы OpenRC из [`install/universal/`](install/universal/). Команды выполняются из клона репозитория; `VERSION` — номер выпуска без ведущей `v`; пример для x64:
 
 ```sh
 sudo install -m755 "v2raya_linux_x64_${VERSION}" /usr/bin/v2raya
@@ -160,7 +160,7 @@ docker run -d --restart=always --privileged --network=host --name v2raya \
 <details>
 <summary><strong>Windows</strong></summary>
 
-`installer_windows_inno_x64_<version>.exe` (или `arm64`) со [страницы выпусков](https://github.com/AnotherNot/v2rayB/releases) устанавливает оба бинарных файла и регистрирует службу. Тот же установщик стоит за `winget install --id AnotherNot.v2rayB` и за scoop-бакетом форка (`scoop bucket add v2rayb https://github.com/AnotherNot/scoop-v2rayb && scoop install v2rayb`).
+`installer_windows_inno_x64_<version>.exe` (или `arm64`) со [страницы выпусков](https://github.com/AnotherNot/v2rayA/releases) устанавливает оба бинарных файла и регистрирует службу. Тот же установщик стоит за `winget install --id AnotherNot.v2rayA` и за scoop-бакетом форка (`scoop bucket add v2raya https://github.com/AnotherNot/scoop-v2raya && scoop install v2raya`)).
 
 </details>
 
@@ -190,7 +190,7 @@ brew services start v2raya        # вы: системный прокси
 <details>
 <summary><strong>Другой Linux, без пакета</strong></summary>
 
-Скачайте `v2raya_linux_<arch>_<version>` и `v2raya_core_linux_<arch>_<version>` со [страницы выпусков](https://github.com/AnotherNot/v2rayB/releases) (`x86`, `x64`, `arm64`, `armv7`, `riscv64`, `loongarch64`, `mips32`, `mips32le`, `mips64`, `mips64le`), сверьте их с соседним `.sha256.txt` и установите оба в `/usr/bin`. Для systemd:
+Скачайте `v2raya_linux_<arch>_<version>` и `v2raya_core_linux_<arch>_<version>` со [страницы выпусков](https://github.com/AnotherNot/v2rayA/releases) (`x86`, `x64`, `arm64`, `armv7`, `riscv64`, `loongarch64`, `mips32`, `mips32le`, `mips64`, `mips64le`), сверьте их с соседним `.sha256.txt` и установите оба в `/usr/bin`. Для systemd:
 
 ```sh
 sudo install -m644 install/universal/v2raya.service /etc/systemd/system/v2raya.service
@@ -244,7 +244,7 @@ sudo systemctl enable --now v2raya
 
 ## Поддержка
 
-Задавайте вопросы в [Discussions](https://github.com/AnotherNot/v2rayB/discussions) и сообщайте об ошибках в [Issues](https://github.com/AnotherNot/v2rayB/issues).
+Задавайте вопросы в [Discussions](https://github.com/AnotherNot/v2rayA/discussions) и сообщайте об ошибках в [Issues](https://github.com/AnotherNot/v2rayA/issues).
 
 Не используйте этот проект в противоправных целях.
 

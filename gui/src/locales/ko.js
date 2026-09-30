@@ -447,6 +447,8 @@ export default {
     protocols:
       "VMess, VLESS, Shadowsocks, Trojan, Hysteria2, TUIC, Juicity, AnyTLS, WireGuard, SOCKS5, HTTP(S) 프록시 링크를 지원합니다.",
     founded: "{'@'}mzz2017가 시작한 프로젝트입니다.",
+    fork: "{upstream}의 포크입니다. 아래 버튼들은 이 포크를 가리킵니다.",
+    upstream: "업스트림",
     local: "모든 데이터는 이 컴퓨터에만 저장되며 클라우드로 전송되지 않습니다.",
     report: "사용 중 발견한 문제는 {discussions}에 제보할 수 있습니다.",
     discussions: "discussions",

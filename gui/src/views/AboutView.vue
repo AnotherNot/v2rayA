@@ -5,6 +5,7 @@ import {
   mdiBookOpenPageVariantOutline,
   mdiForumOutline,
   mdiGithub,
+  mdiSourceFork,
 } from "@mdi/js";
 import { useAppStore } from "@/stores/app";
 
@@ -12,7 +13,7 @@ defineOptions({ name: "AboutView" });
 const { t } = useI18n();
 const store = useAppStore();
 
-const repo = "https://github.com/AnotherNot/v2rayB";
+const repo = "https://github.com/AnotherNot/v2rayA";
 </script>
 
 <template>
@@ -29,6 +30,9 @@ const repo = "https://github.com/AnotherNot/v2rayB";
         {{ t("about.local") }}
         {{ t("about.report", { discussions: t("about.discussions") }) }}
       </p>
+      <p class="md3-body-medium text-on-surface-variant mt-2">
+        {{ t("about.fork", { upstream: "v2rayA/v2rayA" }) }}
+      </p>
       <div class="d-flex flex-wrap ga-2 mt-6">
         <v-btn
           variant="tonal"
@@ -37,6 +41,14 @@ const repo = "https://github.com/AnotherNot/v2rayB";
           rel="noreferrer"
           :prepend-icon="mdiGithub"
           >GitHub</v-btn
+        >
+        <v-btn
+          variant="tonal"
+          href="https://github.com/v2rayA/v2rayA"
+          target="_blank"
+          rel="noreferrer"
+          :prepend-icon="mdiSourceFork"
+          >{{ t("about.upstream") }}</v-btn
         >
         <v-btn
           variant="tonal"

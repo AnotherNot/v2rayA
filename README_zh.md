@@ -29,7 +29,7 @@ v2rayA 以服务形式运行，通过浏览器操作，可部署在本机、路�
 
 下列软件包同时安装 `v2raya`、`v2raya_core` 与服务定义。安装后按各平台给出的命令启用服务。
 
-> 本分支发布自己的 [releases](https://github.com/AnotherNot/v2rayB/releases) 与 winget/scoop 包（见下）。第三方渠道（APT/DNF 软件源、AUR、Gentoo、brew、snap、OpenWrt）仍然提供上游原版，而非本分支。
+> 本分支发布自己的 [releases](https://github.com/AnotherNot/v2rayA/releases) 与 winget/scoop 包（见下）。第三方渠道（APT/DNF 软件源、AUR、Gentoo、brew、snap、OpenWrt）仍然提供上游原版，而非本分支。
 
 <details>
 <summary><strong>Debian、Ubuntu 与其他 APT 发行版</strong></summary>
@@ -114,7 +114,7 @@ sudo rc-update add v2raya default
 sudo rc-service v2raya start
 ```
 
-其他系统从[发布页](https://github.com/AnotherNot/v2rayB/releases)下载对应架构的两个二进制文件，并使用 [`install/universal/`](install/universal/) 中的 OpenRC 文件。以下命令在仓库检出目录中执行，`VERSION` 为不带前缀 `v` 的版本号，示例为 x64：
+其他系统从[发布页](https://github.com/AnotherNot/v2rayA/releases)下载对应架构的两个二进制文件，并使用 [`install/universal/`](install/universal/) 中的 OpenRC 文件。以下命令在仓库检出目录中执行，`VERSION` 为不带前缀 `v` 的版本号，示例为 x64：
 
 ```sh
 sudo install -m755 "v2raya_linux_x64_${VERSION}" /usr/bin/v2raya
@@ -160,7 +160,7 @@ docker run -d --restart=always --privileged --network=host --name v2raya \
 <details>
 <summary><strong>Windows</strong></summary>
 
-[发布页](https://github.com/AnotherNot/v2rayB/releases)的 `installer_windows_inno_x64_<version>.exe`（或 `arm64`）安装两个二进制文件并注册服务。`winget install --id AnotherNot.v2rayB` 与本分支的 scoop bucket（`scoop bucket add v2rayb https://github.com/AnotherNot/scoop-v2rayb && scoop install v2rayb`）使用同一个安装程序。
+[发布页](https://github.com/AnotherNot/v2rayA/releases)的 `installer_windows_inno_x64_<version>.exe`（或 `arm64`）安装两个二进制文件并注册服务。`winget install --id AnotherNot.v2rayA` 与本分支的 scoop bucket（`scoop bucket add v2raya https://github.com/AnotherNot/scoop-v2raya && scoop install v2raya`））使用同一个安装程序。
 
 </details>
 
@@ -190,7 +190,7 @@ brew services start v2raya        # 当前用户：系统代理
 <details>
 <summary><strong>其他 Linux，不使用软件包</strong></summary>
 
-从[发布页](https://github.com/AnotherNot/v2rayB/releases)下载 `v2raya_linux_<arch>_<version>` 与 `v2raya_core_linux_<arch>_<version>`（`x86`、`x64`、`arm64`、`armv7`、`riscv64`、`loongarch64`、`mips32`、`mips32le`、`mips64`、`mips64le`），用同名的 `.sha256.txt` 校验，两者都安装到 `/usr/bin`。使用 systemd 时：
+从[发布页](https://github.com/AnotherNot/v2rayA/releases)下载 `v2raya_linux_<arch>_<version>` 与 `v2raya_core_linux_<arch>_<version>`（`x86`、`x64`、`arm64`、`armv7`、`riscv64`、`loongarch64`、`mips32`、`mips32le`、`mips64`、`mips64le`），用同名的 `.sha256.txt` 校验，两者都安装到 `/usr/bin`。使用 systemd 时：
 
 ```sh
 sudo install -m644 install/universal/v2raya.service /etc/systemd/system/v2raya.service
@@ -240,7 +240,7 @@ SQLite 数据库 `v2raya.db` 与生成的内核配置位于配置目录：Linux 
 
 ## 支持
 
-问题请到 [Discussions](https://github.com/AnotherNot/v2rayB/discussions) 提问，缺陷请到 [Issues](https://github.com/AnotherNot/v2rayB/issues) 报告。
+问题请到 [Discussions](https://github.com/AnotherNot/v2rayA/discussions) 提问，缺陷请到 [Issues](https://github.com/AnotherNot/v2rayA/issues) 报告。
 
 不要将本项目用于不合法用途。
 

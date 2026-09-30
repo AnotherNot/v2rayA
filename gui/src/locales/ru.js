@@ -453,6 +453,8 @@ export default {
     protocols:
       "Поддерживает ссылки VMess, VLESS, Shadowsocks, Trojan, Hysteria2, TUIC, Juicity, AnyTLS, WireGuard, SOCKS5 и HTTP(S).",
     founded: "Основатель проекта — {'@'}mzz2017.",
+    fork: "Форк {upstream}; кнопки ниже ведут на этот форк.",
+    upstream: "Апстрим",
     local: "Все данные хранятся локально и никуда не отправляются.",
     report:
       "О проблемах, обнаруженных при использовании, можно сообщить в разделе {discussions}.",

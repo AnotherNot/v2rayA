@@ -1,8 +1,8 @@
 # Contributing to v2rayA
 
-Usage questions go to [Discussions](https://github.com/AnotherNot/v2rayB/discussions). Issues are for a defect or a feature request, pull requests for a change you have built and run. The issue forms and the pull request template come in English; Russian is welcome too.
+Usage questions go to [Discussions](https://github.com/AnotherNot/v2rayA/discussions). Issues are for a defect or a feature request, pull requests for a change you have built and run. The issue forms and the pull request template come in English; Russian is welcome too.
 
-Before you open an issue or a pull request, check the [latest release](https://github.com/AnotherNot/v2rayB/releases/latest): fixes go into the current release only. Then search the existing issues.
+Before you open an issue or a pull request, check the [latest release](https://github.com/AnotherNot/v2rayA/releases/latest): fixes go into the current release only. Then search the existing issues.
 
 ## The repository
 

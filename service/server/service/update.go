@@ -12,7 +12,7 @@ import (
 )
 
 func CheckUpdate() (foundNew bool, remoteVersion string, err error) {
-	resp, err := http.Get("https://api.github.com/repos/AnotherNot/v2rayB/releases/latest")
+	resp, err := http.Get("https://api.github.com/repos/AnotherNot/v2rayA/releases/latest")
 	if err != nil {
 		return
 	}

@@ -114,8 +114,8 @@ jobs:
               fi
             fi
               fpm -s dir -t "$package_manager" -a $package_arch --version "${{ inputs.version }}" \
-              --url 'https://github.com/AnotherNot/v2rayB' --description "$DESC" \
-              --maintainer "AnotherNot <https://github.com/AnotherNot/v2rayB>" --name v2raya --license 'AGPL' \
+              --url 'https://github.com/AnotherNot/v2rayA' --description "$DESC" \
+              --maintainer "AnotherNot <https://github.com/AnotherNot/v2rayA>" --name v2raya --license 'AGPL' \
               --package installer_linux_$GOARCH$GOAMD64$GOARM_${{ inputs.version }}.$package_manager \
               --after-install ./install/universal/after_install.sh \
               --after-upgrade ./install/universal/after_upgrade.sh \

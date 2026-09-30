@@ -457,6 +457,8 @@ export default {
     protocols:
       "Aceita links VMess, VLESS, Shadowsocks, Trojan, Hysteria2, TUIC, Juicity, AnyTLS, WireGuard, SOCKS5 e HTTP(S).",
     founded: "Fundado por {'@'}mzz2017.",
+    fork: "Um fork de {upstream}; os botões abaixo apontam para este fork.",
+    upstream: "Upstream",
     local: "Todos os dados ficam nesta máquina; nada é enviado à nuvem.",
     report:
       "Problemas encontrados durante o uso podem ser relatados em {discussions}.",

@@ -19,7 +19,7 @@ func serveUpdateJSON(t *testing.T, body string, status int) {
 	old := http.DefaultClient
 	t.Cleanup(func() { http.DefaultClient = old })
 	http.DefaultClient = &http.Client{Transport: updateTransport(func(r *http.Request) (*http.Response, error) {
-		if !strings.HasSuffix(r.URL.Path, "/AnotherNot/v2rayB/releases/latest") {
+		if !strings.HasSuffix(r.URL.Path, "/AnotherNot/v2rayA/releases/latest") {
 			t.Errorf("wrong release feed: %s", r.URL.Path)
 		}
 		return &http.Response{

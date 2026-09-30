@@ -438,6 +438,8 @@ export default {
     protocols:
       "支持 VMess、VLESS、Shadowsocks、Trojan、Hysteria2、TUIC、Juicity、AnyTLS、WireGuard、SOCKS5 与 HTTP(S) 代理节点。",
     founded: "由 {'@'}mzz2017 创立。",
+    fork: "这是 {upstream} 的一个分支；下面的按钮指向本分支。",
+    upstream: "上游",
     local: "所有数据均存储在本地，不上传云端。",
     report: "在使用中如果发现任何问题，欢迎到{discussions}反馈。",
     discussions: "讨论区",

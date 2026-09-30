@@ -451,6 +451,8 @@ export default {
     protocols:
       "Speaks VMess, VLESS, Shadowsocks, Trojan, Hysteria2, TUIC, Juicity, AnyTLS, WireGuard, SOCKS5 and HTTP(S) proxy links.",
     founded: "Founded by {'@'}mzz2017.",
+    fork: "A fork of {upstream}; the buttons below point at this fork.",
+    upstream: "Upstream",
     local: "All data stays on this machine; nothing is sent to a cloud.",
     report: "Problems found during use can be reported in {discussions}.",
     discussions: "discussions",

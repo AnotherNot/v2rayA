@@ -448,6 +448,8 @@ export default {
     protocols:
       "از پیوندهای VMess، VLESS، Shadowsocks، Trojan، Hysteria2، TUIC، Juicity، AnyTLS، WireGuard، SOCKS5 و HTTP(S) پشتیبانی می‌کند.",
     founded: "بنیان‌گذار: {'@'}mzz2017.",
+    fork: "انشعابی از {upstream}؛ دکمه‌های زیر به همین انشعاب اشاره می‌کنند.",
+    upstream: "بالادست",
     local:
       "همهٔ داده‌ها روی همین دستگاه می‌مانند و به هیچ سرویس ابری فرستاده نمی‌شوند.",
     report:
