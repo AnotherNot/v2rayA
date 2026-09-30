@@ -224,7 +224,7 @@ jobs:
           $Installer_ARM64_url = "https://github.com/${{ github.repository }}/releases/download/v${{ steps.prep.outputs.VERSION }}/installer_windows_inno_arm64_${{ steps.prep.outputs.VERSION }}.exe"
           # update submits a version bump for the fork's own package id; the
           # very first release has no manifest yet, so fall back to creating
-          # it (see docs/release.md).
+          # it.
           ./wingetcreate.exe update AnotherNot.v2rayB --urls $Installer_x64_url $Installer_ARM64_url --version ${{ steps.prep.outputs.VERSION }} --token $env:RELEASE_PAT --submit
           if ($LASTEXITCODE -ne 0) {
             ./wingetcreate.exe new $Installer_x64_url $Installer_ARM64_url `
