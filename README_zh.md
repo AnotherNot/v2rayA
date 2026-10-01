@@ -8,11 +8,13 @@
 
 [English](README.md) · 简体中文 · [Русский](README_ru.md)
 
-[运行环境](#运行环境) • [安装](#安装) • [首次运行](#首次运行) • [透明代理](#透明代理) • [数据与升级](#数据与升级) • [支持](#支持)
+[运行环境](#运行环境) • [安装](#安装) • [首次运行](#首次运行) • [透明代理](#透明代理) • [数据与升级](#数据与升级) • [支持](#支持) • [关于本分支](#关于本分支)
 
 </div>
 
 v2rayA 以服务形式运行，通过浏览器操作，可部署在本机、路由器或 NAS 上。它导入 VMess、VLESS、Shadowsocks、Trojan、Hysteria2、TUIC、[Juicity](https://github.com/juicity)、AnyTLS、WireGuard、SOCKS5 与 HTTP(S) 的订阅和分享链接。节点编成组后，由实测延迟最低的成员或固定的成员出站，分流由 RoutingA 规则决定。不支持 ShadowsocksR。
+
+> **本仓库是 [v2rayA](https://github.com/v2rayA/v2rayA) 的一个分支。** 它保留上游的名称、结构与许可证，并带有自己的改动——见[关于本分支](#关于本分支)。Releases、winget 与 scoop 包从 [AnotherNot/v2rayA](https://github.com/AnotherNot/v2rayA) 发布；APT 与 DNF 软件源、AUR、Gentoo、brew、snap 及 OpenWrt 仍然提供上游原版。
 
 ## 运行环境
 
@@ -27,9 +29,7 @@ v2rayA 以服务形式运行，通过浏览器操作，可部署在本机、路�
 
 ## 安装
 
-下列软件包同时安装 `v2raya`、`v2raya_core` 与服务定义。安装后按各平台给出的命令启用服务。
-
-> 本分支发布自己的 [releases](https://github.com/AnotherNot/v2rayA/releases) 与 winget/scoop 包（见下）。第三方渠道（APT/DNF 软件源、AUR、Gentoo、brew、snap、OpenWrt）仍然提供上游原版，而非本分支。
+下列软件包同时安装 `v2raya`、`v2raya_core` 与服务定义。安装后按各平台给出的命令启用服务。APT 与 DNF 软件源、AUR、Gentoo、brew、snap 及 OpenWrt 提供的是上游原版，而非本分支；下文提到本仓库的渠道提供的才是本分支。
 
 <details>
 <summary><strong>Debian、Ubuntu 与其他 APT 发行版</strong></summary>
@@ -210,6 +210,8 @@ sudo systemctl enable --now v2raya
 
 内核运行后，把应用指向带规则的 SOCKS5 `127.0.0.1:20170`（默认唯一开启的入站；其余在设置 → 地址与端口中），或者在仪表板开启透明代理并从下表选择模式。组内有多个已连接成员时，使用实测延迟最低的成员，类型为 Random 时分散连接；固定某个成员后，该组只经它出站。订阅可在订阅页手动更新，也可按设置中的间隔自动更新。
 
+日常操作——节点、分组、模式、DNS、日志、备份——在 [docs/user-guide.md](docs/user-guide.md) 中有逐步说明（俄文版：[docs/user-guide-ru.md](docs/user-guide-ru.md)）。
+
 <img src="docs/images/screenshot.png" alt="仪表板，明暗两种主题" width="100%">
 
 ## 透明代理
@@ -244,9 +246,21 @@ SQLite 数据库 `v2raya.db` 与生成的内核配置位于配置目录：Linux 
 
 不要将本项目用于不合法用途。
 
+## 关于本分支
+
+这是 [v2rayA](https://github.com/v2rayA/v2rayA) 的一个受维护的分支——在原版中发现的缺陷应提交到那里，而不是这里。项目本身的作者见下文。
+
+本分支的所有改动都由编码智能体编写。站在它背后的人决定添加什么、去掉什么、结果应该是什么样，在运行中的安装上逐项验证，并为结果负责。这些改动所依据的工作规则写在 [AGENTS.md](AGENTS.md) 里。没有被实际看到可用之前，一项改动就不算完成。
+
+改动本身：路由模式按其作用命名，而不是绑定于某一个地区，存储在它们背后的值也已迁移到新名称；默认 DNS 解析器不绑定地区；blocklist 规则集的更新器从原先绑定的那一个集合泛化而来；随项目提供的规则预设在真实节点上验证过；分组增加了随机这一负载均衡类型；默认只启用一个带规则的 SOCKS5 入站；测得的节点速度会被保存，而不是每次打开页面都重新测量；项目可在容器中用一条命令构建；本分支发布自己的 releases、winget 包与 scoop bucket。
+
+凡有现成形状可循之处，都没有另起炉灶。[docs/README.md](docs/README.md#what-the-code-stands-on) 完整列出了代码所依托的东西；简而言之：分享链接方言与规则索引格式来自 [v2rayN](https://github.com/2dust/v2rayN)，路由模型与均衡器标签来自 [Xray-core](https://github.com/XTLS/Xray-core)——`v2raya_core` 本身即其分支，DNS 协议层处理来自 [miekg/dns](https://github.com/miekg/dns)，公开的俄罗斯规则集来自 [runetfreedom](https://github.com/runetfreedom/russia-v2ray-rules-dat)，geo 文件来自 [v2fly/domain-list-community](https://github.com/v2fly/domain-list-community) 与 [v2fly/geoip](https://github.com/v2fly/geoip)，规则语法来自 [RoutingA](https://github.com/v2rayA/RoutingA)。
+
+凡此处的某行代码、某种结构或某个机制重复了第三方方案，该方案及其许可证均属其作者，本仓库不主张任何功劳。本分支的贡献是上述改动本身，以及让它们持续通过构建与测试的工作。
+
 ## 致谢
 
-由 [@mzz2017](https://github.com/mzz2017) 创立。Material Design 3 界面、内核内建的 TUN 与 2.5 的服务端重构由 [@Zakkaus](https://github.com/Zakkaus) 完成。OpenRC 文件来自 [Gentoo 中文社区](https://gentoozh.org)。路由数据来自 [v2fly/domain-list-community](https://github.com/v2fly/domain-list-community) 与 [v2fly/geoip](https://github.com/v2fly/geoip)，GFWList 模式使用 [Loyalsoldier/v2ray-rules-dat](https://github.com/Loyalsoldier/v2ray-rules-dat)。透明代理规则参考了 [zfl9/ss-tproxy](https://github.com/zfl9/ss-tproxy) 与 [hq450/fancyss](https://github.com/hq450/fancyss)。
+由 [@mzz2017](https://github.com/mzz2017) 创立。Material Design 3 界面、内核内建的 TUN 与 2.5 的服务端重构由 [@Zakkaus](https://github.com/Zakkaus) 完成。OpenRC 文件来自 [Gentoo 中文社区](https://gentoozh.org)。路由数据来自 [v2fly/domain-list-community](https://github.com/v2fly/domain-list-community) 与 [v2fly/geoip](https://github.com/v2fly/geoip)，blocklist 模式使用 [Loyalsoldier/v2ray-rules-dat](https://github.com/Loyalsoldier/v2ray-rules-dat)。透明代理规则参考了 [zfl9/ss-tproxy](https://github.com/zfl9/ss-tproxy) 与 [hq450/fancyss](https://github.com/hq450/fancyss)。
 
 ## 许可证
 

@@ -8,11 +8,13 @@
 
 English · [简体中文](README_zh.md) · [Русский](README_ru.md)
 
-[Requirements](#requirements) • [Install](#install) • [First run](#first-run) • [Transparent proxy](#transparent-proxy) • [Data and upgrades](#data-and-upgrades) • [Support](#support)
+[Requirements](#requirements) • [Install](#install) • [First run](#first-run) • [Transparent proxy](#transparent-proxy) • [Data and upgrades](#data-and-upgrades) • [Support](#support) • [About this fork](#about-this-fork)
 
 </div>
 
 v2rayA runs as a service and is used from a browser, on the machine itself or on a router or NAS. It imports subscriptions and share links for VMess, VLESS, Shadowsocks, Trojan, Hysteria2, TUIC, [Juicity](https://github.com/juicity), AnyTLS, WireGuard, SOCKS5 and HTTP(S), groups nodes and selects the member with the lowest measured latency or a pinned one, and splits traffic with rules written in RoutingA. ShadowsocksR is not supported.
+
+> **This is a fork of [v2rayA](https://github.com/v2rayA/v2rayA).** It keeps the upstream name, layout and licence, and carries changes of its own — see [About this fork](#about-this-fork). Releases and the winget and scoop packages are published from [AnotherNot/v2rayA](https://github.com/AnotherNot/v2rayA); the APT and DNF repositories, AUR, Gentoo, brew, snap and OpenWrt still serve the upstream original.
 
 ## Requirements
 
@@ -27,9 +29,7 @@ v2rayA runs as a service and is used from a browser, on the machine itself or on
 
 ## Install
 
-The packages below install `v2raya` and `v2raya_core` together with a service definition. Enable the service with the command shown for the platform.
-
-> This fork publishes its own [releases](https://github.com/AnotherNot/v2rayA/releases) and its own winget/scoop packages (see below). Third-party channels — the APT/DNF repositories, AUR, Gentoo, brew, snap, OpenWrt — still serve the upstream original, not this fork.
+The packages below install `v2raya` and `v2raya_core` together with a service definition. Enable the service with the command shown for the platform. The APT and DNF repositories, AUR, Gentoo, brew, snap and OpenWrt carry the upstream original rather than this fork; the channels below that name this repository carry the fork.
 
 <details>
 <summary><strong>Debian, Ubuntu and other APT distributions</strong></summary>
@@ -247,6 +247,18 @@ Stop the service and back up the configuration directory before upgrading. Upgra
 Ask questions in the [discussions](https://github.com/AnotherNot/v2rayA/discussions) and report bugs in the [issues](https://github.com/AnotherNot/v2rayA/issues).
 
 Do not use this project for anything illegal.
+
+## About this fork
+
+This is a maintained fork of [v2rayA](https://github.com/v2rayA/v2rayA), which is where a defect in the original belongs rather than here. The credits for the project itself are below.
+
+Every change in this fork was written by coding agents. The person behind it decided what to add, what to remove and what the result should look like, tested each change against a running installation, and answered for it. The working rules those changes were held to are in [AGENTS.md](AGENTS.md). A change is not finished until it has been observed working.
+
+The changes themselves: the routing modes are named for what they do rather than for one region, and the stored values behind them were migrated to match; the default DNS resolver is region-neutral; the updater for blocklist rule sets is generalised from the single set it used to be tied to; the rule presets that ship with the project were checked against real nodes; groups gained a random balancing type; a single SOCKS5 inbound with rules is the one enabled by default; a measured node speed is kept rather than recomputed on every page; the project builds in containers with one command; and the fork publishes its own releases, winget package and scoop bucket.
+
+None of that was invented where an existing shape would do. [docs/README.md](docs/README.md#what-the-code-stands-on) lists what the code stands on in full; in short, the share-link dialect and the rule-index format come from [v2rayN](https://github.com/2dust/v2rayN), the routing model and the balancer tags from [Xray-core](https://github.com/XTLS/Xray-core) — which `v2raya_core` itself forks — the DNS wire handling from [miekg/dns](https://github.com/miekg/dns), the published Russian rule sets from [runetfreedom](https://github.com/runetfreedom/russia-v2ray-rules-dat), the geo files from [v2fly/domain-list-community](https://github.com/v2fly/domain-list-community) and [v2fly/geoip](https://github.com/v2fly/geoip), and the rule syntax from [RoutingA](https://github.com/v2rayA/RoutingA).
+
+Where a line, a structure or a mechanism here repeats a third-party solution, that solution and its licence belong to its author, and this repository claims no credit for it. What this fork adds is the set of changes described above and the work of keeping them building and tested.
 
 ## Credits
 
