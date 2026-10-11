@@ -33,8 +33,13 @@ var ErrTunUnsupported = errors.New("the built-in TUN is not supported on this pl
 func TunSupported() bool { return tunSupported }
 
 // tunDnsTarget is where the core relays intercepted DNS queries: the DNS
-// module's listener, with a wildcard bind translated to loopback.
+// module's listener, with a wildcard bind translated to loopback. It is
+// empty when DNS interception is off, and the core then leaves port 53 to the
+// normal routing rules instead of relaying it.
 func tunDnsTarget(setting *configure.Setting) string {
+	if !dnsInterceptionEnabled(setting) {
+		return ""
+	}
 	host, port, err := net.SplitHostPort(dnsModuleListenAddr(setting))
 	if err != nil {
 		return "127.0.0.1:52353"
@@ -127,10 +132,10 @@ func stopTunCore() {
 	}
 }
 
-// tunEgressInterfaceIfTun names the physical interface for socket binding
+// TunEgressInterfaceIfTun names the physical interface for socket binding
 // when the built-in TUN is the active transparent proxy; empty otherwise
 // and on Linux, where the socket mark does the job.
-func tunEgressInterfaceIfTun(setting *configure.Setting) string {
+func TunEgressInterfaceIfTun(setting *configure.Setting) string {
 	if setting.TransparentType != configure.TransparentTun || !IsTransparentOn(setting) {
 		return ""
 	}

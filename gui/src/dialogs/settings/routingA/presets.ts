@@ -1,4 +1,5 @@
 import { template } from "./template";
+import { russia } from "./russia";
 
 // Rule sets for the Templates menu: one that starts with `default:` replaces
 // the rules, the others are inserted. Outbounds are only proxy, direct and
@@ -35,15 +36,7 @@ domain(geosite:google, geosite:youtube, geosite:github, geosite:telegram)->proxy
 domain(geosite:category-social-media-!cn, geosite:category-ai-!cn)->proxy
 ${telegramRanges}`,
   },
-  {
-    key: "ruDirect",
-    code: `default: proxy
-# Russia direct, everything else through the proxy
-domain(geosite:category-ru)->direct
-ip(geoip:ru)->direct
-domain(geosite:private)->direct
-ip(geoip:private)->direct`,
-  },
+  { key: "russia", code: russia },
   {
     key: "ruBlocked",
     region: true,

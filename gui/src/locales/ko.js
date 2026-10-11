@@ -252,13 +252,13 @@ export default {
       transparentProxy:
         "투명 프록시를 켜면 추가 설정 없이 모든 TCP 트래픽이 v2rayA를 통과합니다. 다른 컴퓨터와 Docker에 게이트웨이로 프록시 서비스를 제공하려면 'LAN에서 공유' 옵션을 켜세요.",
       transparentType:
-        "★tproxy: UDP를 지원하지만 Docker는 지원하지 않습니다. ★redirect: Docker에 적합하지만 UDP를 지원하지 않으며 DNS 오염 방지를 위해 로컬 포트 53을 사용합니다. ★tun: 코어가 TUN 장치를 열고 기본 라우트를 가져갑니다. Linux, Windows, macOS와 UDP를 지원하며 v2rayA와 코어를 자동으로 제외하고 다른 프로세스를 이름으로 제외할 수 있습니다. Windows와 macOS에서는 LAN DNS에 직접 질의하는 애플리케이션이 여전히 우회합니다.",
+        "★tproxy: UDP를 지원하지만 Docker는 지원하지 않습니다. ★redirect: Docker에 적합하지만 UDP를 지원하지 않습니다. DNS 가로채기가 켜져 있을 때 DNS 오염 방지를 위해 로컬 포트 53을 사용합니다. ★tun: 코어가 TUN 장치를 열고 기본 라우트를 가져갑니다. Linux, Windows, macOS와 UDP를 지원하며 v2rayA와 코어를 자동으로 제외하고 다른 프로세스를 이름으로 제외할 수 있습니다. Windows와 macOS에서는 LAN DNS에 직접 질의하는 애플리케이션이 여전히 우회합니다.",
       tproxyExcludedInterfaces:
         "투명 프록시를 거치지 않을 네트워크 인터페이스 접두사를 설정합니다. 와일드카드 *를 지원합니다(iptables 모드에서는 자동으로 +로 변환). 예: docker*, veth*, wg*, ppp*, br-*. 여러 접두사는 쉼표로 구분하세요.",
       tunAutoRoute:
-        "활성화하면 v2rayA가 라우트와 DNS 설정을 직접 설치합니다. 비활성화하면 라우팅을 직접 구성할 시작/종료 스크립트를 제공해야 합니다.",
+        "활성화하면 v2rayA가 라우트를 직접 설치하고 DNS 가로채기가 켜져 있을 때 시스템 DNS 설정을 변경합니다. 비활성화하면 라우팅을 직접 구성할 시작/종료 스크립트를 제공해야 합니다.",
       tunExcludeProcesses:
-        "트래픽이 프록시를 우회할 프로세스 이름을 한 줄에 하나씩 입력합니다. 예: chrome.exe 또는 firefox. v2rayA와 코어는 항상 제외됩니다. 소켓 소유자의 실행 파일 이름으로 식별하므로, 조회 전에 닫힌 소켓이나 다른 프로세스가 재사용한 포트는 식별할 수 없습니다. 제외된 프로세스의 DNS 질의는 여전히 코어의 DNS 모듈이 응답합니다.",
+        "트래픽이 프록시를 우회할 프로세스 이름을 한 줄에 하나씩 입력합니다. 예: chrome.exe 또는 firefox. v2rayA와 코어는 항상 제외됩니다. 소켓 소유자의 실행 파일 이름으로 식별하므로, 조회 전에 닫힌 소켓이나 다른 프로세스가 재사용한 포트는 식별할 수 없습니다. DNS 가로채기가 켜져 있으면 제외된 프로세스의 질의는 여전히 코어의 DNS 모듈이 응답합니다.",
       pacMode: `여기에서 규칙 포트의 트래픽 분할 규칙을 설정할 수 있습니다. 기본적으로 SOCKS5 포트 20170이 트래픽을 분할합니다. allowlist는 직접 연결되고 blocklist는 프록시를 거칩니다. 사용자 규칙은 아래 RoutingA 편집기에서 작성하세요.`,
       tcpFastOpen:
         "TCP 핸드셰이크를 단순화하여 연결 수립을 빠르게 합니다. 패킷 특성이 강조될 위험이 있으며 시스템이 지원하지 않으면 연결에 실패할 수 있습니다.",
@@ -319,6 +319,21 @@ export default {
   },
   dns: {
     title: "DNS 설정",
+    mode: "DNS 모드",
+    modeOff: "끄기",
+    modeService: "서비스만",
+    modeHijack: "서비스 및 가로채기",
+    modeOffHelp:
+      "DNS 모듈을 실행하지 않고 어떤 질의도 그것으로 보내지 않습니다. 아래 규칙은 그대로 보관되며 모드를 켜면 다시 적용됩니다.",
+    modeServiceHelp:
+      "DNS 모듈이 자체 주소에서 실행되지만 시스템 리졸버, 방화벽의 DNS 규칙, TUN 중계는 건드리지 않습니다. 다른 프로그램이 이미 DNS를 v2rayA로 보내고 있을 때 사용하세요.",
+    modeHijackHelp:
+      "DNS 모듈이 실행되고 v2rayA가 시스템 질의를 그것으로 보냅니다. 리졸버가 바뀌고 53번 포트가 전달되며 아래 규칙이 적용됩니다. 암호화된 DNS는 가로채지 않습니다.",
+    offKeepsRules: "저장된 규칙 {n}개는 보관되며 모드를 켜면 다시 적용됩니다.",
+    saved: "DNS 설정이 저장되고 적용되었습니다",
+    saveFailed: "DNS 설정 저장 실패: {message}",
+    modeSaveFailed:
+      "DNS 규칙은 저장되었지만 DNS 모드는 저장하지 못했습니다: {message}",
     colServer: "DNS 서버",
     colDomains: "도메인 목록",
     colOutbound: "아웃바운드",
@@ -329,10 +344,10 @@ export default {
     rule: "규칙 {n}",
     resetDefault: "기본값으로 재설정",
     errNoRules: "DNS 서버가 있는 규칙이 하나 이상 필요합니다",
-    saveFailed: "DNS 규칙 저장 실패: {message}",
   },
   configureServer: {
     required: "필수",
+    minValue: "{value} 이상이어야 합니다",
     title: "서버 구성",
     titleReadonly: "서버",
     servername: "서버 이름",
@@ -383,6 +398,7 @@ export default {
     mode: "모드",
     uplinkHttpMethod: "업링크 HTTP 메서드",
     uplinkDefault: "기본값 (POST)",
+    coreDefault: "기본값 ({value})",
     rangeFrom: "시작",
     rangeTo: "끝",
     customHeaders: "사용자 지정 헤더",
@@ -492,7 +508,7 @@ export default {
       blacklist: "중국 외 사이트는 프록시, 나머지는 직접 연결",
       global: "모두 프록시, LAN은 직접 연결",
       minimal: "자주 쓰는 해외 서비스만 프록시, 나머지는 직접 연결",
-      ruDirect: "러시아는 직접 연결, 나머지는 프록시",
+      russia: "러시아 사이트는 직접 연결, 예외와 나머지는 프록시",
       ruBlocked: "러시아에서 차단된 미디어는 프록시로",
       ruServices: "러시아 서비스 직접 연결(은행, 정부)",
       uaIps: "우크라이나 IP 직접 연결",
@@ -520,6 +536,20 @@ export default {
     import: {
       title: "가져오기",
       confirm: "현재 규칙을 가져온 파일의 내용으로 바꾸시겠습니까?",
+    },
+    urlImport: {
+      title: "URL에서 가져오기",
+      url: "원본 규칙 파일 URL",
+      import: "가져오기",
+      direct: "항상 프록시를 거치지 않고 업데이트",
+      directHelp:
+        "끄면 URL 업데이트가 규칙 포트를 사용하며 코어가 실행 중이어야 합니다. 켜면 프록시를 우회합니다.",
+      interval: "업데이트 간격(시간)",
+      instructions: "안내",
+      instructionsText:
+        "RoutingA 구문이 담긴 원본 텍스트 파일의 HTTP 또는 HTTPS 링크를 입력하세요. HTML 페이지, 다운로드 및 잘못된 규칙은 거부됩니다. 가져온 뒤 읽기 전용 미리보기를 확인하고 저장하세요. 지정한 간격으로 자동 업데이트됩니다.",
+      importFirst:
+        "저장하기 전에 유효한 URL을 가져오고 업데이트 간격을 1~8760시간으로 설정하세요.",
     },
     form: {
       title: "양식",

@@ -118,6 +118,11 @@ export function parseShareLink(url: string): ShareForm | null {
         u.params.xPaddingBytesFrom || standardXhttp(u.params).paddingFrom || "",
       xPaddingBytesTo:
         u.params.xPaddingBytesTo || standardXhttp(u.params).paddingTo || "",
+      xPaddingObfsMode: u.params.xPaddingObfsMode === "true",
+      xPaddingKey: u.params.xPaddingKey || "",
+      xPaddingHeader: u.params.xPaddingHeader || "",
+      xPaddingPlacement: u.params.xPaddingPlacement || "",
+      xPaddingMethod: u.params.xPaddingMethod || "",
       xmuxMaxConcurFrom: u.params.xmuxMaxConcurFrom || "",
       xmuxMaxConcurTo: u.params.xmuxMaxConcurTo || "",
       xmuxMaxConnFrom: u.params.xmuxMaxConnFrom || "",
@@ -488,6 +493,12 @@ export function generateShareLink(srcObj: ShareForm): string | null {
           query.xPaddingBytesFrom = srcObj.xPaddingBytesFrom;
         if (srcObj.xPaddingBytesTo)
           query.xPaddingBytesTo = srcObj.xPaddingBytesTo;
+        if (srcObj.xPaddingObfsMode) query.xPaddingObfsMode = "true";
+        if (srcObj.xPaddingKey) query.xPaddingKey = srcObj.xPaddingKey;
+        if (srcObj.xPaddingHeader) query.xPaddingHeader = srcObj.xPaddingHeader;
+        if (srcObj.xPaddingPlacement)
+          query.xPaddingPlacement = srcObj.xPaddingPlacement;
+        if (srcObj.xPaddingMethod) query.xPaddingMethod = srcObj.xPaddingMethod;
         if (srcObj.xmuxMaxConcurFrom)
           query.xmuxMaxConcurFrom = srcObj.xmuxMaxConcurFrom;
         if (srcObj.xmuxMaxConcurTo)

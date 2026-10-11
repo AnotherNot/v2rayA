@@ -246,13 +246,13 @@ export default {
       transparentProxy:
         "全局代理开启后，无需经过额外设置，任何TCP流量均会经过V2RayA。另外，如需作为网关使得连接本机的其他主机或docker也享受代理，请勾选“开启局域网共享”。",
       transparentType:
-        "★tproxy: 支持udp，不支持docker。★redirect: docker友好，不支持udp，需要占用本地53端口以应对dns污染。★tun: 由核心打开 TUN 设备并接管默认路由；支持 Linux、Windows、macOS 与 UDP，自动排除 v2rayA 与核心自身，并可按进程名排除其他进程。Windows 与 macOS 上直接查询局域网 DNS 的应用仍会绕过它。",
+        "★tproxy: 支持udp，不支持docker。★redirect: docker友好，不支持udp；开启 DNS 接管时，还需要占用本地53端口以应对dns污染。★tun: 由核心打开 TUN 设备并接管默认路由；支持 Linux、Windows、macOS 与 UDP，自动排除 v2rayA 与核心自身，并可按进程名排除其他进程。Windows 与 macOS 上直接查询局域网 DNS 的应用仍会绕过它。",
       tproxyExcludedInterfaces:
         "设置不经过透明代理的网卡前缀。支持通配符 * (iptables模式下会自动转换为 +)。例如: docker*, veth*, wg*, ppp*, br-*。多个前缀用逗号隔开。",
       tunAutoRoute:
-        "开启时，v2rayA 自行安装路由与 DNS 设置。关闭时，需要提供自定义的启动/停止脚本手动配置路由。",
+        "开启时，v2rayA 自行安装路由；开启 DNS 接管时还会设置系统 DNS。关闭时，需要提供自定义的启动/停止脚本手动配置路由。",
       tunExcludeProcesses:
-        "流量直连的进程名，一行一个，例如：chrome.exe、firefox。v2rayA 与核心始终排除。按 socket 属主的可执行文件名识别；查找前已关闭的 socket 或被其他进程复用的端口无法归属。被排除进程的 DNS 查询仍由核心 DNS 模块回答。",
+        "流量直连的进程名，一行一个，例如：chrome.exe、firefox。v2rayA 与核心始终排除。按 socket 属主的可执行文件名识别；查找前已关闭的 socket 或被其他进程复用的端口无法归属。开启 DNS 接管时，被排除进程的查询仍由核心 DNS 模块回答。",
       pacMode:
         "该选项设置规则分流端口所使用的路由模式。默认由 SOCKS5 端口 20170 进行规则分流。allowlist 直连，blocklist 走代理；自定义规则在下方的 RoutingA 编辑器中编写。",
       tcpFastOpen:
@@ -312,6 +312,20 @@ export default {
   },
   dns: {
     title: "DNS 设置",
+    mode: "DNS 模式",
+    modeOff: "关闭",
+    modeService: "仅服务",
+    modeHijack: "服务与接管",
+    modeOffHelp:
+      "不启动 DNS 模块，也不把任何查询导向它。下方的规则会保留，模式重新开启后继续生效。",
+    modeServiceHelp:
+      "DNS 模块在自己的地址上运行，但不改动系统解析器、防火墙的 DNS 规则，也不做 TUN 中继。当已有其他程序把 DNS 指向 v2rayA 时使用。",
+    modeHijackHelp:
+      "DNS 模块运行，并把系统查询指向它：改写解析器、导流 53 端口，下方规则随之生效。加密 DNS 不会被接管。",
+    offKeepsRules: "已保存的 {n} 条规则会保留，模式开启后继续生效。",
+    saved: "DNS 设置已保存并应用",
+    saveFailed: "无法保存 DNS 设置：{message}",
+    modeSaveFailed: "DNS 规则已保存，但 DNS 模式未能保存：{message}",
     colServer: "DNS 服务器",
     colDomains: "域名列表",
     colOutbound: "出口",
@@ -322,10 +336,10 @@ export default {
     rule: "规则 {n}",
     resetDefault: "恢复默认",
     errNoRules: "至少一条规则需要填写 DNS 服务器",
-    saveFailed: "无法保存 DNS 规则：{message}",
   },
   configureServer: {
     required: "必填",
+    minValue: "不能小于 {value}",
     title: "配置节点",
     titleReadonly: "节点",
     servername: "节点名称",
@@ -376,6 +390,7 @@ export default {
     mode: "模式",
     uplinkHttpMethod: "上行 HTTP 方法",
     uplinkDefault: "默认（POST）",
+    coreDefault: "默认（{value}）",
     rangeFrom: "起始",
     rangeTo: "结束",
     customHeaders: "自定义请求头",
@@ -482,7 +497,7 @@ export default {
       blacklist: "国外站点走代理，其余直连",
       global: "全部走代理，仅局域网直连",
       minimal: "只让常用海外服务走代理，其余直连",
-      ruDirect: "俄罗斯直连，其余走代理",
+      russia: "俄罗斯站点直连，例外及其余流量走代理",
       ruBlocked: "在俄被封锁的媒体走代理",
       ruServices: "俄罗斯服务直连（银行、政府）",
       uaIps: "乌克兰 IP 直连",
@@ -509,6 +524,19 @@ export default {
     import: {
       title: "导入",
       confirm: "将当前规则替换为导入文件的内容？",
+    },
+    urlImport: {
+      title: "从 URL 导入",
+      url: "原始规则文件 URL",
+      import: "导入",
+      direct: "始终绕过代理更新",
+      directHelp:
+        "关闭时，URL 更新通过规则端口，且需要运行内核；开启时绕过代理。",
+      interval: "更新间隔（小时）",
+      instructions: "说明",
+      instructionsText:
+        "输入包含 RoutingA 语法的原始文本文件的 HTTP 或 HTTPS 链接。HTML 页面、下载文件和无效规则会被拒绝。导入后检查只读预览并保存；系统会按指定间隔自动更新。",
+      importFirst: "保存前请导入有效 URL，并设置 1 至 8760 小时的更新间隔。",
     },
     form: {
       title: "表单",
