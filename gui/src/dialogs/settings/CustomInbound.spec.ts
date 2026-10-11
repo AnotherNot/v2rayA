@@ -14,12 +14,14 @@ import en from "@/locales/en";
 const api = vi.hoisted(() => ({
   getCustomInbound: vi.fn(),
   getOutbounds: vi.fn(),
+  getRoutingA: vi.fn(),
   postCustomInbound: vi.fn(),
   deleteCustomInbound: vi.fn(),
 }));
 vi.mock("@/api", () => api);
 
 import CustomInboundDialog from "./CustomInbound.vue";
+import { presets } from "./routingA/presets";
 
 enableAutoUnmount(afterEach);
 const existing = {
@@ -38,6 +40,7 @@ beforeEach(() => {
   closeAllNotices();
   api.getCustomInbound.mockResolvedValue({ inbounds: [existing] });
   api.getOutbounds.mockResolvedValue({ outbounds: ["PROXY", "OTHER"] });
+  api.getRoutingA.mockResolvedValue({ routingA: "default: proxy" });
   api.postCustomInbound.mockResolvedValue({ inbounds: [existing] });
   api.deleteCustomInbound.mockResolvedValue({ inbounds: [] });
 });
@@ -50,6 +53,17 @@ function select(w: VueWrapper, label: string, value: string) {
   w.findAllComponents({ name: "VSelect" })
     .find((c) => c.props("label") === label)!
     .vm.$emit("update:modelValue", value);
+}
+
+/** menus render in the body, so their entries are found there */
+function listItem(text: string) {
+  return [...document.body.querySelectorAll<HTMLElement>(".v-list-item")].find(
+    (item) => item.textContent?.trim() === text,
+  )!;
+}
+async function clickItem(text: string) {
+  listItem(text).dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  await flushPromises();
 }
 
 describe("the custom inbound dialog", () => {
@@ -169,5 +183,55 @@ describe("the custom inbound dialog", () => {
       "home",
     );
     expect(w.get(".inbound-list").text()).toContain("work");
+  });
+
+  test("applies the settings templates to the inbound's own rules", async () => {
+    const w = mountWithApp(CustomInboundDialog);
+    await flushPromises();
+    select(w, en.customInbound.outboundType, "routingA");
+    await flushPromises();
+    const rules = () =>
+      w.get<HTMLTextAreaElement>('textarea[name="routingARules"]').element
+        .value;
+    await w.get('textarea[name="routingARules"]').setValue("default: direct");
+
+    // a full set replaces the body
+    const full = presets.find((p) => p.code.startsWith("default:"))!;
+    await w.get('[data-testid="inbound-templates"]').trigger("click");
+    await flushPromises();
+    await clickItem(
+      en.routingA.templates[full.key as keyof typeof en.routingA.templates],
+    );
+    expect(rules()).toBe(full.code);
+
+    // a snippet is appended to what is already there
+    const snippet = presets.find(
+      (p) => !p.code.startsWith("default:") && !p.region,
+    )!;
+    await w.get('[data-testid="inbound-templates"]').trigger("click");
+    await flushPromises();
+    await clickItem(
+      en.routingA.templates[snippet.key as keyof typeof en.routingA.templates],
+    );
+    expect(rules()).toBe(`${full.code}\n${snippet.code}`);
+  });
+
+  test("inserts the global RoutingA rules configured on the main page", async () => {
+    api.getRoutingA.mockResolvedValue({
+      routingA: "default: proxy\ndomain(geosite:private)->direct",
+    });
+    const w = mountWithApp(CustomInboundDialog);
+    await flushPromises();
+    select(w, en.customInbound.outboundType, "routingA");
+    await flushPromises();
+    await w.get('textarea[name="routingARules"]').setValue("default: direct");
+    await w.get('[data-testid="inbound-templates"]').trigger("click");
+    await flushPromises();
+    await clickItem(en.customInbound.globalRules);
+    expect(api.getRoutingA).toHaveBeenCalledOnce();
+    expect(
+      w.get<HTMLTextAreaElement>('textarea[name="routingARules"]').element
+        .value,
+    ).toBe("default: direct\ndefault: proxy\ndomain(geosite:private)->direct");
   });
 });

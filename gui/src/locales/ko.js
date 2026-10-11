@@ -762,6 +762,7 @@ export default {
     outboundRequired: "이 인바운드에 사용할 프록시 그룹을 선택하세요",
     routingARules: "RoutingA 규칙",
     routingARulesPlaceholder: "RoutingA 라우팅 규칙을 입력하세요...",
+    globalRules: "전역 RoutingA 규칙 삽입",
     saveFailed: "사용자 지정 인바운드 저장 실패: {message}",
     deleteFailed: "사용자 지정 인바운드 삭제 실패: {message}",
     username: "사용자 이름(선택)",

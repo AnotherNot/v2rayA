@@ -747,6 +747,7 @@ export default {
     outboundRequired: "请为该入站选择代理分组",
     routingARules: "RoutingA 分流规则",
     routingARulesPlaceholder: "请输入 RoutingA 分流规则...",
+    globalRules: "插入全局 RoutingA 规则",
     saveFailed: "无法保存自定义入站：{message}",
     deleteFailed: "无法删除自定义入站：{message}",
     username: "用户名（可选）",

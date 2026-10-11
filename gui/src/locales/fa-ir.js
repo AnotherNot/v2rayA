@@ -766,6 +766,7 @@ export default {
     outboundRequired: "برای این ورودی یک گروه پروکسی انتخاب کنید",
     routingARules: "قوانین RoutingA",
     routingARulesPlaceholder: "قوانین مسیریابی RoutingA را وارد کنید...",
+    globalRules: "درج قوانین سراسری RoutingA",
     saveFailed: "ذخیره ورودی سفارشی ناموفق بود: {message}",
     deleteFailed: "حذف ورودی سفارشی ناموفق بود: {message}",
     username: "نام کاربری (اختیاری)",

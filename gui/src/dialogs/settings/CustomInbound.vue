@@ -1,17 +1,26 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiDeleteOutline, mdiEye, mdiEyeOff, mdiLockOutline } from "@mdi/js";
+import {
+  mdiDeleteOutline,
+  mdiEye,
+  mdiEyeOff,
+  mdiFileImport,
+  mdiLockOutline,
+  mdiMenuDown,
+} from "@mdi/js";
 import {
   deleteCustomInbound,
   getCustomInbound,
   getOutbounds,
+  getRoutingA,
   postCustomInbound,
 } from "@/api";
 import type { CustomInbound } from "@/api/types";
 import { errorText } from "@/api/errors";
 import { useConfirm, useNotify } from "@/composables";
 import DocsLink from "@/components/DocsLink.vue";
+import { presets } from "./routingA/presets";
 
 defineOptions({ name: "CustomInboundDialog" });
 const emit = defineEmits<{ close: [] }>();
@@ -48,6 +57,45 @@ function emptyForm() {
     username: "",
     password: "",
   };
+}
+
+// The same templates the RoutingA dialog offers, applied to this inbound's own
+// rule body: a full set (one carrying `default:`) replaces it, the rest are
+// appended, and the global rules configured on the main page can be reused.
+const templateGroups = computed(() => [
+  {
+    title: t("routingA.templates.full"),
+    items: presets.filter((p) => p.code.startsWith("default:")),
+  },
+  {
+    title: t("routingA.templates.region"),
+    items: presets.filter((p) => p.region),
+  },
+  {
+    title: t("routingA.templates.add"),
+    items: presets.filter((p) => !p.code.startsWith("default:") && !p.region),
+  },
+]);
+
+function insertRules(code: string) {
+  const current = form.value.routingARules;
+  form.value.routingARules = current.trim()
+    ? `${current.replace(/\n+$/, "")}\n${code}`
+    : code;
+}
+
+function useTemplate(preset: (typeof presets)[number]) {
+  if (preset.code.startsWith("default:"))
+    form.value.routingARules = preset.code;
+  else insertRules(preset.code);
+}
+
+async function insertGlobalRules() {
+  try {
+    insertRules((await getRoutingA()).routingA);
+  } catch (err) {
+    notify.warning(errorText(err));
+  }
 }
 
 onMounted(async () => {
@@ -255,16 +303,56 @@ async function remove(tag: string) {
             :disabled="busy"
           />
           <v-expand-transition>
-            <v-textarea
-              v-if="form.outboundType === 'routingA'"
-              v-model="form.routingARules"
-              name="routingARules"
-              :label="t('customInbound.routingARules')"
-              :placeholder="t('customInbound.routingARulesPlaceholder')"
-              :disabled="busy"
-              rows="6"
-              dir="ltr"
-            />
+            <div v-if="form.outboundType === 'routingA'">
+              <div class="d-flex align-center mb-2">
+                <v-menu>
+                  <template #activator="{ props: menu }">
+                    <v-btn
+                      v-bind="menu"
+                      type="button"
+                      variant="tonal"
+                      size="small"
+                      :prepend-icon="mdiFileImport"
+                      :append-icon="mdiMenuDown"
+                      :disabled="busy"
+                      data-testid="inbound-templates"
+                    >
+                      {{ t("routingA.templates.title") }}
+                    </v-btn>
+                  </template>
+                  <v-list density="compact" min-width="280">
+                    <template
+                      v-for="group in templateGroups"
+                      :key="group.title"
+                    >
+                      <v-list-subheader>{{ group.title }}</v-list-subheader>
+                      <v-list-item
+                        v-for="preset in group.items"
+                        :key="preset.key"
+                        :title="t(`routingA.templates.${preset.key}`)"
+                        :data-testid="`inbound-template-${preset.key}`"
+                        @click="useTemplate(preset)"
+                      />
+                    </template>
+                    <v-divider class="my-1" />
+                    <v-list-item
+                      :title="t('customInbound.globalRules')"
+                      data-testid="inbound-global-rules"
+                      @click="insertGlobalRules"
+                    />
+                  </v-list>
+                </v-menu>
+              </div>
+              <v-textarea
+                v-model="form.routingARules"
+                name="routingARules"
+                :label="t('customInbound.routingARules')"
+                :placeholder="t('customInbound.routingARulesPlaceholder')"
+                :disabled="busy"
+                rows="6"
+                dir="ltr"
+              />
+            </div>
           </v-expand-transition>
         </v-col>
         <v-col cols="12" sm="6">

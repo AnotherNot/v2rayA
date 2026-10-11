@@ -771,6 +771,7 @@ export default {
     outboundRequired: "Select a proxy group for this inbound",
     routingARules: "RoutingA Rules",
     routingARulesPlaceholder: "Enter RoutingA routing rules...",
+    globalRules: "Insert the global RoutingA rules",
     saveFailed: "Failed to save custom inbound: {message}",
     deleteFailed: "Failed to delete custom inbound: {message}",
     username: "Username (optional)",

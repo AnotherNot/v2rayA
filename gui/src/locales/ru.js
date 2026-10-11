@@ -776,6 +776,7 @@ export default {
     outboundRequired: "Выберите группу прокси для этого входящего порта",
     routingARules: "Правила RoutingA",
     routingARulesPlaceholder: "Введите правила маршрутизации RoutingA...",
+    globalRules: "Вставить глобальные правила RoutingA",
     saveFailed:
       "Не удалось сохранить пользовательский входящий порт: {message}",
     deleteFailed:

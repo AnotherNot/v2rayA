@@ -782,6 +782,7 @@ export default {
     outboundRequired: "Selecione um grupo de proxy para esta entrada",
     routingARules: "Regras do RoutingA",
     routingARulesPlaceholder: "Insira as regras de roteamento do RoutingA...",
+    globalRules: "Inserir as regras RoutingA globais",
     saveFailed: "Falha ao salvar a entrada personalizada: {message}",
     deleteFailed: "Falha ao excluir a entrada personalizada: {message}",
     username: "Usuário (opcional)",
