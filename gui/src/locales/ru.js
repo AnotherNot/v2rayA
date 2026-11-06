@@ -112,6 +112,8 @@ export default {
     docker: "Сервис v2rayA работает в Docker. Версия: {version}",
     default: "Сервис v2rayA работает. Версия: {version}",
     newVersion: "Доступна новая версия: {version}",
+    insecureHttp:
+      "Страница открыта по обычному HTTP: пароль и токен сессии не шифруются. Для удалённого доступа используйте HTTPS.",
   },
   v2ray: {
     start: "Запустить",

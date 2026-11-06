@@ -110,6 +110,8 @@ export default {
     docker: "v2rayA 서비스가 Docker에서 실행 중입니다. 버전: {version}",
     default: "v2rayA 서비스가 실행 중입니다. 버전: {version}",
     newVersion: "새 버전을 사용할 수 있습니다: {version}",
+    insecureHttp:
+      "이 페이지는 일반 HTTP로 제공됩니다. 비밀번호와 세션 토큰이 암호화되지 않습니다. 원격 접속에는 HTTPS를 사용하세요.",
   },
   v2ray: {
     start: "시작",

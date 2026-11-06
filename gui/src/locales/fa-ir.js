@@ -111,6 +111,8 @@ export default {
     docker: "سرویس v2rayA در Docker در حال اجرا است. نسخه: {version}",
     default: "سرویس v2rayA در حال اجرا است. نسخه: {version}",
     newVersion: "نسخه جدید موجود است: {version}",
+    insecureHttp:
+      "این صفحه از طریق HTTP ساده ارائه می‌شود؛ گذرواژه و توکن نشست رمزنگاری نمی‌شوند. برای دسترسی از راه دور از HTTPS استفاده کنید.",
   },
   v2ray: {
     start: "شروع",

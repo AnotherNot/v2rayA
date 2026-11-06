@@ -16,7 +16,7 @@ import (
 )
 
 type Params struct {
-	Address              string `id:"address" short:"a" default:"0.0.0.0:2017" desc:"Listening address"`
+	Address              string `id:"address" short:"a" default:"127.0.0.1:2017" desc:"Listening address"`
 	Socket               string `id:"socket" desc:"Unix socket path for listening"`
 	SocketGroup          string `id:"socket-group" desc:"Group allowed to use the unix socket. Empty keeps it owner-only (0600)."`
 	CorsOrigins          string `id:"cors-origin" desc:"Comma-separated origins allowed to call the API cross-origin. Empty allows the serving origin only."`

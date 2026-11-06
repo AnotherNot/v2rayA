@@ -108,6 +108,8 @@ export default {
     docker: "v2rayA 服务端运行于 Docker，版本：{version}",
     default: "v2rayA 服务端正在运行，版本：{version}",
     newVersion: "检测到新版本：{version}",
+    insecureHttp:
+      "此页面通过明文 HTTP 提供；密码和会话令牌未加密。远程访问请使用 HTTPS。",
   },
   v2ray: {
     start: "启动",

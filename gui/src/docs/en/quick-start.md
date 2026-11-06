@@ -4,7 +4,7 @@ This page in the browser configures v2rayA and shows its state; the service runs
 
 ## Sign in
 
-The first account registered is the administrator; there is no other account. Registration asks for a username, a password of 6 to 32 characters, and the one-time setup token the service prints on first start; the token is also written to `setup-token` in the configuration directory and removed once the first account exists. Together with the token, restrict who can reach port 2017 before you register, or run the service with `--address 127.0.0.1:2017` for local use only.
+The service listens on `127.0.0.1:2017` by default. The first account registered is the administrator; there is no other account. Registration asks for a username, a password of 6 to 32 characters, and the one-time setup token the service prints on first start; the token is also written to `setup-token` in the configuration directory and removed once the first account exists. To reach the interface from another machine, pass `--address 0.0.0.0:2017` and restrict access with a firewall or a TLS reverse proxy before you register.
 
 A forgotten password is reset from the command line, with the service stopped:
 

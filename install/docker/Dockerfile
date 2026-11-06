@@ -55,4 +55,8 @@ RUN apk add --no-cache iptables iptables-legacy nftables tzdata iproute2 ca-cert
 COPY --from=go /out/v2raya /out/v2raya_core /usr/bin/
 EXPOSE 2017
 VOLUME /etc/v2raya
+# The binary defaults to loopback; a container publishes its port, so the
+# image explicitly listens on all interfaces and relies on the port mapping
+# or the host firewall for access control.
 ENTRYPOINT ["v2raya"]
+CMD ["--address", "0.0.0.0:2017"]

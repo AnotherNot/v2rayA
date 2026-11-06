@@ -112,6 +112,8 @@ export default {
     docker: "O serviço v2rayA está em execução no Docker. Versão: {version}",
     default: "O serviço v2rayA está em execução. Versão: {version}",
     newVersion: "Nova versão disponível: {version}",
+    insecureHttp:
+      "Esta página é servida por HTTP simples; a senha e o token de sessão não são criptografados. Use HTTPS para acesso remoto.",
   },
   v2ray: {
     start: "Iniciar",

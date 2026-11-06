@@ -180,6 +180,25 @@ async function askForLogin() {
   }
 }
 
+function warnInsecureHttp() {
+  if (location.protocol !== "http:") return;
+  const host = location.hostname;
+  if (
+    host === "localhost" ||
+    host === "127.0.0.1" ||
+    host === "::1" ||
+    host === "[::1]" ||
+    host.endsWith(".localhost")
+  )
+    return;
+  banner.show({
+    key: "insecureHttp",
+    kind: "warning",
+    text: t("welcome.insecureHttp"),
+    dismissible: true,
+  });
+}
+
 async function announceVersion() {
   const v = await getVersion();
   store.applyVersion(v);
@@ -396,6 +415,7 @@ function openHash() {
 onMounted(() => {
   window.addEventListener("hashchange", openHash);
   openHash();
+  warnInsecureHttp();
   void startSession();
 });
 onBeforeUnmount(() => window.removeEventListener("hashchange", openHash));

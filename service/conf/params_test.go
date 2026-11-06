@@ -12,7 +12,7 @@ func TestParametersFollowTheStructTags(t *testing.T) {
 	if !ok {
 		t.Fatal("--address missing")
 	}
-	if address.Short != "a" || address.Env != "V2RAYA_ADDRESS" || address.Default != "0.0.0.0:2017" {
+	if address.Short != "a" || address.Env != "V2RAYA_ADDRESS" || address.Default != "127.0.0.1:2017" {
 		t.Errorf("--address = %+v", address)
 	}
 	if p, ok := byFlag["--core-startup-timeout"]; !ok || p.Env != "V2RAYA_CORE_STARTUP_TIMEOUT" {
