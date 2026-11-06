@@ -1,0 +1,223 @@
+name: Release Binaries & Images
+
+# Manual release. One run builds the interface, then the service and its core
+# for Linux and Windows on amd64 and arm64, pushes the multi-arch container
+# image to GHCR, and publishes everything as a GitHub release whose tag is
+# created at the commit the run was started from. Nothing has to exist
+# beforehand: the token GitHub Actions provides is the only credential.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to create, for example v2.5.14"
+        type: string
+        required: true
+      prerelease:
+        description: "Mark the release as a pre-release"
+        type: boolean
+        required: false
+        default: false
+
+run-name: Release ${{ inputs.tag }}
+
+concurrency:
+  group: release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Check the tag and compute the version
+        id: version
+        shell: bash
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.]+)*$ ]]; then
+            echo "::error::tag '$TAG' does not look like v2.5.14"
+            exit 1
+          fi
+          version="${TAG#v}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Releasing $TAG as version $version"
+
+  web:
+    uses: ./.github/workflows/_build_web.yml
+
+  build:
+    needs: [prepare, web]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goos: linux, goarch: amd64, friendly: linux_x64 }
+          - { goos: linux, goarch: arm64, friendly: linux_arm64 }
+          - { goos: windows, goarch: amd64, friendly: windows_x64 }
+          - { goos: windows, goarch: arm64, friendly: windows_arm64 }
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Download Web Artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: web
+          path: service/server/router/web
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          cache-dependency-path: |
+            core/go.mod
+            core/go.sum
+            service/go.mod
+            service/go.sum
+          go-version: "1.27"
+      - name: Build the binaries
+        shell: bash
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          ext=""
+          [ "$GOOS" = windows ] && ext=".exe"
+          mkdir -p dist stage
+          (cd service && CGO_ENABLED=0 go build -trimpath \
+            -o "../dist/v2raya_${{ matrix.friendly }}_${VERSION}${ext}" \
+            -ldflags="-X github.com/v2rayA/v2rayA/conf.Version=${VERSION} -s -w" \
+            .)
+          (cd core && CGO_ENABLED=0 go build -trimpath \
+            -o "../dist/v2raya_core_${{ matrix.friendly }}_${VERSION}${ext}" \
+            -ldflags="-X main.Version=${VERSION} -s -w" \
+            ./main)
+          cp "dist/v2raya_${{ matrix.friendly }}_${VERSION}${ext}" "stage/v2raya${ext}"
+          cp "dist/v2raya_core_${{ matrix.friendly }}_${VERSION}${ext}" "stage/v2raya_core${ext}"
+          cp LICENSE stage/
+          if [ "$GOOS" = windows ]; then
+            (cd stage && zip -q -r "../dist/v2raya_${{ matrix.friendly }}_${VERSION}.zip" .)
+          else
+            tar -czf "dist/v2raya_${{ matrix.friendly }}_${VERSION}.tar.gz" -C stage .
+          fi
+          (cd dist && for f in *; do sha256sum "$f" > "$f.sha256"; done)
+          ls -l dist
+      - name: Upload the artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: binaries-${{ matrix.friendly }}
+          path: dist/*
+          if-no-files-found: error
+
+  image:
+    needs: prepare
+    runs-on: ubuntu-latest
+    # The Dockerfile compiles the interface and both Go binaries inside the
+    # arm64 stage, under QEMU; that is the long part.
+    timeout-minutes: 120
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      # Docker tags are lowercase, while the owner name is not.
+      - name: Name the image
+        shell: bash
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v4
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Collect the tags
+        id: tags
+        shell: bash
+        env:
+          PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          {
+            echo "tags<<EOF"
+            echo "${IMAGE}:${TAG}"
+            echo "${IMAGE}:${VERSION}"
+            [ "$PRERELEASE" = "true" ] || echo "${IMAGE}:latest"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      - name: Build and push the image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: install/docker/Dockerfile
+          builder: ${{ steps.buildx.outputs.name }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: |
+            VERSION=${{ env.VERSION }}
+          tags: ${{ steps.tags.outputs.tags }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ env.VERSION }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  release:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Download the artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: binaries-*
+          path: dist
+          merge-multiple: true
+      # A tag that already exists must be the one being released; otherwise
+      # the release would silently point at a different commit.
+      - name: Check the tag
+        shell: bash
+        run: |
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            tag_commit=$(git rev-parse "$TAG^{commit}")
+            if [ "$tag_commit" != "$GITHUB_SHA" ]; then
+              echo "::error::tag $TAG already points at $tag_commit, not at $GITHUB_SHA"
+              exit 1
+            fi
+          fi
+      - name: Publish the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          args=()
+          [ "$PRERELEASE" = "true" ] && args+=(--prerelease)
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" --title "$TAG" --generate-notes \
+              "${args[@]}" dist/*
+          fi
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --json url,assets --jq '.url, (.assets[].name)'
