@@ -256,28 +256,28 @@ func ParseVlessURL(vless string) (data *V2Ray, err error) {
 		return nil, fmt.Errorf("%w: vless link for %q has a missing or invalid port; expected vless://uuid@host:port", ErrInvalidParameter, u.Hostname())
 	}
 	data = &V2Ray{
-		Ps:                   u.Fragment,
-		Add:                  u.Hostname(),
-		Port:                 u.Port(),
-		ID:                   u.User.Username(),
-		Aid:                  u.Query().Get("aid"),
-		Net:                  u.Query().Get("type"),
-		Type:                 u.Query().Get("headerType"),
-		Host:                 u.Query().Get("host"),
-		SNI:                  u.Query().Get("sni"),
-		Path:                 u.Query().Get("path"),
-		TLS:                  u.Query().Get("security"),
-		Fingerprint:          u.Query().Get("fp"),
-		PublicKey:            u.Query().Get("pbk"),
-		ShortId:              u.Query().Get("sid"),
-		SpiderX:              u.Query().Get("spx"),
-		Mldsa65Verify:        u.Query().Get("pqv"),
+		Ps:            u.Fragment,
+		Add:           u.Hostname(),
+		Port:          u.Port(),
+		ID:            u.User.Username(),
+		Aid:           u.Query().Get("aid"),
+		Net:           u.Query().Get("type"),
+		Type:          u.Query().Get("headerType"),
+		Host:          u.Query().Get("host"),
+		SNI:           u.Query().Get("sni"),
+		Path:          u.Query().Get("path"),
+		TLS:           u.Query().Get("security"),
+		Fingerprint:   u.Query().Get("fp"),
+		PublicKey:     u.Query().Get("pbk"),
+		ShortId:       u.Query().Get("sid"),
+		SpiderX:       u.Query().Get("spx"),
+		Mldsa65Verify: u.Query().Get("pqv"),
 		// VLESS encryption ("none" or the key material of the new format).
 		// Absent in links written before the format existed, so empty stays
 		// empty here and the configuration defaults it.
-		Encryption: u.Query().Get("encryption"),
-		Flow:       u.Query().Get("flow"),
-		Alpn:       u.Query().Get("alpn"),
+		Encryption:           u.Query().Get("encryption"),
+		Flow:                 u.Query().Get("flow"),
+		Alpn:                 u.Query().Get("alpn"),
 		PinnedPeerCertSha256: u.Query().Get("pinnedPeerCertSha256"),
 		VerifyPeerCertByName: u.Query().Get("verifyPeerCertByName"),
 		Key:                  u.Query().Get("key"),
@@ -842,12 +842,12 @@ func (v *V2Ray) Configuration(info PriorInfo) (c Configuration, err error) {
 		} else if strings.ToLower(v.TLS) == "reality" {
 			core.StreamSettings.Security = "reality"
 			core.StreamSettings.RealitySettings = &coreObj.RealitySettings{
-				ServerName:  v.SNI,
-				Fingerprint: v.Fingerprint,
-				Show:        false,
-				PublicKey:   v.PublicKey,
-				ShortID:     v.ShortId,
-				SpiderX:     v.SpiderX,
+				ServerName:    v.SNI,
+				Fingerprint:   v.Fingerprint,
+				Show:          false,
+				PublicKey:     v.PublicKey,
+				ShortID:       v.ShortId,
+				SpiderX:       v.SpiderX,
 				Mldsa65Verify: v.Mldsa65Verify,
 			}
 		}
