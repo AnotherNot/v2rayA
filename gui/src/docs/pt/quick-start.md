@@ -4,13 +4,15 @@ Esta página no navegador configura o v2rayA e mostra seu estado; o serviço é 
 
 ## Entrar
 
-A primeira conta registrada é a de administrador; não há outra conta. O registro pede um nome de usuário e uma senha de 6 a 32 caracteres e não exige credenciais existentes; por isso, em uma rede compartilhada, restrinja quem pode acessar a porta 2017 antes de se registrar, ou execute o serviço com `--address 127.0.0.1:2017` para uso apenas local.
+A primeira conta registrada é a de administrador; não há outra conta. O registro pede um nome de usuário, uma senha de 6 a 32 caracteres e o token de configuração de uso único que o serviço imprime na primeira inicialização; o token também é gravado em `setup-token` no diretório de configuração e removido quando a primeira conta é criada. Além do token, em uma rede compartilhada, restrinja quem pode acessar a porta 2017 antes de se registrar, ou execute o serviço com `--address 127.0.0.1:2017` para uso apenas local.
 
 Para redefinir uma senha esquecida, use a linha de comando com o serviço parado:
 
 ```sh
 v2raya --reset-password
 ```
+
+O mesmo comando também emite um novo token de configuração de uso único quando ainda não há conta.
 
 Execute o comando com a conta e o diretório `--config` usados pelo serviço (também com `--lite` no modo lite); no Windows, o serviço é executado como SYSTEM e seu diretório é diferente do diretório de um usuário com privilégios elevados. Inicie o serviço novamente e registre uma nova conta.
 

@@ -212,7 +212,7 @@ With OpenRC, use the files from the section above. There is also a [snap](https:
 
 ## First run
 
-The service listens on `0.0.0.0:2017`, so on a router or NAS the interface is at `http://<device-address>:2017`. The first account registered becomes the administrator and registration needs no login, so restrict access before registering on a shared network, or start with `--address 127.0.0.1:2017` for local use only.
+The service listens on `0.0.0.0:2017`, so on a router or NAS the interface is at `http://<device-address>:2017`. The first account registered becomes the administrator; the registration form asks for the one-time setup token printed on first start (it is also written to `setup-token` in the configuration directory) and the token is removed once the account exists. Restrict access before registering on a shared network, or start with `--address 127.0.0.1:2017` for local use only.
 
 Open the interface and create the administrator. The tutorial then walks through importing a subscription or a share link, adding the nodes to a group and choosing the routing rules; start the core with Start on the dashboard or the status button at the top of the page.
 

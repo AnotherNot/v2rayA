@@ -182,6 +182,9 @@ export default {
       "As informações da conta são armazenadas localmente. Nunca enviamos informações para nenhum servidor.",
       "Se esquecer a senha, use v2raya --reset-password para redefini-la.",
     ],
+    setupToken: "Token de configuração",
+    setupTokenHint:
+      "Cole o token de uso único impresso pelo serviço na primeira inicialização (ele também fica no arquivo setup-token do diretório de configuração).",
     failed: "Falha no registro: {message}",
   },
   login: {
@@ -825,6 +828,14 @@ export default {
     WRONG_CREDENTIALS: "Nome de usuário ou senha incorretos.",
     USERNAME_TAKEN: "O nome de usuário {username} já está em uso.",
     ACCOUNT_EXISTS: "Já existe uma conta.",
+    SETUP_TOKEN_REQUIRED:
+      "A primeira conta precisa do token de configuração impresso pelo serviço.",
+    SETUP_TOKEN_INVALID: "O token de configuração é inválido ou já foi usado.",
+    CROSS_ORIGIN_FORBIDDEN:
+      "Requisições entre sites que alteram o estado não são permitidas.",
+    MISDIRECTED_REQUEST: "Este host não pode acessar a API do v2rayA.",
+    UNSUPPORTED_MEDIA_TYPE:
+      "Requisições com corpo devem usar Content-Type: application/json.",
     SESSION_EXPIRED: "Sua sessão expirou. Entre novamente.",
     SESSION_INVALID: "Sua sessão é inválida. Entre novamente.",
     ADMIN_REQUIRED: "É necessário acesso de administrador.",

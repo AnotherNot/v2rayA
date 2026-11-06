@@ -21,6 +21,7 @@ const notify = useNotify();
 
 const username = ref("");
 const password = ref("");
+const setupToken = ref("");
 const showPassword = ref(false);
 const submitting = ref(false);
 
@@ -28,7 +29,11 @@ async function submit() {
   if (submitting.value) return;
   submitting.value = true;
   try {
-    const body = { username: username.value, password: password.value };
+    const body = {
+      username: username.value,
+      password: password.value,
+      ...(props.first ? { setupToken: setupToken.value } : {}),
+    };
     const { token } = props.first
       ? await postAccount(body)
       : await postLogin(body);
@@ -78,6 +83,17 @@ function openAddress() {
         name="password"
         :autocomplete="first ? 'new-password' : 'current-password'"
         @click:append-inner="showPassword = !showPassword"
+        @keydown.enter.prevent="submit"
+      />
+      <v-text-field
+        v-if="first"
+        v-model="setupToken"
+        :label="t('register.setupToken')"
+        :hint="t('register.setupTokenHint')"
+        persistent-hint
+        name="setup-token"
+        autocomplete="one-time-code"
+        spellcheck="false"
         @keydown.enter.prevent="submit"
       />
       <v-alert

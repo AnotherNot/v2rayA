@@ -181,6 +181,9 @@ export default {
       "Account information is stored in local. We never send information to any server.",
       "Once password was forgot, you could use v2raya --reset-password to reset.",
     ],
+    setupToken: "Setup token",
+    setupTokenHint:
+      "Paste the one-time token printed by the service on first start (it is also in the configuration directory as setup-token).",
     failed: "Registration failed: {message}",
   },
   login: {
@@ -813,6 +816,14 @@ export default {
     WRONG_CREDENTIALS: "Wrong username or password.",
     USERNAME_TAKEN: "Username {username} is already taken.",
     ACCOUNT_EXISTS: "An account already exists.",
+    SETUP_TOKEN_REQUIRED:
+      "The first account needs the setup token printed by the service.",
+    SETUP_TOKEN_INVALID: "The setup token is invalid or has already been used.",
+    CROSS_ORIGIN_FORBIDDEN:
+      "Cross-origin state-changing requests are not allowed.",
+    MISDIRECTED_REQUEST: "This host is not allowed to reach the v2rayA API.",
+    UNSUPPORTED_MEDIA_TYPE:
+      "Requests with a body must use Content-Type: application/json.",
     SESSION_EXPIRED: "Your session has expired. Sign in again.",
     SESSION_INVALID: "Your session is invalid. Sign in again.",
     ADMIN_REQUIRED: "Administrator access is required.",

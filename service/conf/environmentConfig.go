@@ -17,6 +17,8 @@ import (
 type Params struct {
 	Address              string `id:"address" short:"a" default:"0.0.0.0:2017" desc:"Listening address"`
 	Socket               string `id:"socket" desc:"Unix socket path for listening"`
+	CorsOrigins          string `id:"cors-origin" desc:"Comma-separated origins allowed to call the API cross-origin. Empty allows the serving origin only."`
+	AllowedHosts         string `id:"allowed-host" desc:"Comma-separated host names allowed in the Host header. Local addresses and localhost are always accepted."`
 	BaseUrl              string `id:"baseurl" default:"/" desc:"Base URL path prefix"`
 	V2rayBin             string `id:"v2ray-bin" short:"b" desc:"Executable v2ray binary path. Auto-detect if put it empty."`
 	Config               string `id:"config" short:"c" desc:"v2rayA configuration directory"`

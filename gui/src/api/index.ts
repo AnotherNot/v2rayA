@@ -26,9 +26,15 @@ import type {
 
 // ---- account and session ----------------------------------------------
 export const getAccount = () =>
-  call<{ hasAnyAccounts: boolean }>({ url: "account", method: "get" });
-export const postAccount = (body: { username: string; password: string }) =>
-  call<{ token: string }>({ url: "account", method: "post", data: body });
+  call<{ hasAnyAccounts: boolean; setupTokenRequired?: boolean }>({
+    url: "account",
+    method: "get",
+  });
+export const postAccount = (body: {
+  username: string;
+  password: string;
+  setupToken?: string;
+}) => call<{ token: string }>({ url: "account", method: "post", data: body });
 export const postLogin = (body: { username: string; password: string }) =>
   call<{ token: string }>({ url: "login", method: "post", data: body });
 export const getVersion = () =>

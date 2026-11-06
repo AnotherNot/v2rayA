@@ -146,6 +146,12 @@ func initConfigure() {
 		configure.SetTproxyWhiteIpGroups([]string{"PRIVATE"}, []string{})
 	}
 
+	// The first-run token has to come after the new-database initialisation:
+	// SetConfigure clears the system bucket, which would drop the hash.
+	if err := service.EnsureSetupToken(); err != nil {
+		log.Warn("setup token: %v", err)
+	}
+
 	// check if config.json exists
 	if _, err := os.Stat(asset.GetV2rayConfigPath()); err != nil {
 		// if not exists, create one. This mostly happens when mounting a volume in docker mode and it covers /etc/v2ray.

@@ -9,6 +9,7 @@ import {
   client,
   setClientHooks,
 } from "./client";
+import { postAccount } from "./index";
 
 // A fake transport: records what the client sends and answers what the
 // test scripted, so the assertions are on the wire shape, not on axios.
@@ -97,6 +98,20 @@ describe("the client sends what the old components sent", () => {
     expect(sent[0].query).toBe(
       `touch=${encodeURIComponent('{"id":1,"_type":"server"}')}&n=2`,
     );
+  });
+
+  test("registration carries the one-time setup token", async () => {
+    await postAccount({
+      username: "admin",
+      password: "test-password",
+      setupToken: "setup-token-value",
+    });
+    expect(sent[0].url).toBe(`${apiRoot()}/account`);
+    expect(JSON.parse(String(sent[0].body))).toEqual({
+      username: "admin",
+      password: "test-password",
+      setupToken: "setup-token-value",
+    });
   });
 
   test("endpoint names starting with http keep the api root", async () => {

@@ -233,20 +233,32 @@ func nocache(c *gin.Context) {
 }
 
 func Run() error {
+	app := conf.GetEnvironmentConfig()
+	security := newSecurityConfig(app)
+	if hasWildcardOrigin(app.CorsOrigins) {
+		return fmt.Errorf("router: --cors-origin must list explicit origins, not *")
+	}
 	engine := gin.New()
 	//ginpprof.Wrap(engine)
 	engine.Use(gin.Recovery())
-	corsConfig := cors.DefaultConfig()
-	corsConfig.AllowAllOrigins = true
-	corsConfig.AllowMethods = []string{
-		"GET", "POST", "DELETE", "PUT", "PATCH", "OPTIONS", "HEAD",
+	// The Host and Origin checks run before CORS: a preflight from a
+	// rebinding name or an unlisted origin must not be answered at all.
+	engine.Use(security.hostGuard(), security.csrfGuard(), jsonBodyGuard())
+	corsConfig := cors.Config{
+		AllowOrigins:     security.originList(),
+		AllowMethods:     []string{"GET", "POST", "DELETE", "PUT", "PATCH", "OPTIONS", "HEAD"},
+		AllowHeaders:     []string{"Authorization", "Content-Type", "Accept", "Origin", common.RequestIdHeader},
+		ExposeHeaders:    []string{"Content-Disposition"},
+		AllowWebSockets:  true,
+		AllowCredentials: false,
+		MaxAge:           12 * time.Hour,
 	}
-	corsConfig.AllowWebSockets = true
-	corsConfig.AllowCredentials = true
-	corsConfig.AddAllowHeaders("Authorization", common.RequestIdHeader)
-	corsConfig.AddExposeHeaders("Content-Disposition")
-	engine.Use(cors.New(corsConfig))
-	app := conf.GetEnvironmentConfig()
+	// gin-contrib/cors refuses to build a config with no origin at all.
+	// Same-origin requests need no CORS headers, so an empty allowlist
+	// simply installs no CORS middleware; cross-origin callers get nothing.
+	if len(corsConfig.AllowOrigins) > 0 {
+		engine.Use(cors.New(corsConfig))
+	}
 	root := engine.Group(app.BaseUrl)
 	noAuth := root.Group("api",
 		nocache,

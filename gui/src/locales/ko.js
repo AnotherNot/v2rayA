@@ -178,6 +178,9 @@ export default {
       "계정 정보는 로컬에 저장되며 어떤 서버에도 전송되지 않습니다.",
       "비밀번호를 잊은 경우 v2raya --reset-password로 재설정할 수 있습니다.",
     ],
+    setupToken: "설정 토큰",
+    setupTokenHint:
+      "서비스가 처음 시작할 때 출력하는 일회용 토큰을 붙여 넣으세요(설정 디렉터리의 setup-token 파일에도 있습니다).",
     failed: "등록 실패: {message}",
   },
   login: {
@@ -802,6 +805,14 @@ export default {
     WRONG_CREDENTIALS: "사용자 이름 또는 비밀번호가 잘못됨.",
     USERNAME_TAKEN: "사용자 이름 {username} 사용 중.",
     ACCOUNT_EXISTS: "이미 계정이 존재함.",
+    SETUP_TOKEN_REQUIRED:
+      "첫 계정을 만들려면 서비스가 출력한 설정 토큰이 필요합니다.",
+    SETUP_TOKEN_INVALID: "설정 토큰이 잘못되었거나 이미 사용되었습니다.",
+    CROSS_ORIGIN_FORBIDDEN:
+      "상태를 변경하는 교차 사이트 요청은 허용되지 않습니다.",
+    MISDIRECTED_REQUEST: "이 호스트는 v2rayA API에 접근할 수 없습니다.",
+    UNSUPPORTED_MEDIA_TYPE:
+      "본문이 있는 요청은 Content-Type: application/json을 사용해야 합니다.",
     SESSION_EXPIRED: "세션 만료. 다시 로그인하세요.",
     SESSION_INVALID: "유효하지 않은 세션. 다시 로그인하세요.",
     ADMIN_REQUIRED: "관리자 권한 필요.",

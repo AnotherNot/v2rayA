@@ -11,6 +11,7 @@ import (
 	"github.com/v2rayA/v2rayA/db/configure"
 	service2 "github.com/v2rayA/v2rayA/kernel/v2ray/service"
 	"github.com/v2rayA/v2rayA/pkg/util/log"
+	serverservice "github.com/v2rayA/v2rayA/server/service"
 )
 
 func checkEnvironment() {
@@ -26,6 +27,9 @@ func checkEnvironment() {
 		err := configure.ResetAccounts()
 		if err != nil {
 			log.Fatal("checkEnvironment: %v", err)
+		}
+		if err := serverservice.RotateSetupToken(); err != nil {
+			log.Warn("setup token: %v", err)
 		}
 		fmt.Println("Succeed. It will work after you restart v2rayA.")
 		os.Exit(0)

@@ -13,8 +13,10 @@ import (
 
 /*检查是否存在账户*/
 func GetAccount(ctx *gin.Context) {
+	hasAnyAccounts := configure.HasAnyAccounts()
 	common.ResponseSuccess(ctx, gin.H{
-		"hasAnyAccounts": configure.HasAnyAccounts(),
+		"hasAnyAccounts":     hasAnyAccounts,
+		"setupTokenRequired": !hasAnyAccounts,
 	})
 }
 
@@ -62,14 +64,15 @@ var muReg sync.Mutex
 
 func PostAccount(ctx *gin.Context) {
 	var data struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
+		Username   string `json:"username"`
+		Password   string `json:"password"`
+		SetupToken string `json:"setupToken"`
 	}
 	muReg.Lock()
 	defer muReg.Unlock()
 	err := ctx.ShouldBindJSON(&data)
 	if err != nil {
-		common.ResponseError(ctx, badRequest("username and password", "request body must be {\"username\": string, \"password\": string}"))
+		common.ResponseError(ctx, badRequest("username and password", "request body must be {\"username\": string, \"password\": string, \"setupToken\": string}"))
 		return
 	}
 	if ok, err := service.ValidPasswordLength(data.Password); !ok {
@@ -80,11 +83,23 @@ func PostAccount(ctx *gin.Context) {
 		common.ResponseError(ctx, common.Coded("ACCOUNT_EXISTS", logError("an account already exists; sign in instead"), nil))
 		return
 	}
+	// The first account is the administrator. Until it exists, the setup
+	// token printed at start proves that the caller can read the service's
+	// own console or configuration directory, not merely reach its port.
+	if data.SetupToken == "" {
+		common.ResponseError(ctx, common.Coded("SETUP_TOKEN_REQUIRED", logError("the first account needs the setup token printed by the service"), nil))
+		return
+	}
+	if !service.VerifySetupToken(data.SetupToken) {
+		common.ResponseError(ctx, common.Coded("SETUP_TOKEN_INVALID", logError("the setup token is invalid or has already been used"), nil))
+		return
+	}
 	token, err := service.Register(data.Username, data.Password)
 	if err != nil {
 		common.ResponseError(ctx, logError(err))
 		return
 	}
+	service.ConsumeSetupToken()
 	common.ResponseSuccess(ctx, gin.H{
 		"token": token,
 	})

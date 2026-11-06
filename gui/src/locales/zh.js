@@ -176,6 +176,9 @@ export default {
       "账号信息位于本地，我们不会上传任何信息到服务器。",
       "如不慎忘记密码，使用 v2raya --reset-password 重置。",
     ],
+    setupToken: "安装令牌",
+    setupTokenHint:
+      "粘贴服务首次启动时打印的一次性令牌（它也保存在配置目录的 setup-token 文件中）。",
     failed: "注册失败：{message}",
   },
   login: {
@@ -786,6 +789,12 @@ export default {
     WRONG_CREDENTIALS: "用户名或密码错误。",
     USERNAME_TAKEN: "用户名 {username} 已被使用。",
     ACCOUNT_EXISTS: "账号已存在。",
+    SETUP_TOKEN_REQUIRED: "创建第一个账户需要服务打印的安装令牌。",
+    SETUP_TOKEN_INVALID: "安装令牌无效或已被使用。",
+    CROSS_ORIGIN_FORBIDDEN: "不允许跨站的状态变更请求。",
+    MISDIRECTED_REQUEST: "此主机无权访问 v2rayA API。",
+    UNSUPPORTED_MEDIA_TYPE:
+      "带请求体的请求必须使用 Content-Type: application/json。",
     SESSION_EXPIRED: "会话已过期，请重新登录。",
     SESSION_INVALID: "会话无效，请重新登录。",
     ADMIN_REQUIRED: "需要管理员权限。",

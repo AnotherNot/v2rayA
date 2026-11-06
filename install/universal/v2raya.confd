@@ -10,6 +10,8 @@ V2RAYA_OPTS="--log-file /var/log/v2raya/v2raya.log"
 #
 # Available options (`v2raya --help`):
 # -a, --address string             Listening address (default "0.0.0.0:2017")
+#     --cors-origin string         Comma-separated origins allowed to call the API cross-origin. Empty allows the serving origin only.
+#     --allowed-host string        Comma-separated host names allowed in the Host header. Local addresses and localhost are always accepted.
 #     --socket string              Unix socket path for listening
 #     --baseurl string             Base URL path prefix (default "/")
 # -b, --v2ray-bin string           Path of the v2raya_core executable. Found next to v2raya or in PATH when empty.
