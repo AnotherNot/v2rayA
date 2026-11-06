@@ -24,7 +24,8 @@ rmSync(state, { recursive: true, force: true });
 mkdirSync(state, { recursive: true });
 
 const address = `127.0.0.1:${process.env.V2RAYA_E2E_PORT ?? "21117"}`;
-const child = spawn(binary, ["--lite", "--address", address], {
+const config = join(state, "v2raya");
+const child = spawn(binary, ["--lite", "--config", config, "--address", address], {
   cwd: repo,
   env: { ...process.env, XDG_CONFIG_HOME: state },
   stdio: "inherit",
