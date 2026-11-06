@@ -27,6 +27,8 @@ Run the checks CI runs, from the repository root:
 
 Then exercise the change in the running program: a service change by starting `v2raya` and using the feature, a GUI change in a browser, at phone width and in both themes. `TestResolvHijackerConcurrentResetRemove` fails when the tests run as a non-root user; that one is known.
 
+The browser tests drive the built service rather than a mock: `./build-all.sh`, then `yarn --cwd gui playwright install chromium` once, then `yarn --cwd gui test:e2e`. The run starts `./v2raya` on `127.0.0.1:21117` with a scratch configuration directory, registers the first account and imports a node with both VLESS encryption and the REALITY ML-DSA-65 verify key.
+
 - One change per pull request, and each commit a coherent step of it: no mixed-up commits, no reformatting of untouched code, no lockfile churn.
 - Visible text lives in `gui/src/locales/`: update all six locales together. `yarn i18n-check` compares key sets, not whether a translation followed a wording change. The in-app documentation under `gui/src/docs/` has the same six.
 - Do not add a model `Co-Authored-By` trailer, an AI signature or a generated-by marker to a commit, pull request text or a comment.

@@ -20,3 +20,10 @@ yarn-error.log*
 *.sln
 *.sw?
 .nuxt
+
+# Playwright: the configuration directory the service runs on, and the
+# reports a failing run leaves behind
+/e2e/.state
+/test-results
+/playwright-report
+/blob-report
