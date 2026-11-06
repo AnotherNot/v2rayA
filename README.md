@@ -138,21 +138,21 @@ sudo rc-service v2raya start
 <details>
 <summary><strong>Docker</strong></summary>
 
-This fork publishes no registry image yet: build it from source (needs only Docker) or run the one-command build and then the container from it:
+The fork publishes an image on GitHub Container Registry for `linux/amd64` and `linux/arm64`. `latest` is moved by every release that is not a pre-release; a release also carries its version as a tag (`2.5.14` and `v2.5.14`). No login is needed:
 
 ```sh
-docker build -f install/docker/Dockerfile -t v2raya-local .
 docker run -d --restart=always --privileged --network=host --name v2raya \
   -e V2RAYA_LOG_FILE=/tmp/v2raya.log \
   -v /lib/modules:/lib/modules:ro \
   -v /etc/resolv.conf:/etc/resolv.conf \
   -v /etc/v2raya:/etc/v2raya \
-  v2raya-local
+  ghcr.io/anothernot/v2raya:latest
 ```
 
-This example is for a Linux host and gives the container the host network and privileges, which transparent proxy needs.
+This example is for a Linux host and gives the container the host network and privileges, which transparent proxy needs. To build the image from source instead, which needs only Docker:
 
 ```sh
+docker build -f install/docker/Dockerfile -t v2raya-local .
 docker run -d --restart=always --privileged --network=host --name v2raya \
   -e V2RAYA_LOG_FILE=/tmp/v2raya.log \
   -v /lib/modules:/lib/modules:ro \

@@ -138,21 +138,21 @@ sudo rc-service v2raya start
 <details>
 <summary><strong>Docker</strong></summary>
 
-Этот форк пока не публикует образ в registry: соберите его из исходников (нужен только Docker) или запустите односкриптовую сборку, а затем контейнер из неё:
+Форк публикует образ в registry для `linux/amd64` и `linux/arm64`. `latest` сдвигает каждый выпуск, не помеченный как предварительный; у выпуска есть и теги версии (`2.5.14` и `v2.5.14`). Вход не нужен:
 
 ```sh
-docker build -f install/docker/Dockerfile -t v2raya-local .
 docker run -d --restart=always --privileged --network=host --name v2raya \
   -e V2RAYA_LOG_FILE=/tmp/v2raya.log \
   -v /lib/modules:/lib/modules:ro \
   -v /etc/resolv.conf:/etc/resolv.conf \
   -v /etc/v2raya:/etc/v2raya \
-  v2raya-local
+  ghcr.io/anothernot/v2raya:latest
 ```
 
-Пример для хоста Linux: контейнер получает сеть хоста и привилегии, без которых прозрачный прокси не работает:
+Пример для хоста Linux: контейнер получает сеть хоста и привилегии, без которых прозрачный прокси не работает. Чтобы собрать образ из исходников (нужен только Docker):
 
 ```sh
+docker build -f install/docker/Dockerfile -t v2raya-local .
 docker run -d --restart=always --privileged --network=host --name v2raya \
   -e V2RAYA_LOG_FILE=/tmp/v2raya.log \
   -v /lib/modules:/lib/modules:ro \

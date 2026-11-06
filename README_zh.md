@@ -138,21 +138,21 @@ sudo rc-service v2raya start
 <details>
 <summary><strong>Docker</strong></summary>
 
-该分支尚未向 registry 发布镜像：用 Docker 从源码构建（只需要 Docker），或先运行一键构建脚本再启动容器：
+该分支发布 GitHub Container Registry 镜像，覆盖 `linux/amd64` 与 `linux/arm64`。`latest` 随每个非预发布版本更新；每个发布同时带有版本标签（`2.5.14` 与 `v2.5.14`）。无需登录：
 
 ```sh
-docker build -f install/docker/Dockerfile -t v2raya-local .
 docker run -d --restart=always --privileged --network=host --name v2raya \
   -e V2RAYA_LOG_FILE=/tmp/v2raya.log \
   -v /lib/modules:/lib/modules:ro \
   -v /etc/resolv.conf:/etc/resolv.conf \
   -v /etc/v2raya:/etc/v2raya \
-  v2raya-local
+  ghcr.io/anothernot/v2raya:latest
 ```
 
-以下示例针对 Linux 宿主机，赋予容器宿主机网络与特权，透明代理需要这两项：
+以下示例针对 Linux 宿主机，赋予容器宿主机网络与特权，透明代理需要这两项。若要用源码构建镜像（只需要 Docker）：
 
 ```sh
+docker build -f install/docker/Dockerfile -t v2raya-local .
 docker run -d --restart=always --privileged --network=host --name v2raya \
   -e V2RAYA_LOG_FILE=/tmp/v2raya.log \
   -v /lib/modules:/lib/modules:ro \
