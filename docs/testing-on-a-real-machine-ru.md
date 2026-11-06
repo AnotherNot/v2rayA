@@ -64,13 +64,13 @@ TUN-устройства. Поэтому вся процедура ниже вы
 docker run --rm -v "$PWD:/repo" -w /repo/gui node:24 \
   bash -c 'corepack enable >/dev/null && yarn install --frozen-lockfile && yarn build'
 mkdir -p service/server/router/web && cp -a web/. service/server/router/web/
-docker run --rm -v "$PWD:/repo" -w /repo/core golang:1.26 \
+docker run --rm -v "$PWD:/repo" -w /repo/core golang:1.27 \
   bash -c 'CGO_ENABLED=0 go build -trimpath -o /repo/v2raya_core ./main'
-docker run --rm -v "$PWD:/repo" -w /repo/service golang:1.26 \
+docker run --rm -v "$PWD:/repo" -w /repo/service golang:1.27 \
   bash -c 'CGO_ENABLED=0 go build -trimpath -o /repo/v2raya .'
 ```
 
-`./build.sh` делает то же самое с локальными Go 1.26 и yarn.
+`./build.sh` делает то же самое с локальными Go 1.27 и yarn.
 
 Локальные изменения подхватываются сами за счёт монтирования `-v
 "$PWD:/repo"`: контейнер видит рабочее дерево, включая незакоммиченные
@@ -89,7 +89,7 @@ docker run --rm --network host -v "$PWD:/repo" -w /repo/gui node:24 \
 ```
 
 Без Docker вообще те же команды выполняются нативно с локальными Node 24
-(+ yarn, сначала `corepack enable`) и Go 1.26 — из корня репозитория, по
+(+ yarn, сначала `corepack enable`) и Go 1.27 — из корня репозитория, по
 порядку в `gui`, `core` и `service`, не забывая шаг `mkdir`/`cp` между
 интерфейсом и сервисом.
 

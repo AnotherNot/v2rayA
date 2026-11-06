@@ -64,13 +64,13 @@ once is much harder than proving each separately.
 docker run --rm -v "$PWD:/repo" -w /repo/gui node:24 \
   bash -c 'corepack enable >/dev/null && yarn install --frozen-lockfile && yarn build'
 mkdir -p service/server/router/web && cp -a web/. service/server/router/web/
-docker run --rm -v "$PWD:/repo" -w /repo/core golang:1.26 \
+docker run --rm -v "$PWD:/repo" -w /repo/core golang:1.27 \
   bash -c 'CGO_ENABLED=0 go build -trimpath -o /repo/v2raya_core ./main'
-docker run --rm -v "$PWD:/repo" -w /repo/service golang:1.26 \
+docker run --rm -v "$PWD:/repo" -w /repo/service golang:1.27 \
   bash -c 'CGO_ENABLED=0 go build -trimpath -o /repo/v2raya .'
 ```
 
-`./build.sh` does the same with a local Go 1.26 and yarn.
+`./build.sh` does the same with a local Go 1.27 and yarn.
 
 The `-v "$PWD:/repo"` mount is what makes local changes build: the
 container sees the working tree, uncommitted edits included, so there is no
@@ -89,7 +89,7 @@ docker run --rm --network host -v "$PWD:/repo" -w /repo/gui node:24 \
 ```
 
 Without Docker at all, the same commands run natively with a local Node 24
-(+ yarn, `corepack enable` first) and a local Go 1.26 — from the repository
+(+ yarn, `corepack enable` first) and a local Go 1.27 — from the repository
 root, in `gui`, `core` and `service` in that order, keeping the
 `mkdir`/`cp` step between the interface and the service.
 

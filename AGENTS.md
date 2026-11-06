@@ -17,7 +17,7 @@ Read the code you are about to change and the code that calls it. Reuse the comp
 ```
 
 That is the whole build: it runs the interface build in `node:24` and both Go
-binaries in `golang:1.26`, leaves `./v2raya` and `./v2raya_core` in the
+binaries in `golang:1.27`, leaves `./v2raya` and `./v2raya_core` in the
 repository root, and keeps the host free of toolchains. It needs git and a
 running Docker daemon, nothing else. The three toolchains separately, when you
 want only one of them:

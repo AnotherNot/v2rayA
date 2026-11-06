@@ -21,7 +21,7 @@ jobs:
             core/go.sum
             service/go.mod
             service/go.sum
-          go-version: "1.26"
+          go-version: "1.27"
       # The service embeds the built web files, so the embed target must be
       # populated before the module compiles at all.
       - name: Vet
@@ -45,7 +45,7 @@ jobs:
           cache-dependency-path: |
             service/go.mod
             service/go.sum
-          go-version: "1.26"
+          go-version: "1.27"
       # The runner is not root, so the service comes up in lite mode and the
       # tests that need the transparent-proxy paths skip themselves.
       - name: Test

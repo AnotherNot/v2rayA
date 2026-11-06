@@ -14,7 +14,7 @@ require (
 	github.com/miekg/dns v1.1.73
 	github.com/sagernet/sing v0.6.0
 	github.com/vishvananda/netlink v1.3.1
-	// Pseudo-version for Xray-core v26.7.28 (commit 5ca6f4b7). v26 tags are not
+	// Pseudo-version for Xray-core v26.10.31 (commit a4a3dff5). v26 tags are not
 	// resolvable via go mod because Xray's module path lacks the /v26 suffix.
 	github.com/xtls/xray-core v1.260327.1-0.20261031132019-a4a3dff5b20c
 	golang.org/x/sys v0.49.0

@@ -13,7 +13,7 @@ Before you open an issue or a pull request, check the [latest release](https://g
 | `gui/` | the web interface: Vue 3, Vuetify 4 (Material 3), vue-i18n, Vitest |
 | `install/` | packaging: systemd and OpenRC units, AUR, Docker, the Windows installer |
 
-`./build.sh`, from the repository root, builds the web interface and both binaries; it needs Go 1.26 and Node 24 with yarn. The service embeds `service/server/router/web`, which only `build.sh` fills: `yarn --cwd gui build` writes to `web/` at the root, and `go build` in `service/` fails until those files are copied across.
+`./build.sh`, from the repository root, builds the web interface and both binaries; it needs Go 1.27 and Node 24 with yarn. The service embeds `service/server/router/web`, which only `build.sh` fills: `yarn --cwd gui build` writes to `web/` at the root, and `go build` in `service/` fails until those files are copied across.
 
 ## Before a pull request
 
