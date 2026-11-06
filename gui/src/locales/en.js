@@ -822,6 +822,8 @@ export default {
     CROSS_ORIGIN_FORBIDDEN:
       "Cross-origin state-changing requests are not allowed.",
     MISDIRECTED_REQUEST: "This host is not allowed to reach the v2rayA API.",
+    SOCKET_PEER_FORBIDDEN:
+      "This unix socket is restricted to the service's own user.",
     UNSUPPORTED_MEDIA_TYPE:
       "Requests with a body must use Content-Type: application/json.",
     SESSION_EXPIRED: "Your session has expired. Sign in again.",

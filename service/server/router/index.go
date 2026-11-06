@@ -243,6 +243,11 @@ func Run() error {
 	engine.Use(gin.Recovery())
 	// The Host and Origin checks run before CORS: a preflight from a
 	// rebinding name or an unlisted origin must not be answered at all.
+	// A group-owned socket relies on the kernel's 0660 mode instead of the
+	// same-UID check.
+	if app.SocketGroup == "" {
+		engine.Use(peerCredGuard())
+	}
 	engine.Use(security.hostGuard(), security.csrfGuard(), jsonBodyGuard())
 	corsConfig := cors.Config{
 		AllowOrigins:     security.originList(),
@@ -344,13 +349,16 @@ func Run() error {
 	var l net.Listener
 	var err error
 	if app.Socket != "" {
-		_ = os.Remove(app.Socket)
+		if err = prepareUnixSocket(app.Socket); err != nil {
+			return fmt.Errorf("router: %w", err)
+		}
 		l, err = net.Listen("unix", app.Socket)
 		if err != nil {
 			return fmt.Errorf("router: failed to listen on unix socket %v: %w", app.Socket, err)
 		}
-		if err = os.Chmod(app.Socket, 0777); err != nil {
-			log.Warn("failed to chmod unix socket %v: %v", app.Socket, err)
+		if err = secureUnixSocket(app.Socket, app.SocketGroup); err != nil {
+			_ = l.Close()
+			return fmt.Errorf("router: %w", err)
 		}
 	} else {
 		addr := app.Address
@@ -382,6 +390,18 @@ func newHTTPServer(handler http.Handler) *http.Server {
 		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       120 * time.Second,
+		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
+			cred, isUnix, err := peerCredFromConn(c)
+			if !isUnix {
+				return ctx
+			}
+			if err != nil {
+				// A unix peer we cannot identify gets a UID that matches no
+				// process, so peerCredGuard refuses it.
+				return context.WithValue(ctx, peerCredKey{}, peerCred{uid: ^uint32(0)})
+			}
+			return context.WithValue(ctx, peerCredKey{}, cred)
+		},
 	}
 }
 

@@ -197,10 +197,16 @@ func moveBoltAside(boltPath string) (string, error) {
 // createSQLiteDB creates a new SQLite database file at the given path,
 // opens a connection, configures PRAGMAs, and initializes the schema.
 func createSQLiteDB(dbPath string) (*sql.DB, error) {
-	// Ensure the database file exists
-	f, err := os.Create(dbPath)
+	// Ensure the database file exists. The migration path hands us an
+	// already-created temporary file, so do not use O_EXCL; force the mode
+	// explicitly in case the file predates the private-umask change.
+	f, err := os.OpenFile(dbPath, os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create SQLite database file: %w", err)
+	}
+	if err := f.Chmod(0600); err != nil {
+		_ = f.Close()
+		return nil, fmt.Errorf("failed to chmod SQLite database file: %w", err)
 	}
 	f.Close()
 

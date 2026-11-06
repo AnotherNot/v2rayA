@@ -2,11 +2,13 @@ package main
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/v2rayA/v2rayA/common/fileperm"
 	_ "github.com/v2rayA/v2rayA/conf/report"
 	"github.com/v2rayA/v2rayA/pkg/util/log"
 )
 
 func main() {
+	fileperm.SecureUmask()
 	gin.SetMode(gin.ReleaseMode)
 
 	// Try running as a service (implemented on Windows, returns false on other platforms)

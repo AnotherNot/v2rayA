@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"sort"
 	"strings"
 
@@ -232,4 +233,25 @@ func abortSecurity(ctx *gin.Context, status int, code, message string) {
 		"data":      nil,
 		"errorCode": code,
 	})
+}
+
+// peerCredGuard enforces the unix socket's owner boundary even if a process
+// can reach the socket file: SO_PEERCRED reports the connecting UID, and a
+// different user is refused. TCP connections carry no peer credentials and
+// pass through.
+func peerCredGuard() gin.HandlerFunc {
+	owner := uint32(os.Geteuid())
+	return func(ctx *gin.Context) {
+		cred, ok := peerCredFromContext(ctx.Request.Context())
+		if !ok {
+			ctx.Next()
+			return
+		}
+		if cred.uid != owner {
+			abortSecurity(ctx, http.StatusForbidden, "SOCKET_PEER_FORBIDDEN",
+				"this unix socket is restricted to the service's own user")
+			return
+		}
+		ctx.Next()
+	}
 }

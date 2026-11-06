@@ -19,6 +19,8 @@ func checkEnvironment() {
 	if len(config.PrintReport) > 0 {
 		db.SetReadOnly()
 		config.Report()
+		_ = db.Close()
+		db.CleanupReadOnly()
 		os.Exit(0)
 	}
 	if config.ResetPassword {

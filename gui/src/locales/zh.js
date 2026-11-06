@@ -793,6 +793,7 @@ export default {
     SETUP_TOKEN_INVALID: "安装令牌无效或已被使用。",
     CROSS_ORIGIN_FORBIDDEN: "不允许跨站的状态变更请求。",
     MISDIRECTED_REQUEST: "此主机无权访问 v2rayA API。",
+    SOCKET_PEER_FORBIDDEN: "此 Unix 套接字仅限服务自身用户使用。",
     UNSUPPORTED_MEDIA_TYPE:
       "带请求体的请求必须使用 Content-Type: application/json。",
     SESSION_EXPIRED: "会话已过期，请重新登录。",

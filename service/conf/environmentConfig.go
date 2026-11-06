@@ -10,6 +10,7 @@ import (
 
 	"github.com/stevenroose/gonfig"
 	"github.com/v2rayA/v2rayA/common"
+	"github.com/v2rayA/v2rayA/common/fileperm"
 	"github.com/v2rayA/v2rayA/pkg/util/log"
 	"github.com/v2rayA/v2rayA/pkg/util/privilege"
 )
@@ -17,6 +18,7 @@ import (
 type Params struct {
 	Address              string `id:"address" short:"a" default:"0.0.0.0:2017" desc:"Listening address"`
 	Socket               string `id:"socket" desc:"Unix socket path for listening"`
+	SocketGroup          string `id:"socket-group" desc:"Group allowed to use the unix socket. Empty keeps it owner-only (0600)."`
 	CorsOrigins          string `id:"cors-origin" desc:"Comma-separated origins allowed to call the API cross-origin. Empty allows the serving origin only."`
 	AllowedHosts         string `id:"allowed-host" desc:"Comma-separated host names allowed in the Host header. Local addresses and localhost are always accepted."`
 	BaseUrl              string `id:"baseurl" default:"/" desc:"Base URL path prefix"`
@@ -113,10 +115,8 @@ func initFunc() {
 	}
 	// 展开各路径参数中的平台相关环境变量（Windows 上处理 %VAR% 风格）
 	expandPlatformConfigPaths(&params)
-	if _, err := os.Stat(params.Config); os.IsNotExist(err) {
-		_ = os.MkdirAll(params.Config, os.ModeDir|0750)
-	} else if err != nil {
-		log.Warn("%v", err)
+	if err := fileperm.EnsurePrivateDir(params.Config, 0750); err != nil {
+		log.Fatal("configuration directory %v: %v", params.Config, err)
 	}
 	logWay := "console"
 	if params.LogFile != "" {

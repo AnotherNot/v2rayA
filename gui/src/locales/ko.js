@@ -811,6 +811,8 @@ export default {
     CROSS_ORIGIN_FORBIDDEN:
       "상태를 변경하는 교차 사이트 요청은 허용되지 않습니다.",
     MISDIRECTED_REQUEST: "이 호스트는 v2rayA API에 접근할 수 없습니다.",
+    SOCKET_PEER_FORBIDDEN:
+      "이 유닉스 소켓은 서비스 자체 사용자만 사용할 수 있습니다.",
     UNSUPPORTED_MEDIA_TYPE:
       "본문이 있는 요청은 Content-Type: application/json을 사용해야 합니다.",
     SESSION_EXPIRED: "세션 만료. 다시 로그인하세요.",

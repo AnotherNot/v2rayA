@@ -829,6 +829,8 @@ export default {
     CROSS_ORIGIN_FORBIDDEN:
       "Межсайтовые запросы, изменяющие состояние, запрещены.",
     MISDIRECTED_REQUEST: "Этот хост не имеет доступа к API v2rayA.",
+    SOCKET_PEER_FORBIDDEN:
+      "Этот unix-сокет доступен только пользователю самого сервиса.",
     UNSUPPORTED_MEDIA_TYPE:
       "Запросы с телом должны использовать Content-Type: application/json.",
     SESSION_EXPIRED: "Срок действия сеанса истёк. Войдите снова.",

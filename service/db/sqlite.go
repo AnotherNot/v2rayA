@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/v2rayA/v2rayA/common/fileperm"
 	"github.com/v2rayA/v2rayA/conf"
 	"github.com/v2rayA/v2rayA/pkg/util/log"
 )
@@ -16,11 +17,12 @@ var (
 	// dbMu guards sqlDB and dbPath. A sync.Once cannot carry the "close and
 	// reopen" that Close needs: reassigning one is not safe against a
 	// concurrent Do, and a racing reader can observe a torn Once.
-	dbMu     sync.Mutex
-	sqlDB    *sql.DB
-	dbPath   string
-	readOnly bool
-	IsNewDB  bool // true if the database was just created (no pre-existing file)
+	dbMu        sync.Mutex
+	sqlDB       *sql.DB
+	dbPath      string
+	readOnly    bool
+	readOnlyTmp string
+	IsNewDB     bool // true if the database was just created (no pre-existing file)
 )
 
 // ErrNeedMigration is returned when an old BoltDB database is detected,
@@ -71,6 +73,7 @@ func initDB() {
 				panic(err)
 			}
 		}
+		readOnlyTmp = newPath
 		dbPath = newPath
 	}
 
@@ -81,6 +84,10 @@ func initDB() {
 	sqlDB, err = sql.Open(sqliteDriverName, sqliteDSN(dbPath))
 	if err != nil {
 		log.Fatal("sql.Open: %v", err)
+	}
+
+	if err := ensureDBFiles(); err != nil {
+		log.Fatal("database permissions: %v", err)
 	}
 
 	// Configure PRAGMAs for WAL mode and performance
@@ -104,6 +111,33 @@ func initDB() {
 	if err := MigrateSchema(sqlDB); err != nil {
 		log.Fatal("MigrateSchema: %v", err)
 	}
+
+	// WAL and shared-memory files appear on the first write; force their
+	// mode after the schema statements have created them.
+	if err := ensureDBFiles(); err != nil {
+		log.Fatal("database permissions: %v", err)
+	}
+}
+
+func ensureDBFiles() error {
+	for _, suffix := range []string{"", "-wal", "-shm"} {
+		if err := fileperm.EnsurePrivateFile(dbPath+suffix, 0600); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// CleanupReadOnly removes the temporary copy --report made. It is the one
+// file that would otherwise leave a copy of the session secret on disk.
+func CleanupReadOnly() {
+	if readOnlyTmp == "" {
+		return
+	}
+	_ = os.Remove(readOnlyTmp)
+	_ = os.Remove(readOnlyTmp + "-wal")
+	_ = os.Remove(readOnlyTmp + "-shm")
+	readOnlyTmp = ""
 }
 
 // GetDB returns the singleton SQLite database connection
@@ -149,7 +183,7 @@ func Open() error {
 		// Database file does not exist — this is a fresh install
 		IsNewDB = true
 		// Create an empty file so sql.Open does not fail
-		f, err := os.Create(sqlitePath)
+		f, err := os.OpenFile(sqlitePath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 		if err != nil {
 			return fmt.Errorf("failed to create SQLite database file: %w", err)
 		}

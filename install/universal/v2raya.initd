@@ -26,4 +26,5 @@ depend() {
 start_pre() {
 	checkpath -d -m 0755 /var/log/v2raya
 	checkpath -d -m 0750 /etc/v2raya
+	checkpath -d -m 0750 /run/v2raya
 }

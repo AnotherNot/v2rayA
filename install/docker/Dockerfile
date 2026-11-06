@@ -50,7 +50,8 @@ RUN apk add --no-cache iptables iptables-legacy nftables tzdata iproute2 ca-cert
     && install /tmp/ip6tables.sh /usr/local/bin/ip6tables-nft \
     && install /tmp/iptables.sh /usr/local/bin/iptables-legacy \
     && install /tmp/ip6tables.sh /usr/local/bin/ip6tables-legacy \
-    && rm /tmp/iptables.sh /tmp/ip6tables.sh
+    && rm /tmp/iptables.sh /tmp/ip6tables.sh \
+    && install -d -m 0750 /etc/v2raya
 COPY --from=go /out/v2raya /out/v2raya_core /usr/bin/
 EXPOSE 2017
 VOLUME /etc/v2raya

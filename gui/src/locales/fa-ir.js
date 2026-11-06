@@ -818,6 +818,7 @@ export default {
     CROSS_ORIGIN_FORBIDDEN:
       "درخواست‌های تغییردهندهٔ وضعیت از مبدأ دیگر مجاز نیستند.",
     MISDIRECTED_REQUEST: "این میزبان اجازهٔ دسترسی به API v2rayA را ندارد.",
+    SOCKET_PEER_FORBIDDEN: "این سوکت یونیکس فقط برای کاربر خود سرویس مجاز است.",
     UNSUPPORTED_MEDIA_TYPE:
       "درخواست‌های دارای بدنه باید از Content-Type: application/json استفاده کنند.",
     SESSION_EXPIRED: "نشست شما منقضی شده است. دوباره وارد شوید.",
