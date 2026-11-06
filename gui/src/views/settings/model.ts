@@ -28,6 +28,7 @@ export const defaultForm = () => ({
   tunRouteShellPath: "",
   tunSetupScript: "",
   tunTeardownScript: "",
+  tunScriptAcknowledged: false,
   tunExcludeProcesses: "",
   pacMode: "allowlist",
   pacAutoUpdateMode: "none",

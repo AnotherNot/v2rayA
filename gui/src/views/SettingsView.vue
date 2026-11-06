@@ -118,6 +118,7 @@ async function openTunScript() {
   form.tunRouteShellPath = value.shellPath;
   form.tunSetupScript = value.setupScript;
   form.tunTeardownScript = value.teardownScript;
+  form.tunScriptAcknowledged = true;
 }
 const openWhiteIps = () => open(TproxyWhiteIpsDialog, {}, { width: 520 });
 

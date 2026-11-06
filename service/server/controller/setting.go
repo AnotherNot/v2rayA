@@ -3,6 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
@@ -42,7 +43,8 @@ func PutSetting(ctx *gin.Context) {
 	// Decode over the stored setting so fields the client does not send
 	// (older GUIs omit the DNS cache flags, for example) keep their value
 	// instead of being persisted as zero.
-	data := *configure.GetSettingNotNil()
+	current := *configure.GetSettingNotNil()
+	data := current
 	raw, err := ctx.GetRawData()
 	if err != nil {
 		common.ResponseError(ctx, badRequest("settings", fmt.Errorf("cannot read the request body: %v", err)))
@@ -54,6 +56,18 @@ func PutSetting(ctx *gin.Context) {
 	}
 	if data.MuxOn == configure.Yes && (data.Mux < 1 || data.Mux > 1024) {
 		common.ResponseError(ctx, common.Coded("MUX_RANGE", logError(fmt.Errorf("mux concurrency %d is out of range; use 1-1024", data.Mux)), map[string]interface{}{"value": data.Mux}))
+		return
+	}
+	// A new or changed TUN script runs as root. The client must send an
+	// acknowledgement for the change itself; saving an unrelated setting
+	// over scripts that are already stored does not ask again.
+	scriptsChanged := data.TunSetupScript != current.TunSetupScript ||
+		data.TunTeardownScript != current.TunTeardownScript
+	scriptsPresent := strings.TrimSpace(data.TunSetupScript) != "" ||
+		strings.TrimSpace(data.TunTeardownScript) != ""
+	if scriptsChanged && scriptsPresent && !gjson.GetBytes(raw, "tunScriptAcknowledged").Bool() {
+		common.ResponseError(ctx, common.Coded("TUN_SCRIPT_ACK_REQUIRED",
+			logError(fmt.Errorf("confirm that the TUN route scripts run as root")), nil))
 		return
 	}
 	// The mode supersedes the opt-out, so only one of them decides what is
@@ -81,6 +95,10 @@ func PutSetting(ctx *gin.Context) {
 	}
 	// 对 DNS 配置字段执行迁移，确保旧格式请求中的缺失字段被填充默认值
 	configure.MigrateSetting(&data)
+	if err = configure.ValidateTunSettings(&data); err != nil {
+		common.ResponseError(ctx, common.Coded("TUN_SCRIPT_INVALID", logError(err), nil))
+		return
+	}
 	err = service.UpdateSetting(&data)
 	if err != nil {
 		// UpdateSetting restores the previous setting and the core with it;

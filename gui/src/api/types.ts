@@ -92,6 +92,8 @@ export type Setting = Record<string, unknown> & {
   transparentType: string;
   pacMode: string;
   logLevel: string;
+  /** the client's confirmation for a changed TUN script; not stored */
+  tunScriptAcknowledged?: boolean;
   /**
    * the mode as the wire carries it: a value this build does not know is
    * resolved, never trusted, and dnsHijack carries the decision when a

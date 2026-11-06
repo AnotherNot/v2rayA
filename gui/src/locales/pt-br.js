@@ -747,7 +747,8 @@ export default {
     routeScript: {
       title: "Script de rota personalizado do TUN",
       warning:
-        "Aviso: scripts incorretos podem danificar sua rede ou o roteamento do sistema. Certifique-se de saber o que está fazendo antes de salvar.",
+        "Aviso: estes scripts são executados como root. Scripts incorretos podem danificar sua rede ou o roteamento do sistema. Certifique-se de saber o que está fazendo antes de salvar.",
+      confirmRoot: "Entendo que estes scripts são executados como root",
       shellType: "Tipo de shell",
       customShell: "Personalizado (especifique o caminho abaixo)",
       shellPath: "Caminho do shell",
@@ -852,6 +853,9 @@ export default {
     TRANSPARENT_SETUP_FAILED:
       "Falha ao configurar o proxy transparente {mode}: {detail}",
     MUX_RANGE: "Valor de concorrência do MUX inválido: {value}",
+    TUN_SCRIPT_INVALID: "Script de rota ou shell do TUN inválido: {message}",
+    TUN_SCRIPT_ACK_REQUIRED:
+      "Confirme que os scripts de rota do TUN são executados como root.",
     CUSTOM_INBOUND_INVALID: "Entrada personalizada inválida {field}: {value}",
   },
 };

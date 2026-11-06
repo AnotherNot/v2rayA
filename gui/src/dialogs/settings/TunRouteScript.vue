@@ -2,7 +2,7 @@
 // The scripts that set up and tear down routing when auto route is off:
 // the shell to run them with, and the two scripts. Returns the four
 // values to the settings form.
-import { computed, reactive } from "vue";
+import { computed, reactive, ref } from "vue";
 import { useI18n } from "vue-i18n";
 
 defineOptions({ name: "TunRouteScriptDialog" });
@@ -21,6 +21,10 @@ const form = reactive<TunRouteScript>({
   ...props.value,
   shellType: props.value.shellType || (windows ? "windows_powershell" : "bash"),
 });
+const acknowledged = ref(false);
+const hasScripts = computed(
+  () => form.setupScript.trim() !== "" || form.teardownScript.trim() !== "",
+);
 const shells = computed(() => [
   ...(windows
     ? [
@@ -39,6 +43,7 @@ const shells = computed(() => [
 ]);
 
 function save() {
+  if (hasScripts.value && !acknowledged.value) return;
   if (form.shellType !== "custom") form.shellPath = "";
   emit("close", { ...form });
 }
@@ -98,15 +103,25 @@ function save() {
           (e: KeyboardEvent) => (e.ctrlKey || e.metaKey) && save()
         "
       />
+      <v-checkbox
+        v-model="acknowledged"
+        :label="t('tun.routeScript.confirmRoot')"
+        hide-details
+        class="mt-2"
+      />
     </v-card-text>
     <v-card-actions class="px-6 pb-4">
       <v-spacer />
       <v-btn variant="text" @click="emit('close')">{{
         t("operations.cancel")
       }}</v-btn>
-      <v-btn variant="flat" color="primary" @click="save">{{
-        t("operations.save")
-      }}</v-btn>
+      <v-btn
+        variant="flat"
+        color="primary"
+        :disabled="hasScripts && !acknowledged"
+        @click="save"
+        >{{ t("operations.save") }}</v-btn
+      >
     </v-card-actions>
   </v-card>
 </template>

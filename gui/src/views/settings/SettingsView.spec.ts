@@ -37,6 +37,7 @@ const loaded: Setting = {
   tunRouteShellPath: "/bin/bash",
   tunSetupScript: "ip route add default dev tun0",
   tunTeardownScript: "ip route del default dev tun0",
+  tunScriptAcknowledged: false,
   tunExcludeProcesses: "firefox,chrome",
   pacMode: "blocklist",
   pacAutoUpdateMode: "auto_update_at_intervals",

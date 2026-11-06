@@ -713,7 +713,8 @@ export default {
     routeScript: {
       title: "TUN 自定义路由脚本",
       warning:
-        "警告：错误的脚本可能会破坏您的网络或系统路由。请确保您清楚自己正在做什么再保存。",
+        "警告：这些脚本以 root 身份运行。错误的脚本可能会破坏您的网络或系统路由。请确保您清楚自己正在做什么再保存。",
+      confirmRoot: "我明白这些脚本以 root 身份运行",
       shellType: "Shell 类型",
       customShell: "自定义（在下方指定路径）",
       shellPath: "Shell 路径",
@@ -808,6 +809,8 @@ export default {
     ASSET_DOWNLOAD_FAILED: "无法从 {host} 下载资源（HTTP {status}）。",
     TRANSPARENT_SETUP_FAILED: "无法设置 {mode} 透明代理：{detail}",
     MUX_RANGE: "无效的 MUX 并发值：{value}",
+    TUN_SCRIPT_INVALID: "无效的 TUN 路由脚本或 shell：{message}",
+    TUN_SCRIPT_ACK_REQUIRED: "请确认 TUN 路由脚本以 root 身份运行。",
     CUSTOM_INBOUND_INVALID: "自定义入站 {field} 无效：{value}",
   },
 };

@@ -150,17 +150,24 @@ func runTunRouteScript(stage, script string) error {
 		return nil
 	}
 	setting := configure.GetSettingNotNil()
+	if err := configure.ValidateTunSettings(setting); err != nil {
+		return fmt.Errorf("tun route script (%s): %w", stage, err)
+	}
 	si, err := resolveShellInfo(setting.TunRouteShellType, setting.TunRouteShellPath)
 	if err != nil {
 		return fmt.Errorf("tun route script (%s): %w", stage, err)
 	}
 
-	// Resolve the shell binary via PATH if it is not an absolute path.
+	// Resolve the shell binary through the system directories, not the
+	// process's PATH: a root service started from a user-writable directory
+	// must not pick up a shell planted there.
 	binPath := si.bin
 	if !filepath.IsAbs(binPath) {
-		if resolved, err := exec.LookPath(binPath); err == nil {
-			binPath = resolved
+		resolved, err := lookPathForShell(binPath)
+		if err != nil {
+			return fmt.Errorf("tun route script (%s): %w", stage, err)
 		}
+		binPath = resolved
 	}
 
 	// Write script to a temp file with restricted permissions.
@@ -206,6 +213,7 @@ func runTunRouteScript(stage, script string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), hookDeadline())
 	defer cancel()
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
+	cmd.Env = sanitizedShellEnv()
 	cmd.Stdout = logWriter
 	cmd.Stderr = logWriter
 	cmd.WaitDelay = 100 * time.Millisecond
@@ -318,4 +326,44 @@ func collectNodeIPs(tmpl *Template) []string {
 	}
 	wg.Wait()
 	return result
+}
+
+// safeShellDirs are the only directories searched for a shell named by
+// type (fish, pwsh, cmd) rather than by an absolute path.
+var safeShellDirs = []string{"/usr/local/sbin", "/usr/local/bin", "/usr/sbin", "/usr/bin", "/sbin", "/bin"}
+
+func lookPathForShell(name string) (string, error) {
+	if runtime.GOOS == "windows" {
+		return exec.LookPath(name)
+	}
+	for _, dir := range safeShellDirs {
+		path := filepath.Join(dir, name)
+		info, err := os.Stat(path)
+		if err == nil && info.Mode().IsRegular() && info.Mode().Perm()&0111 != 0 {
+			return path, nil
+		}
+	}
+	return "", fmt.Errorf("shell %q was not found in the system directories", name)
+}
+
+// sanitizedShellEnv keeps the variables a shell legitimately needs and drops
+// the startup hooks that would execute another file before the script.
+func sanitizedShellEnv() []string {
+	blocked := map[string]struct{}{
+		"BASH_ENV": {}, "ENV": {}, "CDPATH": {}, "GLOBIGNORE": {},
+		"SHELLOPTS": {}, "BASHOPTS": {},
+	}
+	path := "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+	if runtime.GOOS == "windows" {
+		path = os.Getenv("PATH")
+	}
+	env := make([]string, 0, len(os.Environ())+1)
+	for _, kv := range os.Environ() {
+		name, _, _ := strings.Cut(kv, "=")
+		if _, drop := blocked[name]; drop || name == "PATH" {
+			continue
+		}
+		env = append(env, kv)
+	}
+	return append(env, "PATH="+path)
 }

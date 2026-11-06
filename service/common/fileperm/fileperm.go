@@ -10,6 +10,13 @@ import (
 	"os"
 )
 
+// OwnedByCurrentUser reports whether the file belongs to the process's
+// effective user. It is exported for callers that decide whether a shell
+// binary is safe to execute as root.
+func OwnedByCurrentUser(info os.FileInfo) bool {
+	return ownedByCurrentUser(info)
+}
+
 // EnsurePrivateDir creates path when missing and forces mode on an existing
 // directory. A symlink is refused: chmod would otherwise follow it.
 func EnsurePrivateDir(path string, mode os.FileMode) error {

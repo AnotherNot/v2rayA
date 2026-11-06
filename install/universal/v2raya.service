@@ -12,6 +12,17 @@ LimitNOFILE=1000000
 RuntimeDirectory=v2raya
 RuntimeDirectoryMode=0750
 UMask=0077
+# The TUN and firewall work needs three capabilities, not a full root
+# universe. ProtectHome/PrivateTmp keep the service away from user files and
+# from the host's /tmp; ReadWritePaths is what it legitimately writes.
+NoNewPrivileges=yes
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW CAP_NET_BIND_SERVICE
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/etc/v2raya /var/log/v2raya /run
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
 ExecStart=/usr/bin/v2raya --log-disable-timestamp
 Environment=V2RAYA_LOG_FILE=/var/log/v2raya/v2raya.log
 EnvironmentFile=-/etc/default/v2raya

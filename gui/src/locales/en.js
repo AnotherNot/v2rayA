@@ -737,7 +737,8 @@ export default {
     routeScript: {
       title: "TUN Custom Route Script",
       warning:
-        "Warning: Incorrect scripts may break your network or system routing. Make sure you know what you are doing before saving.",
+        "Warning: these scripts run as root. Incorrect scripts may break your network or system routing. Make sure you know what you are doing before saving.",
+      confirmRoot: "I understand these scripts run as root",
       shellType: "Shell Type",
       customShell: "Custom (specify path below)",
       shellPath: "Shell Path",
@@ -840,6 +841,8 @@ export default {
     TRANSPARENT_SETUP_FAILED:
       "Failed to set up {mode} transparent proxy: {detail}",
     MUX_RANGE: "Invalid MUX concurrency value: {value}",
+    TUN_SCRIPT_INVALID: "Invalid TUN route script or shell: {message}",
+    TUN_SCRIPT_ACK_REQUIRED: "Confirm that the TUN route scripts run as root.",
     CUSTOM_INBOUND_INVALID: "Invalid custom inbound {field}: {value}",
   },
 };

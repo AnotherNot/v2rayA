@@ -728,7 +728,8 @@ export default {
     routeScript: {
       title: "TUN 사용자 지정 라우트 스크립트",
       warning:
-        "경고: 잘못된 스크립트는 네트워크나 시스템 라우팅을 망가뜨릴 수 있습니다. 내용을 이해한 뒤에만 저장하세요.",
+        "경고: 이 스크립트는 root 권한으로 실행됩니다. 잘못된 스크립트는 네트워크나 시스템 라우팅을 망가뜨릴 수 있습니다. 내용을 이해한 뒤에만 저장하세요.",
+      confirmRoot: "이 스크립트가 root 권한으로 실행됨을 이해합니다",
       shellType: "셸 유형",
       customShell: "사용자 지정 (아래에 경로 지정)",
       shellPath: "셸 경로",
@@ -827,6 +828,10 @@ export default {
     ASSET_DOWNLOAD_FAILED: "{host}에서 자산 다운로드 실패 (HTTP {status}).",
     TRANSPARENT_SETUP_FAILED: "투명 프록시 {mode} 설정 실패: {detail}",
     MUX_RANGE: "잘못된 MUX 동시성 값: {value}",
+    TUN_SCRIPT_INVALID:
+      "TUN 라우트 스크립트 또는 셸이 잘못되었습니다: {message}",
+    TUN_SCRIPT_ACK_REQUIRED:
+      "TUN 라우트 스크립트가 root 권한으로 실행됨을 확인하세요.",
     CUSTOM_INBOUND_INVALID: "잘못된 사용자 지정 인바운드 {field}: {value}",
   },
 };
