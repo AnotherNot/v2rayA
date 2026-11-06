@@ -46,8 +46,9 @@ type V2Ray struct {
 	PublicKey              string `json:"pbk,omitempty"`
 	ShortId                string `json:"sid,omitempty"`
 	SpiderX                string `json:"spx,omitempty"`
-	Flow                   string `json:"flow,omitempty"`
+	Mldsa65Verify          string `json:"pqv,omitempty"`
 	Encryption             string `json:"encryption,omitempty"`
+	Flow                   string `json:"flow,omitempty"`
 	Alpn                   string `json:"alpn,omitempty"`
 	PinnedPeerCertSha256   string `json:"pinnedPeerCertSha256,omitempty"`
 	VerifyPeerCertByName   string `json:"verifyPeerCertByName,omitempty"`
@@ -270,17 +271,18 @@ func ParseVlessURL(vless string) (data *V2Ray, err error) {
 		PublicKey:            u.Query().Get("pbk"),
 		ShortId:              u.Query().Get("sid"),
 		SpiderX:              u.Query().Get("spx"),
-		Flow:                 u.Query().Get("flow"),
-		Alpn:                 u.Query().Get("alpn"),
-		PinnedPeerCertSha256: u.Query().Get("pinnedPeerCertSha256"),
-		VerifyPeerCertByName: u.Query().Get("verifyPeerCertByName"),
-		Key:                  u.Query().Get("key"),
+		Mldsa65Verify:        u.Query().Get("pqv"),
 		// VLESS encryption ("none" or the key material of the new format).
 		// Absent in links written before the format existed, so empty stays
 		// empty here and the configuration defaults it.
 		Encryption: u.Query().Get("encryption"),
-		V:          vless,
-		Protocol:   "vless",
+		Flow:       u.Query().Get("flow"),
+		Alpn:       u.Query().Get("alpn"),
+		PinnedPeerCertSha256: u.Query().Get("pinnedPeerCertSha256"),
+		VerifyPeerCertByName: u.Query().Get("verifyPeerCertByName"),
+		Key:                  u.Query().Get("key"),
+		V:                    vless,
+		Protocol:             "vless",
 	}
 	if data.Net == "" {
 		data.Net = "tcp"
@@ -846,6 +848,7 @@ func (v *V2Ray) Configuration(info PriorInfo) (c Configuration, err error) {
 				PublicKey:   v.PublicKey,
 				ShortID:     v.ShortId,
 				SpiderX:     v.SpiderX,
+				Mldsa65Verify: v.Mldsa65Verify,
 			}
 		}
 		// Flow
@@ -961,6 +964,7 @@ func (v *V2Ray) ExportToURL() string {
 				setValue(&query, "pbk", v.PublicKey)
 				setValue(&query, "sid", v.ShortId)
 				setValue(&query, "spx", v.SpiderX)
+				setValue(&query, "pqv", v.Mldsa65Verify)
 			}
 		}
 
