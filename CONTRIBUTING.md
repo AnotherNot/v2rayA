@@ -34,6 +34,14 @@ The browser tests drive the built service rather than a mock: `./build-all.sh`, 
 - Do not add a model `Co-Authored-By` trailer, an AI signature or a generated-by marker to a commit, pull request text or a comment.
 - One topic per commit, imperative subject saying what changes, `fix:` / `feat:` / `docs:` / `ci:` as the history uses.
 
+## Releasing
+
+Releases come from the **Release Binaries & Images** workflow, started by hand in Actions: choose `public`, enter the tag to create (`v2.5.14`) and tick the box if it is a pre-release. It needs nothing prepared beforehand and uses only the token Actions provides.
+
+The run builds the interface, then `v2raya` and `v2raya_core` for Linux and Windows on amd64 and arm64. Each pair is packed with `LICENSE` into a `.tar.gz` or `.zip`, and every file gets a `.sha256` next to it. The image goes to `ghcr.io/anothernot/v2raya` under the tag, the bare version and `latest`. The tag is created at the commit the run was started from, and the release is published only after every build has succeeded; a tag that already points at another commit stops the run instead.
+
+`release_main.yml` is upstream's full pipeline and stays in the tree. It expects a tag that already exists and continues to the deb/rpm/apk packages, the Windows installers, the container images, winget and scoop; the last two need the `RELEASE_PAT` secret. This fork releases from `release_binaries.yml`.
+
 ## AI-assisted contributions
 
 An assistant may write and test the code, and you verify it before you submit it. Point it at [AGENTS.md](AGENTS.md), which states what this repository expects of it.
