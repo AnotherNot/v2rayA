@@ -11,7 +11,7 @@
 # What the build needs (all of it lives in containers, the host stays clean):
 #   - git: only to derive the version string (override it with the argument).
 #   - Docker Engine with a running daemon: image pulls are node:24 for the
-#     web interface and golang:1.26 for the Go binaries.
+#     web interface and golang:1.27 for the Go binaries.
 #   - Network access to the Docker registry and the Go module proxy.
 #   - About 2 GiB free for the build containers and the module cache volume.
 #
@@ -29,7 +29,7 @@ version="${1:-$(git -C "$root_dir" describe --tags --always --dirty)}"
 web_build_dir="$root_dir/.web-build"
 web_target_dir="$root_dir/service/server/router/web"
 node_image="node:24"
-go_image="golang:1.26"
+go_image="golang:1.27"
 uid_gid="$(id -u):$(id -g)"
 
 need() {
@@ -71,14 +71,14 @@ mkdir -p "$web_target_dir"
 cp -a "$web_build_dir/." "$web_target_dir/"
 rm -rf "$web_build_dir"
 
-STEP="build v2raya_core (golang:1.26)"
+STEP="build v2raya_core (golang:1.27)"
 docker_run \
   -v "$root_dir:/repo" -w /repo/core \
   -v v2raya-build-cache:/go/pkg/mod \
   "$go_image" \
   bash -c "git config --global --add safe.directory /repo && CGO_ENABLED=0 go build -buildvcs=false -trimpath -o /repo/v2raya_core -ldflags='-X main.Version=$version -s -w' ./main"
 
-STEP="build v2raya (golang:1.26)"
+STEP="build v2raya (golang:1.27)"
 docker_run \
   -v "$root_dir:/repo" -w /repo/service \
   -v v2raya-build-cache:/go/pkg/mod \

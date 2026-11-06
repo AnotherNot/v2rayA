@@ -34,6 +34,8 @@ describe("the vless form", () => {
         "Public Key (pbk)",
         "Short ID (sid)",
         "Spider X (spx)",
+        "ML-DSA-65 Verify Key (pqv)",
+        "Encryption (encryption)",
       ]),
     );
     const fields = w.findAllComponents(VTextField);
@@ -41,6 +43,11 @@ describe("the vless form", () => {
       fields.find((c) => c.props("label") === "Public Key (pbk)")!.get("input")
         .element.value,
     ).toBe("PUBLICKEY");
+    expect(
+      fields
+        .find((c) => c.props("label") === "Encryption (encryption)")!
+        .get("input").element.value,
+    ).toBe("none");
     expect(generateShareLink(model)).toBe(fixtures.vless.back);
     await fields
       .find((c) => c.props("label") === "ID")!

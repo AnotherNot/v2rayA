@@ -49,10 +49,10 @@ docker run --rm -v "$PWD:/repo" -w /repo/gui node:24 \
 
 mkdir -p service/server/router/web && cp -a web/. service/server/router/web/
 
-docker run --rm -v "$PWD:/repo" -w /repo/core golang:1.26 \
+docker run --rm -v "$PWD:/repo" -w /repo/core golang:1.27 \
   bash -c 'CGO_ENABLED=0 go build -trimpath -o /repo/v2raya_core ./main'
 
-docker run --rm -v "$PWD:/repo" -w /repo/service golang:1.26 \
+docker run --rm -v "$PWD:/repo" -w /repo/service golang:1.27 \
   bash -c 'CGO_ENABLED=0 go build -trimpath -o /repo/v2raya .'
 
 ls -la v2raya v2raya_core

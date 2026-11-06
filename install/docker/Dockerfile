@@ -27,7 +27,7 @@ COPY gui/ ./
 RUN yarn build
 
 # ---- Go binaries ----------------------------------------------------------
-FROM golang:1.26 AS go
+FROM golang:1.27 AS go
 ARG VERSION=dev
 WORKDIR /repo
 COPY core/ ./core/

@@ -31,8 +31,11 @@ func legacyRules(t *testing.T, dnsHijack bool, run func(bool) Setter) string {
 		legacyIPv6Supported = oldIPv6
 	})
 	// The whitelist markers are not commands; without them the setter would
-	// still run, and the rule text is what the assertions read.
-	if err := run(dnsHijack).Run(false); err != nil {
+	// still run, and the rule text is what the assertions read. Run rewrites
+	// the binary names to the variant the host picked (nft, or legacy in
+	// Docker); the assertions read the variant-neutral text, so the rewrite
+	// is bypassed.
+	if err := run(dnsHijack).run(false, func(s string) string { return s }); err != nil {
 		t.Fatal(err)
 	}
 	return text.String()

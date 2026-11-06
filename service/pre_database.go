@@ -3,8 +3,10 @@ package main
 import (
 	"errors"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	jsonIteratorExtra "github.com/json-iterator/go/extra"
@@ -167,7 +169,12 @@ func initConfigure() {
 				c.Header("Expires", "0")
 				c.String(200, "Downloading missing geoip.dat and geosite.dat; refresh the page later.")
 			})
-			go e.RunListener(l)
+			// Close the connections, not only the listener: a page or a
+			// readiness probe that reached this server keeps a keep-alive
+			// socket, and would keep hitting its 404 for every other path
+			// after the real server has taken the port.
+			srv := &http.Server{Handler: e, ReadHeaderTimeout: 10 * time.Second}
+			go func() { _ = srv.Serve(l) }()
 			if !asset.DoesV2rayAssetExist("geoip.dat") {
 				err := dat.UpdateLocalGeoIP()
 				if err != nil {
@@ -180,9 +187,7 @@ func initConfigure() {
 					log.Fatal("UpdateLocalGeoSite: %v", err)
 				}
 			}
-			if l != nil {
-				l.Close()
-			}
+			_ = srv.Close()
 			log.Alert("geoip.dat and geosite.dat are ready")
 		}
 	}

@@ -82,9 +82,6 @@ export function parseShareLink(url: string): ShareForm | null {
       port: u.port,
       id: decodeSafe(u.username),
       flow: u.params.flow || "",
-      // VLESS encryption ("none" or the key material of the new format).
-      // Dropping it builds a tunnel the server cannot read.
-      encryption: u.params.encryption || "",
       net: u.params.type || "tcp",
       type: u.params.headerType || "none",
       host: u.params.host || "",
@@ -97,6 +94,11 @@ export function parseShareLink(url: string): ShareForm | null {
       pbk: u.params.pbk || "",
       sid: u.params.sid || "",
       spx: u.params.spx || "",
+      pqv: u.params.pqv || "",
+      // VLESS encryption ("none" or the key material of the new format).
+      // Dropping it builds a tunnel the server cannot read; "none" is what
+      // links written before the format carry.
+      encryption: u.params.encryption || "none",
       pinnedPeerCertSha256: u.params.pinnedPeerCertSha256 || "",
       verifyPeerCertByName: u.params.verifyPeerCertByName || "",
       key: u.params.key,
@@ -535,6 +537,7 @@ export function generateShareLink(srcObj: ShareForm): string | null {
         query.pbk = srcObj.pbk;
         query.sid = srcObj.sid;
         query.spx = srcObj.spx;
+        if (srcObj.pqv) query.pqv = srcObj.pqv;
       }
       return buildURL({
         protocol: "vless",
