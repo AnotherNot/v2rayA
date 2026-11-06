@@ -2,6 +2,7 @@ package v2ray
 
 import (
 	"encoding/json"
+	"runtime"
 	"testing"
 
 	"github.com/v2rayA/v2rayA/conf"
@@ -56,20 +57,20 @@ func TestDnsServiceModeRunsTheModuleWithoutTheHijackAddresses(t *testing.T) {
 	}
 }
 
-// Hijack keeps every address the historical behaviour installed.
+// Hijack keeps the listener the redirect rules land on. The privileged
+// 127.2.0.17:53 listener is added only when the process may bind port 53;
+// TestExtraListenAddrsSkipPrivilegedPortWithoutRoot covers that side.
 func TestDnsHijackModeKeepsTheRedirectLandingAddresses(t *testing.T) {
-	env := conf.GetEnvironmentConfig()
-	oldLite := env.Lite
-	env.Lite = false
-	t.Cleanup(func() { env.Lite = oldLite })
-
+	if runtime.GOOS != "linux" {
+		t.Skip("the redirect landing addresses are Linux-only")
+	}
 	setting := dnsModeSetting(configure.DnsModeHijack)
 	_, extra, ok := dnsModuleListener(t, setting)
 	if !ok {
 		t.Fatal("hijack mode must configure the DNS module")
 	}
-	if !contains(extra, "127.2.0.17:53") {
-		t.Fatalf("hijack mode lost the hijacked resolver's address: %v", extra)
+	if !contains(extra, "127.2.0.17:52353") {
+		t.Fatalf("hijack mode lost the redirect landing address: %v", extra)
 	}
 }
 
