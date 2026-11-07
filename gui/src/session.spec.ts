@@ -34,4 +34,22 @@ describe("resetSession runs the teardown in order", () => {
     expect(loadingState.open.size).toBe(0);
     expect(localStorage.getItem("token")).toBe("tok-2");
   });
+
+  test("changing the backend drops the old access and refresh tokens", async () => {
+    const pinia = createPinia();
+    setActivePinia(pinia);
+    const app = useAppStore(pinia);
+    localStorage.setItem("token", "old-token");
+    localStorage.setItem("refreshToken", "old-refresh");
+    app.setToken("old-token");
+    app.setRefreshToken("old-refresh");
+    setSessionStarter(async () => {});
+
+    await resetSession({ backendAddress: "http://new-backend" }, pinia);
+
+    expect(app.token).toBe("");
+    expect(app.refreshToken).toBe("");
+    expect(localStorage.getItem("token")).toBeNull();
+    expect(localStorage.getItem("refreshToken")).toBeNull();
+  });
 });
