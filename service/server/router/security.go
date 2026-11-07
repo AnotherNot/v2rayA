@@ -142,6 +142,19 @@ func (s securityConfig) originAllowed(origin, requestHost string) bool {
 	return err == nil && strings.EqualFold(u.Host, requestHost)
 }
 
+// originAllowedRequest applies the origin policy to a whole request. A
+// request without Origin is not a browser cross-origin request (curl, a
+// native client) and carries no ambient credentials, so it passes; the
+// WebSocket handshake uses this because it cannot set an HTTP header the way
+// fetch does.
+func (s securityConfig) originAllowedRequest(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return true
+	}
+	return s.originAllowed(origin, r.Host)
+}
+
 func (s securityConfig) hostAllowed(hostport string) bool {
 	host := hostOnly(hostport)
 	if host == "" {

@@ -11,6 +11,11 @@ export interface MessageSocket {
   stop(): void;
 }
 
+// The token travels in Sec-WebSocket-Protocol: a browser cannot set
+// Authorization on a handshake, and a query string is written to every
+// proxy log. The prefix and the JWT alphabet are both valid header tokens.
+const WS_TOKEN_PREFIX = "v2raya.v1.";
+
 export function createMessageSocket(handlers: {
   onMessage(msg: WsMessage): void;
   onOpen(): void;
@@ -28,12 +33,15 @@ export function createMessageSocket(handlers: {
     const proto = u.protocol === "https:" ? "wss" : "ws";
     let base = u.pathname;
     if (base.endsWith("/api")) base = base.slice(0, -4);
-    return `${proto}://${u.host}${base}/api/message?Authorization=${encodeURIComponent(localStorage.getItem("token") ?? "")}`;
+    return `${proto}://${u.host}${base}/api/message`;
   }
 
   function connect() {
     if (stopped) return;
-    const socket = new WebSocket(url());
+    const token = localStorage.getItem("token") ?? "";
+    const socket = token
+      ? new WebSocket(url(), WS_TOKEN_PREFIX + token)
+      : new WebSocket(url());
     ws = socket;
     socket.onopen = () => {
       retries = 0;

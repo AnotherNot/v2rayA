@@ -275,6 +275,10 @@ func Run() error {
 		noAuth.POST("refresh", controller.PostRefresh)
 		noAuth.GET("account", controller.GetAccount)
 		noAuth.POST("account", controller.PostAccount)
+		// The message socket authenticates the handshake itself: it reads
+		// the token from Sec-WebSocket-Protocol, while JWTAuth also accepts
+		// the token from the query string.
+		noAuth.GET("message", controller.WsMessage(security.originAllowedRequest))
 	}
 	auth := root.Group("api",
 		nocache,
@@ -338,7 +342,6 @@ func Run() error {
 		auth.PUT("outboundConnections", controller.PutOutboundConnections)
 		auth.PUT("outboundSelection", controller.PutOutboundSelection)
 		auth.DELETE("outbound", controller.DeleteOutbound)
-		auth.GET("message", controller.WsMessage)
 		auth.GET("logger", controller.GetLogger)
 		auth.GET("domainsExcluded", controller.GetDomainsExcluded)
 		auth.GET("tproxyWhiteIpGroups", controller.GetTproxyWhiteIpGroups)

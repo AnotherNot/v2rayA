@@ -141,6 +141,33 @@ func TestJSONBodyGuardRequiresJSON(t *testing.T) {
 	}
 }
 
+func TestWebSocketOriginUsesTheAPIPolicy(t *testing.T) {
+	s := testSecurity()
+	cases := []struct {
+		name   string
+		host   string
+		origin string
+		want   bool
+	}{
+		{name: "same origin", host: "localhost:2017", origin: "http://localhost:2017", want: true},
+		{name: "allowed origin", host: "localhost:2017", origin: "http://admin.example.com", want: true},
+		{name: "foreign origin", host: "localhost:2017", origin: "http://evil.example", want: false},
+		{name: "no origin is a cli", host: "localhost:2017", want: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/api/message", nil)
+			req.Host = tc.host
+			if tc.origin != "" {
+				req.Header.Set("Origin", tc.origin)
+			}
+			if got := s.originAllowedRequest(req); got != tc.want {
+				t.Fatalf("originAllowedRequest = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestHostAndOriginNormalization(t *testing.T) {
 	if got := hostOnly("[::1]:2017"); got != "::1" {
 		t.Errorf("hostOnly IPv6 = %q", got)
