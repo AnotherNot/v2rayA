@@ -15,6 +15,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/v2rayA/v2rayA/common"
 	"github.com/v2rayA/v2rayA/common/httpClient"
+	"github.com/v2rayA/v2rayA/common/redact"
 	"github.com/v2rayA/v2rayA/common/resolv"
 	"github.com/v2rayA/v2rayA/db/configure"
 	"github.com/v2rayA/v2rayA/kernel/ipforward"
@@ -514,17 +515,17 @@ func AutoSelectServersFromSubscriptions(shouldDisconnect bool) (err error) {
 		}
 		if subscription.AutoSelect {
 			if shouldDisconnect {
-				log.Info("[AutoSelect] Automatically disconnecting servers from subscription: %v", subscription.Address)
+				log.Info("[AutoSelect] Automatically disconnecting servers from subscription: %v", redact.URL(subscription.Address))
 				err := SelectServersFromSubscription(i, true)
 				if err != nil {
-					log.Error("[AutoSelect] Failed to disconnect servers from subscription: %v", subscription.Address)
+					log.Error("[AutoSelect] Failed to disconnect servers from subscription: %v", redact.URL(subscription.Address))
 					return err
 				}
 			} else {
-				log.Info("[AutoSelect] Automatically selecting servers from subscription: %v", subscription.Address)
+				log.Info("[AutoSelect] Automatically selecting servers from subscription: %v", redact.URL(subscription.Address))
 				err := SelectServersFromSubscription(i, false)
 				if err != nil {
-					log.Error("[AutoSelect] Failed to select servers from subscription: %v", subscription.Address)
+					log.Error("[AutoSelect] Failed to select servers from subscription: %v", redact.URL(subscription.Address))
 					return err
 				}
 			}

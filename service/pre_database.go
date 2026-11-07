@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	jsonIteratorExtra "github.com/json-iterator/go/extra"
+	"github.com/v2rayA/v2rayA/common/redact"
 	"github.com/v2rayA/v2rayA/conf"
 	"github.com/v2rayA/v2rayA/db"
 	"github.com/v2rayA/v2rayA/db/configure"
@@ -113,9 +114,9 @@ func initConfigure() {
 					t := touchv4.GenerateTouch()
 					subs := configurev4.GetSubscriptionsV2()
 					for _, sub := range subs {
-						log.Info("Importing subscription: %v", sub.Address)
+						log.Info("Importing subscription: %v", redact.URL(sub.Address))
 						if e := service.ImportSubscription(sub.Address); e != nil {
-							log.Warn("Failed to migrate subscription: %v", sub.Address)
+							log.Warn("Failed to migrate subscription: %v", redact.URL(sub.Address))
 						}
 					}
 					for iSvr := range t.Servers {
@@ -124,7 +125,7 @@ func initConfigure() {
 							ID:   iSvr + 1,
 						}); e == nil {
 							if e := service.ImportServer(addr, nil); e != nil {
-								log.Warn("Failed to migrate server: %v", addr)
+								log.Warn("Failed to migrate server: %v", redact.Link(addr))
 							}
 						}
 					}

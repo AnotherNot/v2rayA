@@ -9,6 +9,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/v2rayA/v2rayA/common"
+	"github.com/v2rayA/v2rayA/common/redact"
 	"github.com/v2rayA/v2rayA/db/configure"
 	"github.com/v2rayA/v2rayA/kernel/v2ray"
 	"github.com/v2rayA/v2rayA/pkg/util/log"
@@ -137,7 +138,7 @@ func ImportDnsSource(url string) (DnsSource, error) {
 	if err := SetDnsSource(&out); err != nil {
 		return out, err
 	}
-	log.Info("DNS rules imported from %v: %d rules", url, len(rules))
+	log.Info("DNS rules imported from %v: %d rules", redact.URL(url), len(rules))
 	return out, nil
 }
 

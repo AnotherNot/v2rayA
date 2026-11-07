@@ -15,6 +15,7 @@ import (
 
 	"github.com/v2rayA/v2rayA/common"
 	"github.com/v2rayA/v2rayA/common/httpClient"
+	"github.com/v2rayA/v2rayA/common/redact"
 	"github.com/v2rayA/v2rayA/common/resolv"
 	"github.com/v2rayA/v2rayA/db/configure"
 	"github.com/v2rayA/v2rayA/kernel/coreObj"
@@ -256,7 +257,7 @@ func TestHttpLatency(which []*configure.Which, timeout time.Duration, maxParalle
 	for i := range which {
 		if which[i].Latency != "" {
 			if showLog {
-				log.Warn("Error[%v]%v: %v", i+1, which[i].Latency, which[i].Link)
+				log.Warn("Error[%v]%v: %v", i+1, which[i].Latency, redact.Link(which[i].Link))
 			}
 			continue
 		}
@@ -266,7 +267,7 @@ func TestHttpLatency(which []*configure.Which, timeout time.Duration, maxParalle
 			defer func() { <-cc; wg.Done() }()
 			httpLatency(which[i], inboundPortMap[i], timeout, customTestUrl)
 			if showLog {
-				log.Info("Test done[%v]%v: %v", i+1, which[i].Latency, which[i].Link)
+				log.Info("Test done[%v]%v: %v", i+1, which[i].Latency, redact.Link(which[i].Link))
 			}
 		}(i)
 	}

@@ -16,6 +16,7 @@ import (
 	"github.com/v2rayA/v2rayA/common"
 	"github.com/v2rayA/v2rayA/common/files"
 	"github.com/v2rayA/v2rayA/common/httpClient"
+	"github.com/v2rayA/v2rayA/common/redact"
 	"github.com/v2rayA/v2rayA/db/configure"
 	"github.com/v2rayA/v2rayA/kernel/v2ray"
 	"github.com/v2rayA/v2rayA/kernel/v2ray/asset"
@@ -184,7 +185,7 @@ func UpdateLocalGFWListByCustomLink(downloadLink string) (localGFWListVersionAft
 	if err := installGeoSiteFile(pathSiteDat+".new", pathSiteDat); err != nil {
 		return "", err
 	}
-	log.Info("download: %v -> SUCCESS\n", downloadLink)
+	log.Info("download: %v -> SUCCESS\n", redact.URL(downloadLink))
 	return localGFWListVersionAfterUpdate, nil
 }
 

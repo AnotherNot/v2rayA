@@ -14,6 +14,7 @@ import (
 
 	"github.com/v2rayA/v2rayA/common"
 	"github.com/v2rayA/v2rayA/common/httpClient"
+	"github.com/v2rayA/v2rayA/common/redact"
 	"github.com/v2rayA/v2rayA/db/configure"
 	"github.com/v2rayA/v2rayA/kernel/serverObj"
 	"github.com/v2rayA/v2rayA/kernel/v2ray"
@@ -183,7 +184,7 @@ func TestHttpSpeed(which []*configure.Which, timeout time.Duration, maxParallel 
 	cc := make(chan interface{}, maxParallel)
 	for i := range which {
 		if which[i].Speed != "" {
-			log.Warn("Error[%v]%v: %v", i+1, which[i].Speed, which[i].Link)
+			log.Warn("Error[%v]%v: %v", i+1, which[i].Speed, redact.Link(which[i].Link))
 			continue
 		}
 		wg.Add(1)
@@ -191,7 +192,7 @@ func TestHttpSpeed(which []*configure.Which, timeout time.Duration, maxParallel 
 			cc <- nil
 			defer func() { <-cc; wg.Done() }()
 			httpSpeed(which[i], inboundPortMap[i], timeout, testURL, maxBytes)
-			log.Info("Speed done[%v]%v: %v", i+1, which[i].Speed, which[i].Link)
+			log.Info("Speed done[%v]%v: %v", i+1, which[i].Speed, redact.Link(which[i].Link))
 		}(i)
 	}
 	wg.Wait()

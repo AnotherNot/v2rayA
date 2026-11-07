@@ -11,6 +11,7 @@ import (
 
 	"github.com/v2rayA/v2rayA/common"
 	"github.com/v2rayA/v2rayA/common/httpClient"
+	"github.com/v2rayA/v2rayA/common/redact"
 	"github.com/v2rayA/v2rayA/common/resolv"
 	"github.com/v2rayA/v2rayA/db/configure"
 	"github.com/v2rayA/v2rayA/kernel/serverObj"
@@ -40,7 +41,7 @@ func subscriptionHost(source string) string {
 // ImportServer or ImportSubscription instead; this wrapper only exists for
 // clients that predate the "kind" field of POST /api/import.
 func Import(url string, which *configure.NodeRef) (err error) {
-	log.Trace("Import: received url=%v, which=%+v", url, which)
+	log.Trace("Import: received url=%v, which=%+v", redact.URL(url), which)
 	url = strings.TrimSpace(url)
 	if lines := strings.Split(url, "\n"); len(lines) >= 2 || strings.HasPrefix(url, "{") {
 		return ImportServer(url, which)

@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/v2rayA/v2rayA/common/redact"
 	"github.com/v2rayA/v2rayA/conf"
 	"github.com/v2rayA/v2rayA/db/configure"
 	"github.com/v2rayA/v2rayA/kernel/v2ray/asset/dat"
@@ -35,7 +36,7 @@ func updateSubscriptions() {
 				if err != nil {
 					log.Info("[AutoUpdate] Subscriptions: Failed to update subscription -- ID: %d, err: %v", i, err)
 				} else {
-					log.Info("[AutoUpdate] Subscriptions: Complete updating subscription -- ID: %d, Address: %s", i, subs[i].Address)
+					log.Info("[AutoUpdate] Subscriptions: Complete updating subscription -- ID: %d, Address: %s", i, redact.URL(subs[i].Address))
 				}
 			})
 		}(i)

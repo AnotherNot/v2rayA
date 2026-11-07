@@ -17,6 +17,7 @@ import (
 	"github.com/muhammadmuzzammil1998/jsonc"
 	"github.com/v2rayA/v2rayA/common"
 	"github.com/v2rayA/v2rayA/common/files"
+	"github.com/v2rayA/v2rayA/common/redact"
 	"github.com/v2rayA/v2rayA/conf"
 	"github.com/v2rayA/v2rayA/pkg/util/log"
 )
@@ -271,7 +272,7 @@ func DownloadWithClient(c *http.Client, url string, to string) error {
 }
 
 func download(c *http.Client, url string, to string) (err error) {
-	log.Info("Downloading %v to %v", url, to)
+	log.Info("Downloading %v to %v", redact.URL(url), to)
 	host := "unknown host"
 	if u, parseErr := url2.Parse(url); parseErr == nil && u.Hostname() != "" {
 		host = u.Hostname()
@@ -285,7 +286,9 @@ func download(c *http.Client, url string, to string) (err error) {
 			err = fmt.Errorf("download from %s failed: HTTP %s", host, status)
 		} else {
 			// The request never got a reply, so there is no status to show;
-			// a message that ends in "HTTP )" tells the user nothing.
+			// a message that ends in "HTTP )" tells the user nothing. The
+			// transport error carries the full URL, query token included.
+			err = redact.Error(err)
 			reason := err
 			for {
 				inner := errors.Unwrap(reason)

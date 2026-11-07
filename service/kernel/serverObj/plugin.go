@@ -3,6 +3,7 @@ package serverObj
 import (
 	"fmt"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/v2rayA/v2rayA/common/redact"
 	"github.com/v2rayA/v2rayA/conf"
 	"github.com/v2rayA/v2rayA/kernel/coreObj"
 	"github.com/v2rayA/v2rayA/pkg/util/log"
@@ -40,7 +41,7 @@ func NewPlugin(link string) (ServerObj, error) {
 			fmt.Sprintf("--v2raya-confdir=%v", conf.GetEnvironmentConfig().Config),
 		).CombinedOutput()
 		if err != nil {
-			log.Info("[PluginManager] failed to parse %v: %v", link, string(b))
+			log.Info("[PluginManager] failed to parse %v: %v", redact.Link(link), string(b))
 			return nil, err
 		}
 		nExpected := 4

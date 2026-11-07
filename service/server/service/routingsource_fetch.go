@@ -12,6 +12,7 @@ import (
 	"github.com/v2rayA/RoutingA"
 	"github.com/v2rayA/v2rayA/common"
 	"github.com/v2rayA/v2rayA/common/httpClient"
+	"github.com/v2rayA/v2rayA/common/redact"
 	"github.com/v2rayA/v2rayA/db/configure"
 	"github.com/v2rayA/v2rayA/kernel/v2ray"
 	"github.com/v2rayA/v2rayA/kernel/v2ray/asset/dat"
@@ -184,7 +185,7 @@ func ImportRoutingSource(url, remarks string) (RoutingSource, error) {
 	if err := SetRoutingSource(&out); err != nil {
 		return out, err
 	}
-	log.Info("routing rules imported from %v: %v (%d bytes)", url, item.Remarks, len(source))
+	log.Info("routing rules imported from %v: %v (%d bytes)", redact.URL(url), item.Remarks, len(source))
 	return out, nil
 }
 
