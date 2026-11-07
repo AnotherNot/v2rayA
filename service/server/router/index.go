@@ -266,22 +266,31 @@ func Run() error {
 		engine.Use(cors.New(corsConfig))
 	}
 	root := engine.Group(app.BaseUrl)
+	// Authentication and the version probe run an exec or a bcrypt hash on
+	// an unauthenticated request; the buckets keep one client from queueing
+	// work faster than the service can finish it.
+	loginLimiter := newRateLimiter(10, 5)
+	accountLimiter := newRateLimiter(5, 3)
+	refreshLimiter := newRateLimiter(30, 10)
+	versionLimiter := newRateLimiter(120, 30)
 	noAuth := root.Group("api",
+		limitBody(maxAPIBodyBytes),
 		nocache,
 		reqCache.ReqCache,
 	)
 	{
-		noAuth.GET("version", controller.GetVersion)
-		noAuth.POST("login", controller.PostLogin)
-		noAuth.POST("refresh", controller.PostRefresh)
+		noAuth.GET("version", versionLimiter.middleware(), controller.GetVersion)
+		noAuth.POST("login", loginLimiter.middleware(), controller.PostLogin)
+		noAuth.POST("refresh", refreshLimiter.middleware(), controller.PostRefresh)
 		noAuth.GET("account", controller.GetAccount)
-		noAuth.POST("account", controller.PostAccount)
+		noAuth.POST("account", accountLimiter.middleware(), controller.PostAccount)
 		// The message socket authenticates the handshake itself: it reads
 		// the token from Sec-WebSocket-Protocol, while JWTAuth also accepts
 		// the token from the query string.
 		noAuth.GET("message", controller.WsMessage(security.originAllowedRequest))
 	}
 	auth := root.Group("api",
+		limitBody(maxAPIBodyBytes),
 		nocache,
 		func(ctx *gin.Context) {
 			if !configure.HasAnyAccounts() {
@@ -395,7 +404,15 @@ func newHTTPServer(handler http.Handler) *http.Server {
 	return &http.Server{
 		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
-		IdleTimeout:       120 * time.Second,
+		// A request body is capped by limitBody; the read deadline stops a
+		// client from holding a connection open by never finishing a body.
+		ReadTimeout: 30 * time.Second,
+		// Speed and latency probes run for as long as their per-node
+		// timeouts allow, so the write deadline is generous but bounded:
+		// an authenticated probe is not a reason to let a non-reading
+		// client hold a connection forever.
+		WriteTimeout: 10 * time.Minute,
+		IdleTimeout:  120 * time.Second,
 		ConnContext: func(ctx context.Context, c net.Conn) context.Context {
 			cred, isUnix, err := peerCredFromConn(c)
 			if !isUnix {

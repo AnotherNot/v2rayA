@@ -21,7 +21,10 @@ func GetAccount(ctx *gin.Context) {
 	})
 }
 
-var loginSessions = make(chan interface{}, 1)
+var (
+	loginSessions    = make(chan interface{}, 1)
+	loginWaitTimeout = 3 * time.Second
+)
 
 func PostLogin(ctx *gin.Context) {
 	var data struct {
@@ -39,7 +42,18 @@ func PostLogin(ctx *gin.Context) {
 		})
 		return
 	}
-	loginSessions <- nil
+	// A login holds the only slot for 500 ms to slow password guessing down.
+	// Waiting for it must not be unbounded: a flood of requests would
+	// otherwise pile up goroutines that outlive the client's interest.
+	select {
+	case loginSessions <- nil:
+	case <-ctx.Request.Context().Done():
+		ctx.Abort()
+		return
+	case <-time.After(loginWaitTimeout):
+		tooManyRequests(ctx)
+		return
+	}
 	defer func() {
 		time.Sleep(500 * time.Millisecond)
 		<-loginSessions
@@ -73,6 +87,9 @@ func PostAccount(ctx *gin.Context) {
 	}
 	muReg.Lock()
 	defer muReg.Unlock()
+	// The setup token, username and password are tiny; anything larger is
+	// not a registration request.
+	ctx.Request.Body = http.MaxBytesReader(ctx.Writer, ctx.Request.Body, 4096)
 	err := ctx.ShouldBindJSON(&data)
 	if err != nil {
 		common.ResponseError(ctx, badRequest("username and password", "request body must be {\"username\": string, \"password\": string, \"setupToken\": string}"))

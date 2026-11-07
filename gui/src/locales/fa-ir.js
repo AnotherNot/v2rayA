@@ -824,6 +824,8 @@ export default {
     SOCKET_PEER_FORBIDDEN: "این سوکت یونیکس فقط برای کاربر خود سرویس مجاز است.",
     UNSUPPORTED_MEDIA_TYPE:
       "درخواست‌های دارای بدنه باید از Content-Type: application/json استفاده کنند.",
+    RATE_LIMITED: "درخواست‌ها بیش از حد مجاز است؛ کمی بعد دوباره تلاش کنید.",
+    PAYLOAD_TOO_LARGE: "بدنه درخواست بسیار بزرگ است.",
     SESSION_EXPIRED: "نشست شما منقضی شده است. دوباره وارد شوید.",
     SESSION_INVALID: "نشست شما نامعتبر است. دوباره وارد شوید.",
     ADMIN_REQUIRED: "دسترسی مدیر لازم است.",

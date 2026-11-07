@@ -841,6 +841,8 @@ export default {
       "Este socket unix é restrito ao próprio usuário do serviço.",
     UNSUPPORTED_MEDIA_TYPE:
       "Requisições com corpo devem usar Content-Type: application/json.",
+    RATE_LIMITED: "Muitas requisições; tente novamente em instantes.",
+    PAYLOAD_TOO_LARGE: "O corpo da requisição é grande demais.",
     SESSION_EXPIRED: "Sua sessão expirou. Entre novamente.",
     SESSION_INVALID: "Sua sessão é inválida. Entre novamente.",
     ADMIN_REQUIRED: "É necessário acesso de administrador.",

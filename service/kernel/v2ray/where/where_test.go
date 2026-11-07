@@ -1,10 +1,12 @@
 package where
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -24,10 +26,12 @@ func stubCore(t *testing.T, script string) {
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	v2rayVersion.mu.Lock()
 	v2rayVersion.version, v2rayVersion.binPath, v2rayVersion.lastUpdate = "", "", time.Time{}
+	v2rayVersion.lastErr = nil
 	v2rayVersion.mu.Unlock()
 	t.Cleanup(func() {
 		v2rayVersion.mu.Lock()
 		v2rayVersion.lastUpdate = time.Time{}
+		v2rayVersion.lastErr = nil
 		v2rayVersion.mu.Unlock()
 	})
 }
@@ -75,5 +79,45 @@ func TestGetV2rayServiceVersionReportsRunFailure(t *testing.T) {
 
 	if _, _, err := GetV2rayServiceVersion(); err == nil {
 		t.Fatal("a failing core reported a version")
+	}
+}
+
+// Cache misses from concurrent requests share one exec: the version probe is
+// unauthenticated, and a queue of processes is the DoS the cache exists to
+// prevent.
+func TestGetV2rayServiceVersionSharesOneExec(t *testing.T) {
+	dir := t.TempDir()
+	counter := filepath.Join(dir, "count")
+	stubCore(t, fmt.Sprintf("#!/bin/sh\necho x >> '%s'\nsleep 0.2\necho 'v2raya_core 1.2.3'\n", counter))
+
+	const readers = 16
+	var wg sync.WaitGroup
+	failures := make(chan string, readers)
+	for i := 0; i < readers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, ver, err := GetV2rayServiceVersion()
+			if err != nil {
+				failures <- err.Error()
+				return
+			}
+			if ver != "1.2.3" {
+				failures <- "version " + ver
+			}
+		}()
+	}
+	wg.Wait()
+	close(failures)
+	for failure := range failures {
+		t.Errorf("concurrent reader: %s", failure)
+	}
+
+	data, err := os.ReadFile(counter)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if runs := strings.Count(string(data), "x"); runs != 1 {
+		t.Fatalf("the core was executed %d times, want 1", runs)
 	}
 }

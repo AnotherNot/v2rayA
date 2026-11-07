@@ -836,6 +836,8 @@ export default {
       "Этот unix-сокет доступен только пользователю самого сервиса.",
     UNSUPPORTED_MEDIA_TYPE:
       "Запросы с телом должны использовать Content-Type: application/json.",
+    RATE_LIMITED: "Слишком много запросов; повторите позже.",
+    PAYLOAD_TOO_LARGE: "Тело запроса слишком велико.",
     SESSION_EXPIRED: "Срок действия сеанса истёк. Войдите снова.",
     SESSION_INVALID: "Сеанс недействителен. Войдите снова.",
     ADMIN_REQUIRED: "Требуются права администратора.",

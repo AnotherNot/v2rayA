@@ -829,6 +829,8 @@ export default {
       "This unix socket is restricted to the service's own user.",
     UNSUPPORTED_MEDIA_TYPE:
       "Requests with a body must use Content-Type: application/json.",
+    RATE_LIMITED: "Too many requests; retry shortly.",
+    PAYLOAD_TOO_LARGE: "The request body is too large.",
     SESSION_EXPIRED: "Your session has expired. Sign in again.",
     SESSION_INVALID: "Your session is invalid. Sign in again.",
     ADMIN_REQUIRED: "Administrator access is required.",

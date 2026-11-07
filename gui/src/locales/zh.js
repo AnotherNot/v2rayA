@@ -799,6 +799,8 @@ export default {
     SOCKET_PEER_FORBIDDEN: "此 Unix 套接字仅限服务自身用户使用。",
     UNSUPPORTED_MEDIA_TYPE:
       "带请求体的请求必须使用 Content-Type: application/json。",
+    RATE_LIMITED: "请求过多，请稍后重试。",
+    PAYLOAD_TOO_LARGE: "请求体过大。",
     SESSION_EXPIRED: "会话已过期，请重新登录。",
     SESSION_INVALID: "会话无效，请重新登录。",
     ADMIN_REQUIRED: "需要管理员权限。",

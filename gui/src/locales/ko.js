@@ -818,6 +818,8 @@ export default {
       "이 유닉스 소켓은 서비스 자체 사용자만 사용할 수 있습니다.",
     UNSUPPORTED_MEDIA_TYPE:
       "본문이 있는 요청은 Content-Type: application/json을 사용해야 합니다.",
+    RATE_LIMITED: "요청이 너무 많습니다. 잠시 후 다시 시도하세요.",
+    PAYLOAD_TOO_LARGE: "요청 본문이 너무 큽니다.",
     SESSION_EXPIRED: "세션 만료. 다시 로그인하세요.",
     SESSION_INVALID: "유효하지 않은 세션. 다시 로그인하세요.",
     ADMIN_REQUIRED: "관리자 권한 필요.",
