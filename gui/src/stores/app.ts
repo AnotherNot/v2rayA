@@ -39,6 +39,7 @@ export type View =
 export const useAppStore = defineStore("app", {
   state: () => ({
     token: localStorage.getItem("token") ?? "",
+    refreshToken: localStorage.getItem("refreshToken") ?? "",
     backendAddress: localStorage.getItem("backendAddress") ?? "",
     running: "checking" as Running,
     networkPaused: false,
@@ -89,6 +90,11 @@ export const useAppStore = defineStore("app", {
       this.token = token;
       if (token) localStorage.setItem("token", token);
       else localStorage.removeItem("token");
+    },
+    setRefreshToken(token: string) {
+      this.refreshToken = token;
+      if (token) localStorage.setItem("refreshToken", token);
+      else localStorage.removeItem("refreshToken");
     },
     setBackendAddress(address: string) {
       this.backendAddress = address;

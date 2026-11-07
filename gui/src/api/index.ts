@@ -25,6 +25,11 @@ import type {
 } from "./types";
 
 // ---- account and session ----------------------------------------------
+export interface SessionResponse {
+  token: string;
+  refreshToken?: string;
+  expiresIn?: number;
+}
 export const getAccount = () =>
   call<{ hasAnyAccounts: boolean; setupTokenRequired?: boolean }>({
     url: "account",
@@ -34,9 +39,16 @@ export const postAccount = (body: {
   username: string;
   password: string;
   setupToken?: string;
-}) => call<{ token: string }>({ url: "account", method: "post", data: body });
+}) => call<SessionResponse>({ url: "account", method: "post", data: body });
 export const postLogin = (body: { username: string; password: string }) =>
-  call<{ token: string }>({ url: "login", method: "post", data: body });
+  call<SessionResponse>({ url: "login", method: "post", data: body });
+export const postRefresh = () =>
+  call<SessionResponse>({
+    url: "refresh",
+    method: "post",
+    data: { refreshToken: localStorage.getItem("refreshToken") ?? "" },
+  });
+export const postLogout = () => call<null>({ url: "logout", method: "post" });
 export const getVersion = () =>
   call<VersionResponse>({ url: "version", method: "get" });
 export const getParams = () =>

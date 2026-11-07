@@ -28,6 +28,7 @@ export function setSessionStarter(fn: () => void | Promise<void>): void {
 
 export interface SessionChange {
   token?: string;
+  refreshToken?: string;
   backendAddress?: string;
 }
 
@@ -51,9 +52,15 @@ export async function resetSession(
   // 4. the stores, then the facts that identify the next session
   const app = useAppStore(pinia);
   app.$reset();
-  if (change.backendAddress !== undefined)
+  if (change.backendAddress !== undefined) {
+    // A token belongs to one backend; sending it to another is a leak.
     app.setBackendAddress(change.backendAddress);
+    app.setToken("");
+    app.setRefreshToken("");
+  }
   if (change.token !== undefined) app.setToken(change.token);
+  if (change.refreshToken !== undefined)
+    app.setRefreshToken(change.refreshToken);
   // 5. up again
   await starter?.();
 }

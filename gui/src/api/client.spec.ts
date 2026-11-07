@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, test, vi } from "vitest";
-import type { AxiosRequestConfig } from "axios";
+import axios, { type AxiosRequestConfig } from "axios";
 import {
   ApiError,
   abortSession,
@@ -68,6 +68,7 @@ beforeEach(() => {
   sent.length = 0;
   localStorage.setItem("backendAddress", "http://backend.test:2017");
   localStorage.setItem("token", "tok-1");
+  localStorage.removeItem("refreshToken");
   reply = async () => ({
     status: 200,
     data: { code: "SUCCESS", data: { ok: 1 } },
@@ -208,5 +209,60 @@ describe("the client sends what the old components sent", () => {
     const err = (await p) as ApiError;
     expect(err).toBeInstanceOf(ApiError);
     expect(["stale", "cancelled"]).toContain(err.kind);
+  });
+
+  test("a 401 refreshes once and retries with the new access token", async () => {
+    localStorage.setItem("token", "old");
+    localStorage.setItem("refreshToken", "refresh-1");
+    const clientAdapter = client.defaults.adapter;
+    const axiosAdapter = axios.defaults.adapter;
+    const authHeaders: string[] = [];
+    client.defaults.adapter = async (config) => {
+      const auth = String(
+        (config.headers as Record<string, unknown>)?.Authorization ?? "",
+      );
+      authHeaders.push(auth);
+      if (auth === "new") {
+        return {
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          config,
+          data: { code: "SUCCESS", data: { ok: true } },
+        };
+      }
+      throw Object.assign(new Error("Request failed with status code 401"), {
+        config,
+        response: {
+          status: 401,
+          data: { code: "FAIL", message: "unauthorized", data: null },
+          headers: {},
+          config,
+        },
+        isAxiosError: true,
+      });
+    };
+    axios.defaults.adapter = async (config) => ({
+      status: 200,
+      statusText: "OK",
+      headers: {},
+      config,
+      data: {
+        code: "SUCCESS",
+        data: { token: "new", refreshToken: "refresh-2", expiresIn: 900 },
+      },
+    });
+    try {
+      expect(
+        await call<{ ok: boolean }>({ url: "touch", method: "get" }),
+      ).toEqual({ ok: true });
+      expect(authHeaders).toEqual(["old", "new"]);
+      expect(localStorage.getItem("token")).toBe("new");
+      expect(localStorage.getItem("refreshToken")).toBe("refresh-2");
+    } finally {
+      client.defaults.adapter = clientAdapter;
+      axios.defaults.adapter = axiosAdapter;
+      localStorage.removeItem("refreshToken");
+    }
   });
 });

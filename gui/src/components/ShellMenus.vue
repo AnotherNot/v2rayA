@@ -10,6 +10,7 @@ import {
   mdiPalette,
   mdiTranslate,
 } from "@mdi/js";
+import { postLogout } from "@/api";
 import { resetSession } from "@/session";
 import { useAppStore } from "@/stores/app";
 import { languages } from "./languages";
@@ -26,8 +27,13 @@ function setLanguage(flag: string) {
   store.setLanguage(flag);
   locale.value = flag;
 }
-function logout() {
-  void resetSession({ token: "" });
+async function logout() {
+  try {
+    await postLogout();
+  } catch {
+    // the session may already be expired; clearing it locally is enough
+  }
+  await resetSession({ token: "", refreshToken: "" });
 }
 </script>
 

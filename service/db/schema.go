@@ -54,6 +54,17 @@ CREATE TABLE IF NOT EXISTS accounts (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS sessions (
+    id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    refresh_hash TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    revoked_at INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS sessions_refresh_hash ON sessions(refresh_hash);
+
 CREATE TABLE IF NOT EXISTS outbound_names (
     name TEXT PRIMARY KEY,
     sort INTEGER NOT NULL DEFAULT 0

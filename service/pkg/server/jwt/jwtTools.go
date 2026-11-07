@@ -27,9 +27,24 @@ var AuthorizationArgumentExtractor = &request.PostExtractionFilter{
 	Filter:    stripBearerPrefixFromTokenString,
 }
 
+const (
+	tokenIssuer   = "v2raya"
+	tokenAudience = "v2raya"
+)
+
+func tokenParser() *jwt.Parser {
+	return jwt.NewParser(
+		jwt.WithValidMethods([]string{"HS256"}),
+		jwt.WithIssuer(tokenIssuer),
+		jwt.WithAudience(tokenAudience),
+		jwt.WithExpirationRequired(),
+		jwt.WithLeeway(30*time.Second),
+	)
+}
+
 func JWTAuth(Admin bool) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		parser := jwt.NewParser(jwt.WithValidMethods([]string{"HS256"}))
+		parser := tokenParser()
 		token, err := request.ParseFromRequest(ctx.Request, request.AuthorizationHeaderExtractor,
 			func(token *jwt.Token) (interface{}, error) {
 				return getSecret(), nil
@@ -57,18 +72,25 @@ func JWTAuth(Admin bool) gin.HandlerFunc {
 		}
 		mapClaims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
-			common.ResponseError(ctx, common.Coded("SESSION_INVALID", errors.New("the session token is not valid; sign in again"), nil))
+			common.Response(ctx, common.UNAUTHORIZED, common.Coded("SESSION_INVALID", errors.New("the session token is not valid; sign in again"), nil))
 			ctx.Abort()
 			return
 		}
 		exp, err := mapClaims.GetExpirationTime()
 		if err == nil && exp != nil {
 			if time.Now().After(exp.Time) {
-				common.ResponseError(ctx, common.Coded("SESSION_EXPIRED", errors.New("session expired; sign in again"), nil))
+				common.Response(ctx, common.UNAUTHORIZED, common.Coded("SESSION_EXPIRED", errors.New("session expired; sign in again"), nil))
 				ctx.Abort()
 				return
 			}
 		}
+		jti, _ := mapClaims["jti"].(string)
+		if jti == "" || !SessionValid(jti) {
+			common.Response(ctx, common.UNAUTHORIZED, common.Coded("SESSION_INVALID", errors.New("the session has been revoked; sign in again"), nil))
+			ctx.Abort()
+			return
+		}
+		ctx.Set("SessionID", jti)
 		//如果需要Admin权限
 		if Admin {
 			adminVal, _ := mapClaims["admin"]
@@ -86,23 +108,34 @@ func JWTAuth(Admin bool) gin.HandlerFunc {
 }
 
 func MakeJWT(payload map[string]string, expDuration *time.Duration) (string, error) {
-	claims := jwt.MapClaims{}
+	now := time.Now()
+	claims := jwt.MapClaims{
+		"iss": tokenIssuer,
+		"aud": tokenAudience,
+		"iat": jwt.NewNumericDate(now),
+		"nbf": jwt.NewNumericDate(now.Add(-30 * time.Second)),
+	}
 	for k := range payload {
 		claims[k] = payload[k]
 	}
 	if expDuration != nil {
-		claims["exp"] = jwt.NewNumericDate(time.Now().Add(*expDuration))
+		claims["exp"] = jwt.NewNumericDate(now.Add(*expDuration))
 	}
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(getSecret())
 }
 
-// ValidateToken validates a JWT token string and returns true if valid
+// ValidateToken validates a JWT token string and returns true if valid.
 func ValidateToken(tokenString string) bool {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	token, err := tokenParser().Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		return getSecret(), nil
-	}, jwt.WithValidMethods([]string{"HS256"}))
-	if err != nil {
+	})
+	if err != nil || !token.Valid {
 		return false
 	}
-	return token.Valid
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return false
+	}
+	jti, _ := claims["jti"].(string)
+	return jti != "" && SessionValid(jti)
 }

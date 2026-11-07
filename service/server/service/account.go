@@ -9,14 +9,47 @@ import (
 	"github.com/v2rayA/v2rayA/pkg/server/jwt"
 )
 
-func Login(username, password string) (token string, err error) {
+func Login(username, password string) (token, refreshToken string, err error) {
 	if !IsValidAccount(username, password) {
-		return "", common.Coded("WRONG_CREDENTIALS", fmt.Errorf("wrong username or password"), nil)
+		return "", "", common.Coded("WRONG_CREDENTIALS", fmt.Errorf("wrong username or password"), nil)
 	}
-	dur := 30 * 24 * time.Hour
-	return jwt.MakeJWT(map[string]string{
+	sessionID, refreshToken, err := jwt.CreateSession(username)
+	if err != nil {
+		return "", "", common.Coded("SESSION_CREATE_FAILED", err, nil)
+	}
+	token, err = jwt.MakeJWT(map[string]string{
 		"uname": username,
-	}, &dur)
+		"jti":   sessionID,
+	}, durationPtr(jwt.AccessTTL))
+	if err != nil {
+		_ = jwt.RevokeSession(sessionID)
+		return "", "", err
+	}
+	return token, refreshToken, nil
+}
+
+// Refresh rotates a refresh token and issues a new short-lived access token.
+func Refresh(refreshToken string) (token, newRefreshToken string, err error) {
+	sessionID, username, newRefreshToken, err := jwt.RefreshSession(refreshToken)
+	if err != nil {
+		return "", "", common.Coded("SESSION_INVALID", err, nil)
+	}
+	token, err = jwt.MakeJWT(map[string]string{
+		"uname": username,
+		"jti":   sessionID,
+	}, durationPtr(jwt.AccessTTL))
+	if err != nil {
+		return "", "", err
+	}
+	return token, newRefreshToken, nil
+}
+
+func Logout(sessionID string) error {
+	return jwt.RevokeSession(sessionID)
+}
+
+func durationPtr(d time.Duration) *time.Duration {
+	return &d
 }
 
 func IsValidAccount(username, password string) bool {
@@ -27,9 +60,9 @@ func IsValidAccount(username, password string) bool {
 	return common.CheckPassword(password, pwd)
 }
 
-func Register(username, password string) (token string, err error) {
+func Register(username, password string) (token, refreshToken string, err error) {
 	if configure.ExistsAccount(username) {
-		return "", common.Coded("USERNAME_TAKEN", fmt.Errorf("username %q is already taken", username), map[string]interface{}{"username": username})
+		return "", "", common.Coded("USERNAME_TAKEN", fmt.Errorf("username %q is already taken", username), map[string]interface{}{"username": username})
 	}
 	err = configure.SetAccount(username, common.CryptoPwd(password))
 	if err != nil {

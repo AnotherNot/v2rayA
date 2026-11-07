@@ -11,7 +11,7 @@ import (
 )
 
 func TestLoginTokenSuppliesIdentity(t *testing.T) {
-	token, err := Register("claim-test", "test-password")
+	token, _, err := Register("claim-test", "test-password")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -139,6 +139,42 @@ interface SessionConfig extends AxiosRequestConfig {
   sessionController?: AbortController;
 }
 
+interface RetryConfig extends SessionConfig {
+  _retried?: boolean;
+}
+
+interface RefreshEnvelope {
+  token?: string;
+  refreshToken?: string;
+}
+
+let refreshPromise: Promise<boolean> | null = null;
+
+// refreshAccessToken trades the stored refresh token for a new short
+// access token. Raw axios is deliberate: going through `client` would
+// re-enter the 401 handler.
+async function refreshAccessToken(): Promise<boolean> {
+  const refreshToken = localStorage.getItem("refreshToken");
+  if (!refreshToken) return false;
+  try {
+    const res = await axios.post<ApiEnvelope<RefreshEnvelope>>(
+      `${apiRoot()}/refresh`,
+      { refreshToken },
+      { timeout: 10_000 },
+    );
+    const data = res.data?.data;
+    if (res.data?.code !== "SUCCESS" || !data?.token) return false;
+    localStorage.setItem("token", data.token);
+    if (data.refreshToken)
+      localStorage.setItem("refreshToken", data.refreshToken);
+    return true;
+  } catch {
+    localStorage.removeItem("token");
+    localStorage.removeItem("refreshToken");
+    return false;
+  }
+}
+
 function settle(config: SessionConfig | undefined) {
   if (config?.sessionController) inFlight.delete(config.sessionController);
 }
@@ -156,11 +192,11 @@ client.interceptors.response.use(
     hooks.onReached?.();
     return res;
   },
-  (raw: unknown) => {
+  async (raw: unknown) => {
     // axios's isCancel is a type guard to Cancel, which would narrow the
     // error to never in the branches below; keep the error untyped here.
     const err = raw as AxiosError<ApiEnvelope<unknown>>;
-    const config = err.config as SessionConfig | undefined;
+    const config = err.config as RetryConfig | undefined;
     settle(config);
     const url = config?.url ?? "";
     const cancelled = axios.isCancel(raw) || err.code === "ERR_CANCELED";
@@ -177,9 +213,26 @@ client.interceptors.response.use(
         body: err.response.data,
       });
       const isAuthAction =
-        url.includes("/api/login") || url.includes("/api/account");
-      if (err.response.status === 401 && !isAuthAction) {
-        hooks.onUnauthorized?.();
+        url.includes("/api/login") ||
+        url.includes("/api/account") ||
+        url.includes("/api/refresh");
+      if (err.response.status === 401) {
+        if (!isAuthAction && config && !config._retried) {
+          config._retried = true;
+          refreshPromise ??= refreshAccessToken().finally(() => {
+            refreshPromise = null;
+          });
+          if (await refreshPromise) {
+            return client.request({
+              ...config,
+              headers: {
+                ...(config.headers as Record<string, string>),
+                Authorization: localStorage.getItem("token") ?? "",
+              },
+            });
+          }
+        }
+        if (!isAuthAction) hooks.onUnauthorized?.();
       }
     } else if (location.protocol === "https:" && /^http:\/\//i.test(url)) {
       // an https page cannot reach an http backend; the browser blocks it
@@ -189,7 +242,7 @@ client.interceptors.response.use(
     }
     if (apiErr.kind !== "cancelled" && apiErr.kind !== "stale")
       hooks.onError?.(apiErr);
-    return Promise.reject(apiErr);
+    throw apiErr;
   },
 );
 

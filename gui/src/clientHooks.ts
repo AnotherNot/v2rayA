@@ -35,7 +35,7 @@ export function installClientHooks(ui: { openAddressDialog(): void }): void {
     },
     onUnauthorized() {
       const store = useAppStore();
-      if (store.loggedIn) void resetSession({ token: "" });
+      if (store.loggedIn) void resetSession({ token: "", refreshToken: "" });
     },
     onError(err: ApiError) {
       const origin = originOf(err.url);

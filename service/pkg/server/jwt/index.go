@@ -69,6 +69,20 @@ func randomSecret() []byte {
 	return b
 }
 
+// RotateSecret invalidates every access token signed with the old key. It
+// is called after --reset-password and a password change.
+func RotateSecret() error {
+	secretMu.Lock()
+	defer secretMu.Unlock()
+	b := randomSecret()
+	if err := db.Set(secretBucket, secretKey, hex.EncodeToString(b)); err != nil {
+		return err
+	}
+	secret = b
+	persisted = true
+	return nil
+}
+
 func isNotFound(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "key is not found")
 }

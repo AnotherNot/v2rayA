@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/v2rayA/v2rayA/common"
 	"github.com/v2rayA/v2rayA/db/configure"
+	"github.com/v2rayA/v2rayA/pkg/server/jwt"
 	"github.com/v2rayA/v2rayA/server/service"
 )
 
@@ -49,13 +50,15 @@ func PostLogin(ctx *gin.Context) {
 		})
 		return
 	}
-	jwt, err := service.Login(data.Username, data.Password)
+	jwtToken, refreshToken, err := service.Login(data.Username, data.Password)
 	if err != nil {
 		common.ResponseError(ctx, logError(err))
 		return
 	}
 	common.ResponseSuccess(ctx, gin.H{
-		"token": jwt,
+		"token":        jwtToken,
+		"refreshToken": refreshToken,
+		"expiresIn":    int(jwt.AccessTTL / time.Second),
 	})
 }
 
@@ -94,13 +97,49 @@ func PostAccount(ctx *gin.Context) {
 		common.ResponseError(ctx, common.Coded("SETUP_TOKEN_INVALID", logError("the setup token is invalid or has already been used"), nil))
 		return
 	}
-	token, err := service.Register(data.Username, data.Password)
+	token, refreshToken, err := service.Register(data.Username, data.Password)
 	if err != nil {
 		common.ResponseError(ctx, logError(err))
 		return
 	}
 	service.ConsumeSetupToken()
 	common.ResponseSuccess(ctx, gin.H{
-		"token": token,
+		"token":        token,
+		"refreshToken": refreshToken,
+		"expiresIn":    int(jwt.AccessTTL / time.Second),
 	})
+}
+
+// PostRefresh rotates a refresh token and returns a new short-lived access
+// token. The old refresh token stops working immediately.
+func PostRefresh(ctx *gin.Context) {
+	var data struct {
+		RefreshToken string `json:"refreshToken"`
+	}
+	ctx.Request.Body = http.MaxBytesReader(ctx.Writer, ctx.Request.Body, 4096)
+	if err := ctx.ShouldBindJSON(&data); err != nil {
+		common.Response(ctx, common.UNAUTHORIZED, common.Coded("SESSION_INVALID", err, nil))
+		return
+	}
+	token, refreshToken, err := service.Refresh(data.RefreshToken)
+	if err != nil {
+		common.Response(ctx, common.UNAUTHORIZED, common.Coded("SESSION_INVALID", err, nil))
+		return
+	}
+	common.ResponseSuccess(ctx, gin.H{
+		"token":        token,
+		"refreshToken": refreshToken,
+		"expiresIn":    int(jwt.AccessTTL / time.Second),
+	})
+}
+
+// PostLogout revokes the current session; the token stops working before
+// its short expiry.
+func PostLogout(ctx *gin.Context) {
+	if id, ok := ctx.Get("SessionID"); ok {
+		if sessionID, ok := id.(string); ok {
+			_ = service.Logout(sessionID)
+		}
+	}
+	common.ResponseSuccess(ctx, nil)
 }

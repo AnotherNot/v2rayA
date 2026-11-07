@@ -272,6 +272,7 @@ func Run() error {
 	{
 		noAuth.GET("version", controller.GetVersion)
 		noAuth.POST("login", controller.PostLogin)
+		noAuth.POST("refresh", controller.PostRefresh)
 		noAuth.GET("account", controller.GetAccount)
 		noAuth.POST("account", controller.PostAccount)
 	}
@@ -291,6 +292,7 @@ func Run() error {
 	)
 	{
 		auth.POST("import", controller.PostImport)
+		auth.POST("logout", controller.PostLogout)
 		auth.GET("touch", controller.GetTouch)
 		auth.DELETE("touch", controller.DeleteTouch)
 		auth.POST("connection", controller.PostConnection)

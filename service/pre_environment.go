@@ -10,6 +10,7 @@ import (
 	"github.com/v2rayA/v2rayA/db"
 	"github.com/v2rayA/v2rayA/db/configure"
 	service2 "github.com/v2rayA/v2rayA/kernel/v2ray/service"
+	"github.com/v2rayA/v2rayA/pkg/server/jwt"
 	"github.com/v2rayA/v2rayA/pkg/util/log"
 	serverservice "github.com/v2rayA/v2rayA/server/service"
 )
@@ -29,6 +30,12 @@ func checkEnvironment() {
 		err := configure.ResetAccounts()
 		if err != nil {
 			log.Fatal("checkEnvironment: %v", err)
+		}
+		if err := jwt.RevokeAllSessions(); err != nil {
+			log.Warn("revoke sessions: %v", err)
+		}
+		if err := jwt.RotateSecret(); err != nil {
+			log.Warn("rotate session secret: %v", err)
 		}
 		if err := serverservice.RotateSetupToken(); err != nil {
 			log.Warn("setup token: %v", err)

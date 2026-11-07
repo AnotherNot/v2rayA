@@ -34,11 +34,11 @@ async function submit() {
       password: password.value,
       ...(props.first ? { setupToken: setupToken.value } : {}),
     };
-    const { token } = props.first
+    const { token, refreshToken } = props.first
       ? await postAccount(body)
       : await postLogin(body);
     emit("close");
-    await resetSession({ token });
+    await resetSession({ token, refreshToken });
   } catch (err) {
     notify.error(
       t(props.first ? "register.failed" : "login.failed", {
