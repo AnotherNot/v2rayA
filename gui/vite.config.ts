@@ -9,7 +9,18 @@ import en from "./src/locales/en.js";
 
 // The in-app documentation is written in Markdown under src/docs and
 // compiled to HTML at build time, so the page ships no parser. Headings get
-// an id from their text for the table of contents.
+// an id from their text for the table of contents. Raw HTML is rendered as
+// text: a tag in a docs file would otherwise run in the GUI's own origin,
+// where the session token lives, and the docs do not use raw HTML.
+function escapeHTML(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function markdown(): Plugin {
   const parser = new Marked({
     gfm: true,
@@ -22,6 +33,9 @@ function markdown(): Plugin {
           .replace(/[^\p{L}\p{N}]+/gu, "-")
           .replace(/^-|-$/g, "");
         return `<h${depth} id="${id}">${text}</h${depth}>\n`;
+      },
+      html({ text }: Tokens.HTML | Tokens.Tag): string {
+        return escapeHTML(text);
       },
     },
   });

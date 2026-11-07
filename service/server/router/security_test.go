@@ -141,6 +141,63 @@ func TestJSONBodyGuardRequiresJSON(t *testing.T) {
 	}
 }
 
+func TestSecurityHeaders(t *testing.T) {
+	s := testSecurity()
+	cases := []struct {
+		name     string
+		proto    string
+		wantHSTS bool
+	}{
+		{name: "plain http"},
+		{name: "terminating proxy", proto: "https", wantHSTS: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			if tc.proto != "" {
+				req.Header.Set("X-Forwarded-Proto", tc.proto)
+			}
+			recorder := serveSecurity(t, s.securityHeaders(), req)
+			header := recorder.Header()
+			csp := header.Get("Content-Security-Policy")
+			for _, want := range []string{
+				"default-src 'self'",
+				"script-src 'self'",
+				"style-src 'self' 'unsafe-inline'",
+				"connect-src 'self' ws: wss: http://admin.example.com",
+				"frame-ancestors 'none'",
+				"base-uri 'none'",
+			} {
+				if !strings.Contains(csp, want) {
+					t.Errorf("CSP %q does not contain %q", csp, want)
+				}
+			}
+			if strings.Contains(csp, "'unsafe-eval'") {
+				t.Errorf("CSP allows unsafe-eval: %q", csp)
+			}
+			if got := header.Get("X-Frame-Options"); got != "DENY" {
+				t.Errorf("X-Frame-Options = %q", got)
+			}
+			if got := header.Get("X-Content-Type-Options"); got != "nosniff" {
+				t.Errorf("X-Content-Type-Options = %q", got)
+			}
+			if got := header.Get("Referrer-Policy"); got != "no-referrer" {
+				t.Errorf("Referrer-Policy = %q", got)
+			}
+			if got := header.Get("Permissions-Policy"); !strings.Contains(got, "camera=()") {
+				t.Errorf("Permissions-Policy = %q", got)
+			}
+			hsts := header.Get("Strict-Transport-Security")
+			if tc.wantHSTS && hsts == "" {
+				t.Errorf("HSTS missing on %s", tc.name)
+			}
+			if !tc.wantHSTS && hsts != "" {
+				t.Errorf("HSTS = %q on plain HTTP", hsts)
+			}
+		})
+	}
+}
+
 func TestWebSocketOriginUsesTheAPIPolicy(t *testing.T) {
 	s := testSecurity()
 	cases := []struct {

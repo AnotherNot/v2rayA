@@ -241,6 +241,7 @@ func Run() error {
 	engine := gin.New()
 	//ginpprof.Wrap(engine)
 	engine.Use(gin.Recovery())
+	engine.Use(security.securityHeaders())
 	// The Host and Origin checks run before CORS: a preflight from a
 	// rebinding name or an unlisted origin must not be answered at all.
 	// A group-owned socket relies on the kernel's 0660 mode instead of the

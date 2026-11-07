@@ -75,4 +75,8 @@ test("every destination renders", async ({ page }) => {
   ]) {
     await openDestination(page, label);
   }
+  // The docs article is compiled at build time and inserted with v-html;
+  // an empty body would mean the CSP or the Markdown transform dropped it.
+  await openDestination(page, "Documentation");
+  await expect(page.locator(".docs__body h1").first()).toBeVisible();
 });

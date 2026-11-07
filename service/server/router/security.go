@@ -248,6 +248,51 @@ func abortSecurity(ctx *gin.Context, status int, code, message string) {
 	})
 }
 
+// securityHeaders applies the browser-facing hardening policy to every
+// response, static files included. The interface keeps its session token in
+// localStorage, so a page that executes foreign script loses the token; the
+// CSP is the second line behind the build-time escaping of the docs.
+func (s securityConfig) securityHeaders() gin.HandlerFunc {
+	policy := s.contentSecurityPolicy()
+	return func(ctx *gin.Context) {
+		header := ctx.Writer.Header()
+		header.Set("Content-Security-Policy", policy)
+		header.Set("X-Frame-Options", "DENY")
+		header.Set("X-Content-Type-Options", "nosniff")
+		header.Set("Referrer-Policy", "no-referrer")
+		header.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+		// HSTS on a plain-HTTP listener would pin the browser to a scheme
+		// the service does not serve. It is set only when the request
+		// arrived over TLS, directly or through a terminating proxy.
+		if isHTTPS(ctx.Request) {
+			header.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		}
+		ctx.Next()
+	}
+}
+
+// contentSecurityPolicy keeps script-src free of 'unsafe-inline'. Vuetify
+// writes inline style attributes, hence style-src 'unsafe-inline'; the PWA's
+// service worker and the bundled fonts are same-origin.
+func (s securityConfig) contentSecurityPolicy() string {
+	connect := append([]string{"'self'", "ws:", "wss:"}, s.originList()...)
+	return "default-src 'self'; " +
+		"script-src 'self'; " +
+		"style-src 'self' 'unsafe-inline'; " +
+		"img-src 'self' data:; " +
+		"font-src 'self' data:; " +
+		"connect-src " + strings.Join(connect, " ") + "; " +
+		"worker-src 'self'; manifest-src 'self'; " +
+		"frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'"
+}
+
+func isHTTPS(r *http.Request) bool {
+	if r.TLS != nil {
+		return true
+	}
+	return strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https")
+}
+
 // peerCredGuard enforces the unix socket's owner boundary even if a process
 // can reach the socket file: SO_PEERCRED reports the connecting UID, and a
 // different user is refused. TCP connections carry no peer credentials and
