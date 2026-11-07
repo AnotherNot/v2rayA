@@ -12,7 +12,7 @@ require (
 	github.com/daeuniverse/outbound v0.0.0-20250722064253-00c4fbb38759
 	github.com/metacubex/mipstack v0.0.0-20260918021735-5e78149cf123
 	github.com/miekg/dns v1.1.73
-	github.com/sagernet/sing v0.6.0
+	github.com/sagernet/sing v0.9.6
 	github.com/vishvananda/netlink v1.3.1
 	// Pseudo-version for Xray-core v26.10.31 (commit a4a3dff5). v26 tags are not
 	// resolvable via go mod because Xray's module path lacks the /v26 suffix.
