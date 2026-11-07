@@ -24,6 +24,10 @@ jobs:
           cache: yarn
           cache-dependency-path: gui/yarn.lock
       - run: yarn install --frozen-lockfile
+      # Only runtime dependencies gate the build: the dev toolchain still
+      # carries transitive advisories without a non-breaking fix (glob 11,
+      # minimatch 10, deepmerge has no patched release at all).
+      - run: yarn audit --groups dependencies --level high
       - run: yarn lint
       - run: yarn typecheck
       - run: yarn i18n-check

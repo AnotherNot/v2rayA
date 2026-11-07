@@ -51,3 +51,32 @@ jobs:
       - name: Test
         shell: bash
         run: cd service && go test -race -timeout 20m ./...
+
+  vuln:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Download Web Artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: web
+          path: service/server/router/web
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          cache-dependency-path: |
+            core/go.mod
+            core/go.sum
+            service/go.mod
+            service/go.sum
+          go-version: "1.27"
+      # Pinned like the actions: a scanner that changes silently cannot be
+      # trusted to keep a gate green.
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
+      - name: Scan the service
+        working-directory: service
+        run: $(go env GOPATH)/bin/govulncheck ./...
+      - name: Scan the core
+        working-directory: core
+        run: $(go env GOPATH)/bin/govulncheck ./...
