@@ -153,6 +153,8 @@ jobs:
           file: install/docker/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
+          provenance: true
+          sbom: true
           build-args: |
             VERSION=${{ steps.prep.outputs.VERSION }}
           tags: |
@@ -206,6 +208,8 @@ jobs:
           file: install/docker/Dockerfile.GUI.Action
           platforms: linux/amd64,linux/arm64
           push: true
+          provenance: true
+          sbom: true
           tags: |
             ghcr.io/${{ env.LOWERCASE_REPOSITORY_OWNER }}/v2raya-gui:latest
           cache-from: type=gha

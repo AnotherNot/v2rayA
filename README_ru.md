@@ -141,7 +141,10 @@ sudo rc-service v2raya start
 Форк публикует образ в registry для `linux/amd64` и `linux/arm64`. `latest` сдвигает каждый выпуск, не помеченный как предварительный; у выпуска есть и теги версии (`2.5.14` и `v2.5.14`). Вход не нужен:
 
 ```sh
-docker run -d --restart=always --privileged --network=host --name v2raya \
+docker run -d --restart=always --network=host \
+  --cap-drop ALL --cap-add NET_ADMIN --cap-add NET_RAW \
+  --device /dev/net/tun --security-opt no-new-privileges \
+  --name v2raya \
   -e V2RAYA_LOG_FILE=/tmp/v2raya.log \
   -v /lib/modules:/lib/modules:ro \
   -v /etc/resolv.conf:/etc/resolv.conf \
@@ -149,11 +152,14 @@ docker run -d --restart=always --privileged --network=host --name v2raya \
   ghcr.io/anothernot/v2raya:latest
 ```
 
-Пример для хоста Linux: контейнер получает сеть хоста и привилегии, без которых прозрачный прокси не работает. Чтобы собрать образ из исходников (нужен только Docker):
+Пример для хоста Linux: контейнер получает сеть хоста и только те две возможности и устройство TUN, без которых не работает прозрачный прокси; `--privileged` не нужен. Добавьте `--read-only --tmpfs /tmp --tmpfs /run`, если корневая файловая система должна оставаться неизменяемой. Чтобы собрать образ из исходников (нужен только Docker):
 
 ```sh
 docker build -f install/docker/Dockerfile -t v2raya-local .
-docker run -d --restart=always --privileged --network=host --name v2raya \
+docker run -d --restart=always --network=host \
+  --cap-drop ALL --cap-add NET_ADMIN --cap-add NET_RAW \
+  --device /dev/net/tun --security-opt no-new-privileges \
+  --name v2raya \
   -e V2RAYA_LOG_FILE=/tmp/v2raya.log \
   -v /lib/modules:/lib/modules:ro \
   -v /etc/resolv.conf:/etc/resolv.conf \

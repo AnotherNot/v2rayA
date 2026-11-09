@@ -167,6 +167,8 @@ jobs:
           builder: ${{ steps.buildx.outputs.name }}
           platforms: linux/amd64,linux/arm64
           push: true
+          provenance: true
+          sbom: true
           build-args: |
             VERSION=${{ env.VERSION }}
           tags: ${{ steps.tags.outputs.tags }}
