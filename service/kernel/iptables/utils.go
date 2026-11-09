@@ -132,7 +132,14 @@ func GetWhiteListIPs() ([]string, []string, error) {
 	var ipv4List []string
 	var ipv6List []string
 	for _, cc := range dataModal.CountryCodes {
-		ipv4s, ipv6s, _ := parseGeoIP.Parser("geoip.dat", cc)
+		code := strings.ToUpper(strings.TrimSpace(cc))
+		if code == "" {
+			continue
+		}
+		ipv4s, ipv6s, err := parseGeoIP.Parser("geoip.dat", code)
+		if err != nil {
+			return nil, nil, fmt.Errorf("tproxy whitelist country %s: %w", code, err)
+		}
 		ipv4List = append(ipv4List, ipv4s...)
 		ipv6List = append(ipv6List, ipv6s...)
 	}
