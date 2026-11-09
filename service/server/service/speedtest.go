@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/v2rayA/v2rayA/common"
 	"github.com/v2rayA/v2rayA/common/httpClient"
+	"github.com/v2rayA/v2rayA/common/netguard"
 	"github.com/v2rayA/v2rayA/common/redact"
 	"github.com/v2rayA/v2rayA/db/configure"
 	"github.com/v2rayA/v2rayA/kernel/serverObj"
@@ -42,6 +44,13 @@ func TestHttpSpeed(which []*configure.Which, timeout time.Duration, maxParallel 
 		testURL = HttpSpeedTestURL
 	} else if u, err := url.Parse(testURL); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" {
 		return nil, common.Coded("INVALID_TEST_URL", fmt.Errorf("test URL %q must be an HTTP or HTTPS URL with a host", testURL), map[string]interface{}{"testUrl": testURL})
+	}
+	if u, err := url.Parse(testURL); err == nil {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := netguard.CheckURL(ctx, u); err != nil {
+			return nil, common.Coded("INVALID_TEST_URL", fmt.Errorf("test URL host is not a public address: %w", err), map[string]interface{}{"testUrl": u.Hostname()})
+		}
 	}
 	if maxBytes <= 0 {
 		maxBytes = HttpSpeedMaxBytes

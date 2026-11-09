@@ -76,14 +76,14 @@ func fetchRuleDocument(url string) ([]byte, error) {
 	resp, err := c.Get(url)
 	if err != nil {
 		return nil, common.Coded("ROUTING_SOURCE_UNREACHABLE", err, map[string]interface{}{
-			"url":    url,
+			"url":    redact.URL(url),
 			"detail": err.Error(),
 		})
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		return nil, common.Coded("ROUTING_SOURCE_FAILED", fmt.Errorf("the rule source answered HTTP %s", resp.Status), map[string]interface{}{
-			"url":    url,
+			"url":    redact.URL(url),
 			"status": resp.Status,
 		})
 	}
