@@ -58,6 +58,25 @@ func PutSetting(ctx *gin.Context) {
 		common.ResponseError(ctx, common.Coded("MUX_RANGE", logError(fmt.Errorf("mux concurrency %d is out of range; use 1-1024", data.Mux)), map[string]interface{}{"value": data.Mux}))
 		return
 	}
+	data.PortSharingUsername = strings.TrimSpace(data.PortSharingUsername)
+	if (data.PortSharingUsername == "") != (data.PortSharingPassword == "") {
+		common.ResponseError(ctx, common.Coded("PORT_SHARING_CREDENTIALS", logError(fmt.Errorf("port sharing needs both a username and a password, or neither")), nil))
+		return
+	}
+	if data.PortSharingUsername != "" {
+		if len(data.PortSharingUsername) > 64 {
+			common.ResponseError(ctx, common.Coded("PORT_SHARING_CREDENTIALS", logError(fmt.Errorf("port sharing username must be at most 64 characters")), nil))
+			return
+		}
+		if len(data.PortSharingPassword) < 8 || len(data.PortSharingPassword) > 128 {
+			common.ResponseError(ctx, common.Coded("PORT_SHARING_CREDENTIALS", logError(fmt.Errorf("port sharing password must be 8-128 characters")), nil))
+			return
+		}
+		if strings.ContainsAny(data.PortSharingUsername, ":\r\n\t") {
+			common.ResponseError(ctx, common.Coded("PORT_SHARING_CREDENTIALS", logError(fmt.Errorf("port sharing username must not contain ':', control characters or whitespace")), nil))
+			return
+		}
+	}
 	// A new or changed TUN script runs as root. The client must send an
 	// acknowledgement for the change itself; saving an unrelated setting
 	// over scripts that are already stored does not ask again.

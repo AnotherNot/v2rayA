@@ -107,10 +107,9 @@ func TestHttpSpeed(which []*configure.Which, timeout time.Duration, maxParallel 
 	}()
 	inboundPortMap := make([]string, len(vms))
 	pluginPortMap := make(map[int]int)
+	// The probe inbounds exist for one measurement and have no credentials;
+	// they never leave loopback, even when port sharing serves the LAN.
 	listenAddr := "127.0.0.1"
-	if tmpl.Setting != nil && tmpl.Setting.PortSharing {
-		listenAddr = "0.0.0.0"
-	}
 	var toClose []io.Closer
 	defer func() {
 		for _, l := range toClose {

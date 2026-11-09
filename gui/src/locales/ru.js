@@ -217,6 +217,8 @@ export default {
     tunAutoRoute: "Автоматическая маршрутизация",
     ipForwardOn: "IP-форвардинг",
     portSharingOn: "Общий доступ к портам",
+    portSharingUsername: "Имя пользователя для общего доступа",
+    portSharingPassword: "Пароль для общего доступа",
     concurrency: "Параллелизм",
     inboundSniffing: "Анализ входящего трафика",
     tunExcludeProcesses: "Процессы, исключаемые из TUN",
@@ -251,6 +253,10 @@ export default {
       tunUnsupported: "не поддерживается на этой платформе",
     },
     messages: {
+      portSharing:
+        "Общий доступ к портам открывает встроенные SOCKS и HTTP на всех интерфейсах. Они защищены этими именем и паролем; без обоих порты остаются на 127.0.0.1.",
+      portSharingCredentials:
+        "Укажите имя пользователя и пароль ниже, иначе порты прокси останутся на loopback.",
       inboundSniffing:
         "Анализируйте входящий трафик. Если опция выключена, часть трафика может быть перенаправлена некорректно.",
       routeOnly:

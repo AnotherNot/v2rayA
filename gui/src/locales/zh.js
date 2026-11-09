@@ -213,6 +213,8 @@ export default {
     tunAutoRoute: "自动路由",
     ipForwardOn: "开启 IP 转发",
     portSharingOn: "允许局域网的连接",
+    portSharingUsername: "端口共享用户名",
+    portSharingPassword: "端口共享密码",
     concurrency: "最大并发数",
     tunExcludeProcesses: "TUN 自定义排除进程",
     tcpFastOpen: "TCP Fast Open",
@@ -244,6 +246,10 @@ export default {
       tunUnsupported: "此平台不支持",
     },
     messages: {
+      portSharing:
+        "端口共享会让内置 SOCKS 和 HTTP 入站监听所有接口。它们由这组用户名和密码保护；缺少任一项时端口仍留在 127.0.0.1。",
+      portSharingCredentials:
+        "请在下方设置用户名和密码，否则代理端口将保持在回环地址。",
       inboundSniffing: "嗅探入站域名，如不开启，可能导致部分域名分流错误",
       routeOnly: "嗅探到的域名仅用于路由判断；连接本身仍发往原始地址",
       gfwlist: "该时间是指本地文件最后修改时间，因此可能会领先最新版本",

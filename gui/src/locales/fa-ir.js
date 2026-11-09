@@ -216,6 +216,8 @@ export default {
     tunAutoRoute: "مسیریابی خودکار",
     ipForwardOn: "هدایت IP",
     portSharingOn: "اشتراک‌گذاری پورت",
+    portSharingUsername: "نام کاربری اشتراک\u200cگذاری پورت",
+    portSharingPassword: "گذرواژه اشتراک\u200cگذاری پورت",
     concurrency: "هم‌زمانی",
     inboundSniffing: "شنود ترافیک ورودی",
     tunExcludeProcesses: "فرایندهای مستثنا از TUN",
@@ -248,6 +250,10 @@ export default {
       tunUnsupported: "در این سکو پشتیبانی نمی‌شود",
     },
     messages: {
+      portSharing:
+        "اشتراک\u200cگذاری پورت، ورودی\u200cهای داخلی SOCKS و HTTP را روی همه رابط\u200cها باز می\u200cکند. این دو با این نام کاربری و گذرواژه محافظت می\u200cشوند؛ بدون هر دو، پورت\u200cها روی 127.0.0.1 می\u200cمانند.",
+      portSharingCredentials:
+        "در پایین نام کاربری و گذرواژه را تنظیم کنید، وگرنه پورت\u200cهای پروکسی روی loopback می\u200cمانند.",
       inboundSniffing:
         "ترافیک ورودی را شنود می‌کند. اگر این گزینه فعال نباشد، ممکن است برخی ترافیک‌ها به‌درستی هدایت نشوند.",
       routeOnly:

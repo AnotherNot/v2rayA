@@ -27,6 +27,8 @@ type Setting struct {
 	IpForward                          bool            `json:"ipforward"`
 	RouteOnly                          bool            `json:"routeOnly"`
 	PortSharing                        bool            `json:"portSharing"`
+	PortSharingUsername                string          `json:"portSharingUsername"`
+	PortSharingPassword                string          `json:"portSharingPassword"`
 	TransparentType                    TransparentType `json:"transparentType"`
 	TproxyExcludedInterfaces           string          `json:"tproxyExcludedInterfaces"`
 	TunAutoRoute                       bool            `json:"tunAutoRoute"`

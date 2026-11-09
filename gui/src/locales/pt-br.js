@@ -218,6 +218,8 @@ export default {
     tunAutoRoute: "Rota automática",
     ipForwardOn: "Encaminhamento de IP",
     portSharingOn: "Compartilhamento de portas",
+    portSharingUsername: "Usuário do compartilhamento de portas",
+    portSharingPassword: "Senha do compartilhamento de portas",
     concurrency: "Concorrência",
     inboundSniffing: "Inspeção de tráfego",
     tunExcludeProcesses: "Processos excluídos do TUN",
@@ -254,6 +256,10 @@ export default {
       tunUnsupported: "não suportado nesta plataforma",
     },
     messages: {
+      portSharing:
+        "O compartilhamento de portas liga os inbounds SOCKS e HTTP internos a todas as interfaces. Eles são protegidos por este usuário e senha; sem os dois, as portas ficam em 127.0.0.1.",
+      portSharingCredentials:
+        "Defina um usuário e uma senha abaixo; caso contrário, as portas do proxy ficam no loopback.",
       inboundSniffing:
         "Inspeciona o tráfego de entrada. Se estiver desativado, parte do tráfego poderá não ser redirecionada corretamente.",
       routeOnly:
