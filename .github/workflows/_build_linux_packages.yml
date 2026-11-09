@@ -28,7 +28,7 @@ jobs:
       VERSION: ${{ inputs.version }}
       PACKAGE_VERSION: ${{ inputs.version }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - name: Get Friendly File Name
@@ -42,12 +42,12 @@ jobs:
           Write-Output "FRIENDLY_ARCH=$friendly_arch" >> ${env:GITHUB_OUTPUT}
           Write-Output "FRIENDLY_ARCH=$friendly_arch" >> ${env:GITHUB_ENV}
       - name: Download Artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: v2raya_${{ steps.get_filename.outputs.BUILD_NAME }}_${{ inputs.version }}
           path: build/
       - name: Download Core Artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: v2raya_core_${{ steps.get_filename.outputs.BUILD_NAME }}_${{ inputs.version }}
           path: build/
@@ -60,7 +60,7 @@ jobs:
           mv geosite.dat geoip.dat v2ray-rules-dat/
           ls v2ray-rules-dat/
       - name: Download x64 Linux Build
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: v2raya_linux_x64_${{ inputs.version }}
           path: test/
@@ -80,8 +80,8 @@ jobs:
           sudo chmod 755 ./test/v2raya_linux_x64_$VERSION
           ./test/v2raya_linux_x64_$VERSION --report config | sed '1,6d' | fold -s -w 78 | sed -E 's/^([^#].+)/# \1/' >> install/universal/v2raya.default
           mkdir -p pkg packages
-          cp ./build/v2raya_${{ steps.get_filename.outputs.BUILD_NAME }}_${{ inputs.version }} pkg/v2raya
-          cp ./build/v2raya_core_${{ steps.get_filename.outputs.BUILD_NAME }}_${{ inputs.version }} pkg/v2raya_core
+          cp "./build/v2raya_${BUILD_NAME}_${VERSION}" pkg/v2raya
+          cp "./build/v2raya_core_${BUILD_NAME}_${VERSION}" pkg/v2raya_core
           cp ./v2ray-rules-dat/geoip.dat ./v2ray-rules-dat/geosite.dat pkg/
           chmod 755 pkg/v2raya pkg/v2raya_core
           chmod 644 pkg/geoip.dat pkg/geosite.dat
@@ -104,30 +104,30 @@ jobs:
               apk) package_distro='alpine'; package_ext='apk' ;;
             esac
             nfpm package -f install/nfpm/v2raya.yaml -p "$package_manager" \
-              -t "packages/installer_${package_distro}_${{ steps.get_filename.outputs.FRIENDLY_ARCH }}_${{ inputs.version }}.$package_ext"
+              -t "packages/installer_${package_distro}_${FRIENDLY_ARCH}_${VERSION}.$package_ext"
           done
           ls -l packages/
       - name: Upload Arch Linux Package
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           if-no-files-found: ignore
           name: installer_archlinux_${{ steps.get_filename.outputs.FRIENDLY_ARCH }}_${{ inputs.version }}.pkg.tar.zst
           path: |
             packages/installer_archlinux_${{ steps.get_filename.outputs.FRIENDLY_ARCH }}_${{ inputs.version }}.pkg.tar.zst
       - name: Upload Red Hat Package
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: installer_redhat_${{ steps.get_filename.outputs.FRIENDLY_ARCH }}_${{ inputs.version }}.rpm
           path: |
             packages/installer_redhat_${{ steps.get_filename.outputs.FRIENDLY_ARCH }}_${{ inputs.version }}.rpm
       - name: Upload Debian Package
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: installer_debian_${{ steps.get_filename.outputs.FRIENDLY_ARCH }}_${{ inputs.version }}.deb
           path: |
             packages/installer_debian_${{ steps.get_filename.outputs.FRIENDLY_ARCH }}_${{ inputs.version }}.deb
       - name: Upload Alpine Package
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           if-no-files-found: ignore
           name: installer_alpine_${{ steps.get_filename.outputs.FRIENDLY_ARCH }}_${{ inputs.version }}.apk
