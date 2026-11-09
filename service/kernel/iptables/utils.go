@@ -14,6 +14,7 @@ import (
 	"github.com/v2rayA/v2rayA/common/parseGeoIP"
 	"github.com/v2rayA/v2rayA/conf"
 	"github.com/v2rayA/v2rayA/db/configure"
+	"github.com/v2rayA/v2rayA/pkg/util/log"
 	"golang.org/x/net/nettest"
 )
 
@@ -212,4 +213,70 @@ func withDnsModulePort(rules string) string {
 		return strings.ReplaceAll(rules, "52353", port)
 	}
 	return rules
+}
+
+// normalizeCIDR accepts an IP or CIDR and returns the form iptables/nft
+// expect. Anything else is refused before it reaches a command line: the
+// whitelist sink is a shell-adjacent place, and a future caller must not be
+// able to put a metacharacter there.
+func normalizeCIDR(value string) (string, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", false
+	}
+	if ip := net.ParseIP(value); ip != nil {
+		bits := 128
+		if ip.To4() != nil {
+			bits = 32
+			ip = ip.To4()
+		}
+		return fmt.Sprintf("%s/%d", ip.String(), bits), true
+	}
+	_, network, err := net.ParseCIDR(value)
+	if err != nil {
+		return "", false
+	}
+	return network.String(), true
+}
+
+// iptablesBinaryFor picks the same variant rewriteIptablesCommands uses,
+// without going through a shell.
+func iptablesBinaryFor(ipv6 bool) string {
+	binary := "iptables"
+	if common.IsDocker() {
+		binary = "iptables-legacy"
+	} else if (!commandAvailable("iptables") || IsNftablesSupported()) && commandAvailable("iptables-nft") {
+		binary = "iptables-nft"
+	}
+	if ipv6 {
+		binary = strings.Replace(binary, "iptables", "ip6tables", 1)
+	}
+	return binary
+}
+
+// runIPWhitelist executes one iptables/nft command with an argument vector.
+// The command is built from a validated CIDR and fixed tokens; no shell is
+// involved, so a value that slipped past normalizeCIDR still cannot become
+// a second command.
+func runIPWhitelist(ipv6 bool, args []string) {
+	binary := iptablesBinaryFor(ipv6)
+	out, err := exec.Command(binary, args...).CombinedOutput()
+	if err != nil {
+		log.Warn("whitelist: %s %v: %v: %s", binary, args, err, strings.TrimSpace(string(out)))
+	}
+}
+
+func runNftWhitelist(args []string) {
+	out, err := exec.Command("nft", args...).CombinedOutput()
+	if err != nil {
+		log.Warn("whitelist: nft %v: %v: %s", args, err, strings.TrimSpace(string(out)))
+	}
+}
+
+// nftSetFor picks the address-family set from the validated CIDR.
+func nftSetFor(cidr string) string {
+	if strings.Contains(cidr, ":") {
+		return "local_ips6"
+	}
+	return "local_ips"
 }

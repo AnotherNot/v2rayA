@@ -3,6 +3,8 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
+	"net"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -57,6 +59,13 @@ func PutSetting(ctx *gin.Context) {
 	if data.MuxOn == configure.Yes && (data.Mux < 1 || data.Mux > 1024) {
 		common.ResponseError(ctx, common.Coded("MUX_RANGE", logError(fmt.Errorf("mux concurrency %d is out of range; use 1-1024", data.Mux)), map[string]interface{}{"value": data.Mux}))
 		return
+	}
+	if data.DnsListenAddr != "" {
+		host, port, err := net.SplitHostPort(data.DnsListenAddr)
+		if err != nil || strings.TrimSpace(host) != host || !validListenPort(port) {
+			common.ResponseError(ctx, common.Coded("DNS_LISTEN_ADDR_INVALID", logError(fmt.Errorf("DNS listen address %q must be host:port with a port in 1-65535", data.DnsListenAddr)), nil))
+			return
+		}
 	}
 	data.PortSharingUsername = strings.TrimSpace(data.PortSharingUsername)
 	if (data.PortSharingUsername == "") != (data.PortSharingPassword == "") {
@@ -127,4 +136,17 @@ func PutSetting(ctx *gin.Context) {
 		return
 	}
 	common.ResponseSuccess(ctx, nil)
+}
+
+func validListenPort(raw string) bool {
+	if raw == "" {
+		return false
+	}
+	for _, r := range raw {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	port, err := strconv.Atoi(raw)
+	return err == nil && port >= 1 && port <= 65535
 }

@@ -116,10 +116,21 @@ func IntervalHours(hours int) time.Duration {
 // The DNS REDIRECT and TPROXY rules and the module's listeners all take it
 // from here.
 func (s *Setting) DnsModulePort() string {
-	if i := strings.LastIndexByte(s.DnsListenAddr, ':'); i >= 0 && i+1 < len(s.DnsListenAddr) {
-		if _, err := strconv.Atoi(s.DnsListenAddr[i+1:]); err == nil {
-			return s.DnsListenAddr[i+1:]
+	i := strings.LastIndexByte(s.DnsListenAddr, ':')
+	if i < 0 || i+1 >= len(s.DnsListenAddr) {
+		return "52353"
+	}
+	raw := s.DnsListenAddr[i+1:]
+	// Atoi accepts "+1" and "-1"; the rule generator and the listener need
+	// the canonical decimal form of a bindable port.
+	for _, r := range raw {
+		if r < '0' || r > '9' {
+			return "52353"
 		}
 	}
-	return "52353"
+	port, err := strconv.Atoi(raw)
+	if err != nil || port < 1 || port > 65535 {
+		return "52353"
+	}
+	return strconv.Itoa(port)
 }
