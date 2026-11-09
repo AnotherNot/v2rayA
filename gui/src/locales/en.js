@@ -178,6 +178,7 @@ export default {
   },
   register: {
     title: "Create an admin account first",
+    passwordHint: "At least 12 characters; at most 72 bytes.",
     messages: [
       "Remember your admin account which is importantly used to login.",
       "Account information is stored in local. We never send information to any server.",

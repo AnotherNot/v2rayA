@@ -179,6 +179,7 @@ export default {
   },
   register: {
     title: "Crie primeiro uma conta de administrador",
+    passwordHint: "Pelo menos 12 caracteres; no máximo 72 bytes.",
     messages: [
       "Lembre-se da sua conta de administrador, necessária para entrar.",
       "As informações da conta são armazenadas localmente. Nunca enviamos informações para nenhum servidor.",
