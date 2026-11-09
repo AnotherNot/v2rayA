@@ -2,6 +2,7 @@ package dns
 
 import (
 	"fmt"
+	"net/netip"
 	"strings"
 )
 
@@ -17,6 +18,10 @@ const (
 	DefaultMinTTL = 60
 	// DefaultMaxTTL is the default maximum TTL in seconds.
 	DefaultMaxTTL = 86400
+	// MaxRateLimit is the highest per-client UDP/TCP query rate accepted in a
+	// configuration. It is a sanity bound, not a policy: a listener that
+	// answers faster than this is not a resolver.
+	MaxRateLimit = 100000
 )
 
 // DefaultDnsListenerConfig returns a DnsListenerConfig with default values.
@@ -57,7 +62,33 @@ func (c *DnsListenerConfig) Validate() error {
 	if c.Timeout <= 0 {
 		return fmt.Errorf("dns listener: timeout must be positive, got %d", c.Timeout)
 	}
+	if c.RateLimit < 0 || c.RateLimit > MaxRateLimit {
+		return fmt.Errorf("dns listener: rate limit must be between 0 and %d, got %d", MaxRateLimit, c.RateLimit)
+	}
+	for i, raw := range c.AllowedClients {
+		if _, err := ParseClientPrefix(raw); err != nil {
+			return fmt.Errorf("dns listener: allowed_clients[%d]: %w", i, err)
+		}
+	}
 	return nil
+}
+
+// ParseClientPrefix accepts an IP or a CIDR and returns the prefix it covers.
+// A bare address becomes a single-host prefix.
+func ParseClientPrefix(raw string) (netip.Prefix, error) {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return netip.Prefix{}, fmt.Errorf("empty address")
+	}
+	if prefix, err := netip.ParsePrefix(value); err == nil {
+		return prefix.Masked(), nil
+	}
+	addr, err := netip.ParseAddr(value)
+	if err != nil {
+		return netip.Prefix{}, fmt.Errorf("%q is not an IP address or CIDR", raw)
+	}
+	addr = addr.Unmap()
+	return netip.PrefixFrom(addr, addr.BitLen()), nil
 }
 
 // Validate checks the DnsModuleConfig and returns an error if any field is invalid.
