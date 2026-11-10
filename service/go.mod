@@ -20,7 +20,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/shirou/gopsutil/v3 v3.21.11
 	github.com/stevenroose/gonfig v0.1.5
-	github.com/tidwall/gjson v1.10.2
+	github.com/tidwall/gjson v1.20.0
 	github.com/v2fly/v2ray-core/v5 v5.7.0
 	github.com/v2rayA/RoutingA v1.0.2
 	github.com/v2rayA/beego/v2 v2.0.7
