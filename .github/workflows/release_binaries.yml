@@ -128,11 +128,15 @@ jobs:
           V2RAYA_CONFIG: ${{ runner.temp }}/v2raya-smoke
         run: |
           archive=$(ls dist/v2raya_*.tar.gz)
-          tar -tzf "$archive" | grep -qx './v2raya'
-          tar -tzf "$archive" | grep -qx './v2raya_core'
+          # grep -q would close the pipe early and tar would fail on SIGPIPE
+          # under the runner's `set -o pipefail`.
+          listing=$(tar -tzf "$archive")
+          grep -qx './v2raya' <<<"$listing"
+          grep -qx './v2raya_core' <<<"$listing"
           mkdir -p "$RUNNER_TEMP/unpacked"
           tar -xzf "$archive" -C "$RUNNER_TEMP/unpacked"
-          "$RUNNER_TEMP/unpacked/v2raya" --report config | grep -qx "Version: ${VERSION}"
+          report=$("$RUNNER_TEMP/unpacked/v2raya" --report config)
+          grep -qx "Version: ${VERSION}" <<<"$report"
           "$RUNNER_TEMP/unpacked/v2raya_core" --version
       - name: Upload the archive
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
