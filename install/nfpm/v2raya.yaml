@@ -3,7 +3,12 @@
 # and the rule data are staged in ./pkg beforehand, see
 # .github/workflows/_build_linux_packages.yml.
 #
-#   PACKAGE_ARCH=amd64 PACKAGE_VERSION=2.5.10 nfpm package -f install/nfpm/v2raya.yaml -p deb
+# The workflow renders the two references below with envsubst into nfpm.yaml
+# and packages that:
+#
+#   PACKAGE_ARCH=amd64 PACKAGE_VERSION=2.5.10 envsubst '${PACKAGE_ARCH} ${PACKAGE_VERSION}' \
+#     < install/nfpm/v2raya.yaml > nfpm.yaml
+#   nfpm package -f nfpm.yaml -p deb
 #
 # The rule data ships as regular files so that no distribution package for it
 # is needed; v2rayA reads /usr/share/v2raya before anywhere else.

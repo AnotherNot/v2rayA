@@ -22,7 +22,10 @@
 # the first start, so the image ships without them.
 
 # ---- web interface -------------------------------------------------------
-FROM node:24@sha256:8fa96264f302f58bbb13aa7339c541547b56975766ce956c875da149452a3e40 AS web
+# The interface is the same bytes for every target architecture. Building it
+# on the build host instead of under QEMU is what keeps the multi-arch push
+# from spending most of its time emulating Node.
+FROM --platform=$BUILDPLATFORM node:24@sha256:8fa96264f302f58bbb13aa7339c541547b56975766ce956c875da149452a3e40 AS web
 WORKDIR /repo/gui
 COPY gui/package.json gui/yarn.lock ./
 RUN corepack enable >/dev/null 2>&1; yarn install --frozen-lockfile
@@ -30,14 +33,21 @@ COPY gui/ ./
 RUN yarn build
 
 # ---- Go binaries ----------------------------------------------------------
-FROM golang:1.27@sha256:e519d3b0a5b285e5aa53ab9eef02bc6bbb9cb04608389b743a136a9ce75f0d1e AS go
+# Go cross-compiles with CGO disabled, so the compiler also runs on the build
+# host and only the target architecture changes.
+FROM --platform=$BUILDPLATFORM golang:1.27@sha256:e519d3b0a5b285e5aa53ab9eef02bc6bbb9cb04608389b743a136a9ce75f0d1e AS go
 ARG VERSION=dev
+ARG TARGETOS
+ARG TARGETARCH
 WORKDIR /repo
 COPY core/ ./core/
 COPY service/ ./service/
 COPY --from=web /repo/web ./web
 RUN mkdir -p service/server/router/web && cp -a web/. service/server/router/web/
+# BuildKit fills TARGETOS/TARGETARCH; a builder that does not leaves them
+# empty, and then the native toolchain target is the right one.
 RUN git config --global --add safe.directory /repo; \
+    if [ -n "$TARGETARCH" ]; then export GOOS="$TARGETOS" GOARCH="$TARGETARCH"; fi; \
     cd core && CGO_ENABLED=0 go build -buildvcs=false -trimpath \
       -o /out/v2raya_core -ldflags="-X main.Version=$VERSION -s -w" ./main && \
     cd ../service && CGO_ENABLED=0 go build -buildvcs=false -trimpath \

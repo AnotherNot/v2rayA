@@ -5,10 +5,13 @@ on:
     paths:
       - "gui/**"
       - ".github/workflows/gui-check.yml"
-  push:
-    branches: [main]
-    paths:
-      - "gui/**"
+
+concurrency:
+  group: gui-check-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   check:
