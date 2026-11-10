@@ -6,21 +6,21 @@ require (
 	github.com/adrg/xdg v0.4.0
 	github.com/beevik/ntp v0.3.0
 	github.com/cilium/ebpf v0.22.0
-	github.com/devfeel/mapper v0.7.5
+	github.com/devfeel/mapper v0.7.14
 	github.com/gin-contrib/cors v1.6.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-leo/slicex v1.0.14
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/gorilla/websocket v1.5.3
 	github.com/json-iterator/go v1.1.12
-	github.com/mattn/go-sqlite3 v1.14.22
+	github.com/mattn/go-sqlite3 v1.14.53
 	github.com/miekg/dns v1.1.72
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 	github.com/muhammadmuzzammil1998/jsonc v0.0.0-20201229145248-615b0916ca38
 	github.com/pkg/errors v0.9.1
 	github.com/shirou/gopsutil/v3 v3.21.11
 	github.com/stevenroose/gonfig v0.1.5
-	github.com/tidwall/gjson v1.10.2
+	github.com/tidwall/gjson v1.20.0
 	github.com/v2fly/v2ray-core/v5 v5.7.0
 	github.com/v2rayA/RoutingA v1.0.2
 	github.com/v2rayA/beego/v2 v2.0.7
@@ -30,9 +30,9 @@ require (
 	golang.org/x/crypto v0.58.0
 	golang.org/x/net v0.62.0
 	golang.org/x/sys v0.49.0
-	golang.zx2c4.com/wireguard/windows v1.0.1
-	google.golang.org/grpc v1.84.0
-	google.golang.org/protobuf v1.36.11
+	golang.zx2c4.com/wireguard/windows v1.1.1
+	google.golang.org/grpc v1.85.0
+	google.golang.org/protobuf v1.36.12
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.29.5
 )
@@ -85,7 +85,7 @@ require (
 	golang.org/x/sync v0.24.0
 	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/tools v0.51.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260706201446-f0a921348800 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260817212433-ac3dfec99bb1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	modernc.org/gc/v3 v3.0.0-20240107210532-573471604cb6 // indirect
 	modernc.org/libc v1.41.0 // indirect
