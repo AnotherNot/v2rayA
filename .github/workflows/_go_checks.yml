@@ -3,6 +3,9 @@ name: Go Checks (Reusable)
 on:
   workflow_call:
 
+permissions:
+  contents: read
+
 jobs:
   vet:
     runs-on: ubuntu-latest
