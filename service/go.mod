@@ -6,7 +6,7 @@ require (
 	github.com/adrg/xdg v0.4.0
 	github.com/beevik/ntp v0.3.0
 	github.com/cilium/ebpf v0.22.0
-	github.com/devfeel/mapper v0.7.5
+	github.com/devfeel/mapper v0.7.14
 	github.com/gin-contrib/cors v1.6.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-leo/slicex v1.0.14
