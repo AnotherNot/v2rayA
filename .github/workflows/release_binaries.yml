@@ -66,16 +66,16 @@ jobs:
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - name: Download Web Artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: web
           path: service/server/router/web
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           cache-dependency-path: |
             core/go.mod
@@ -111,7 +111,7 @@ jobs:
           (cd dist && for f in *; do sha256sum "$f" > "$f.sha256"; done)
           ls -l dist
       - name: Upload the artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: binaries-${{ matrix.friendly }}
           path: dist/*
@@ -120,6 +120,7 @@ jobs:
   image:
     needs: prepare
     runs-on: ubuntu-latest
+    environment: release
     # The Dockerfile compiles the interface and both Go binaries inside the
     # arm64 stage, under QEMU; that is the long part.
     timeout-minutes: 120
@@ -127,7 +128,7 @@ jobs:
       VERSION: ${{ needs.prepare.outputs.version }}
       TAG: ${{ inputs.tag }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       # Docker tags are lowercase, while the owner name is not.
@@ -135,12 +136,12 @@ jobs:
         shell: bash
         run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
       - name: Set up Docker Buildx
         id: buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -159,13 +160,15 @@ jobs:
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
       - name: Build and push the image
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           file: install/docker/Dockerfile
           builder: ${{ steps.buildx.outputs.name }}
           platforms: linux/amd64,linux/arm64
           push: true
+          provenance: true
+          sbom: true
           build-args: |
             VERSION=${{ env.VERSION }}
           tags: ${{ steps.tags.outputs.tags }}
@@ -179,15 +182,16 @@ jobs:
   release:
     needs: [prepare, build]
     runs-on: ubuntu-latest
+    environment: release
     timeout-minutes: 15
     env:
       TAG: ${{ inputs.tag }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - name: Download the artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           pattern: binaries-*
           path: dist

@@ -15,5 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: curl
+        env:
+          COPR_HOOK_URL: ${{ secrets.COPR_HOOK_URL }}
         run: |
-          curl -X POST ${{ secrets.COPR_HOOK_URL }}
+          curl -fsS -X POST "$COPR_HOOK_URL"

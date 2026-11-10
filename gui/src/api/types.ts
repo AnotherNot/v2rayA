@@ -63,23 +63,28 @@ export interface TouchResponse {
 /** GET /version */
 export interface VersionResponse {
   version: string;
-  foundNew: boolean;
-  remoteVersion: string;
-  serviceValid: boolean;
-  v5: boolean;
   /** 0 or 1: the backend sends its lite flag as a number */
   lite: number;
-  loadBalanceValid: boolean;
-  variant: string;
+  hasAccounts: boolean;
+  variant?: string;
+  os?: string;
+  /**
+   * The fields below answer "which privilege and which core does this host
+   * have"; an unauthenticated caller gets the small answer and they are
+   * absent until a session exists.
+   */
+  foundNew?: boolean;
+  remoteVersion?: string;
+  serviceValid?: boolean;
+  v5?: boolean;
+  loadBalanceValid?: boolean;
   /** the core binary's version; empty when it could not be asked */
   coreVersion?: string;
-  os: string;
-  isRoot: boolean;
-  tunSupported: boolean;
-  coreVersionValid: boolean;
-  coreVersionErr: string;
-  hasAccounts: boolean;
-  lastKernelExit: unknown;
+  isRoot?: boolean;
+  tunSupported?: boolean;
+  coreVersionValid?: boolean;
+  coreVersionErr?: string;
+  lastKernelExit?: unknown;
   docker?: boolean;
 }
 

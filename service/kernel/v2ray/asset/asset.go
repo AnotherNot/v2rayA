@@ -17,6 +17,7 @@ import (
 	"github.com/muhammadmuzzammil1998/jsonc"
 	"github.com/v2rayA/v2rayA/common"
 	"github.com/v2rayA/v2rayA/common/files"
+	"github.com/v2rayA/v2rayA/common/netguard"
 	"github.com/v2rayA/v2rayA/common/redact"
 	"github.com/v2rayA/v2rayA/conf"
 	"github.com/v2rayA/v2rayA/pkg/util/log"
@@ -268,7 +269,7 @@ func DownloadWithClient(c *http.Client, url string, to string) error {
 		clone.Timeout = 90 * time.Second
 		c = clone
 	}
-	return download(c, url, to)
+	return download(netguard.WrapClient(c), url, to)
 }
 
 func download(c *http.Client, url string, to string) (err error) {
