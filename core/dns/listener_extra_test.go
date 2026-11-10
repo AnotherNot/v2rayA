@@ -88,10 +88,10 @@ func TestPrimaryBindFailureAborts(t *testing.T) {
 	}
 }
 
-// Stop is idempotent and quiet: shutting down never-started servers must not
-// surface "server not started" as an error. The query first waits out the
-// goroutine scheduling: miekg marks a server started inside ActivateAndServe,
-// and stopping before that is a race with its internals, not our code.
+// Stop is idempotent and quiet: shutting down what is not running must not
+// surface "server not started" as an error. The query keeps the first Stop
+// honest - it reaches servers that are serving, not servers whose goroutines
+// have not been scheduled yet.
 func TestStopIsQuiet(t *testing.T) {
 	l := NewDnsListener(&DnsListenerConfig{ListenAddr: "127.0.0.1:0", Timeout: 5}, stubHandler{})
 	if err := l.Start(); err != nil {

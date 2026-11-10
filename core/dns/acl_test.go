@@ -164,30 +164,22 @@ func TestListenerConfigValidatesACLAndRateLimit(t *testing.T) {
 }
 
 // The UDP path is the one an open resolver exposes to the network; this test
-// checks that the ACL check does not stop an ordinary loopback query.
+// checks that the ACL check does not stop an ordinary loopback query. It goes
+// through Start and Stop so that teardown exercises the same lifecycle as the
+// module, not a bare Shutdown that hides a listener which never started.
 func TestListenerAnswersLoopbackOverUDP(t *testing.T) {
 	handler := &countingHandler{}
-	listener := &DnsListener{
-		config:  &DnsListenerConfig{ListenAddr: "127.0.0.1:0", Timeout: 1},
-		handler: handler,
-		ctx:     context.Background(),
-	}
-	allowed, err := allowedClientPrefixes(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	listener.allowed = allowed
-	pair, err := listener.startPair("127.0.0.1:0")
-	if err != nil {
+	listener := NewDnsListener(&DnsListenerConfig{ListenAddr: "127.0.0.1:0", Timeout: 1}, handler)
+	if err := listener.Start(); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		_ = pair.udp.Shutdown()
-		_ = pair.tcp.Shutdown()
-		listener.wg.Wait()
+		if err := listener.Stop(); err != nil {
+			t.Errorf("Stop: %v", err)
+		}
 	}()
 
-	addr := pair.udp.PacketConn.LocalAddr().String()
+	addr := listener.servers[0].udp.PacketConn.LocalAddr().String()
 	client := &dns.Client{Net: "udp", Timeout: time.Second}
 	query := new(dns.Msg)
 	query.SetQuestion("example.com.", dns.TypeA)
