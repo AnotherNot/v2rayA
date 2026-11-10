@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -99,10 +100,12 @@ func (w *fakeResponseWriter) TsigStatus() error         { return nil }
 func (w *fakeResponseWriter) TsigTimersOnly(bool)       {}
 func (w *fakeResponseWriter) Hijack()                   {}
 
-type countingHandler struct{ calls int }
+// countingHandler is called from the server goroutine, so its counter is
+// atomic: the client receiving a response is not a happens-before edge.
+type countingHandler struct{ calls atomic.Int64 }
 
 func (h *countingHandler) HandleQuery(context.Context, *DnsQuery) (*DnsResponse, error) {
-	h.calls++
+	h.calls.Add(1)
 	return &DnsResponse{Rcode: dns.RcodeSuccess}, nil
 }
 
@@ -119,8 +122,8 @@ func TestHandlePacketRefusesClientOutsideACL(t *testing.T) {
 
 	refused := &fakeResponseWriter{remote: &net.UDPAddr{IP: net.IPv4(192, 168, 1, 5), Port: 4444}}
 	listener.handlePacket(refused, query)
-	if handler.calls != 0 {
-		t.Fatalf("handler ran %d times for a refused client", handler.calls)
+	if got := handler.calls.Load(); got != 0 {
+		t.Fatalf("handler ran %d times for a refused client", got)
 	}
 	if refused.msg == nil || refused.msg.Rcode != dns.RcodeRefused {
 		t.Fatalf("refused response = %v, want REFUSED", refused.msg)
@@ -128,8 +131,8 @@ func TestHandlePacketRefusesClientOutsideACL(t *testing.T) {
 
 	allowed := &fakeResponseWriter{remote: &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 4444}}
 	listener.handlePacket(allowed, query)
-	if handler.calls != 1 {
-		t.Fatalf("handler ran %d times for loopback, want 1", handler.calls)
+	if got := handler.calls.Load(); got != 1 {
+		t.Fatalf("handler ran %d times for loopback, want 1", got)
 	}
 	if allowed.msg == nil || allowed.msg.Rcode != dns.RcodeSuccess {
 		t.Fatalf("allowed response = %v, want the handler's answer", allowed.msg)
@@ -190,7 +193,7 @@ func TestListenerAnswersLoopbackOverUDP(t *testing.T) {
 	if resp.Rcode != dns.RcodeSuccess {
 		t.Fatalf("rcode = %s, want NOERROR", dns.RcodeToString[resp.Rcode])
 	}
-	if handler.calls != 1 {
-		t.Fatalf("handler ran %d times, want 1", handler.calls)
+	if got := handler.calls.Load(); got != 1 {
+		t.Fatalf("handler ran %d times, want 1", got)
 	}
 }
