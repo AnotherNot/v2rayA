@@ -21,7 +21,7 @@ declare module "urijs" {
   export default function URI(): URI;
 }
 
-// qrcode ships no types; the two calls the sharing dialog makes.
+// qrcode ships no types; the calls the sharing dialog and the e2e fixture make.
 declare module "qrcode" {
   const QRCode: {
     toCanvas(
@@ -30,15 +30,37 @@ declare module "qrcode" {
       options: { errorCorrectionLevel?: string; width?: number },
       callback: (error: Error | null | undefined) => void,
     ): void;
+    toDataURL(
+      text: string,
+      options?: {
+        errorCorrectionLevel?: string;
+        margin?: number;
+        width?: number;
+      },
+    ): Promise<string>;
   };
   export default QRCode;
 }
 
-// @nuintun/qrcode has types its package exports do not expose.
+// @nuintun/qrcode ships JavaScript without declarations; these are the v5
+// decoder entry points the import dialog calls.
 declare module "@nuintun/qrcode" {
-  export class Decoder {
-    scan(dataUrl: string): Promise<{ data: string }>;
+  export class BitMatrix {
+    get width(): number;
+    get height(): number;
   }
+  export class Decoder {
+    decode(matrix: BitMatrix): { content: string };
+  }
+  export class Detector {
+    detect(matrix: BitMatrix): Generator<{ matrix: BitMatrix }, void, boolean>;
+  }
+  export function grayscale(imageData: ImageData): Uint8Array;
+  export function binarize(
+    luminances: Uint8Array,
+    width: number,
+    height: number,
+  ): BitMatrix;
 }
 
 // highlight.js types its core but not the per-language modules
