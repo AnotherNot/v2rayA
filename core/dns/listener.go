@@ -6,7 +6,6 @@ import (
 	"log"
 	"net"
 	"net/netip"
-	"strings"
 	"sync"
 	"time"
 
@@ -96,7 +95,14 @@ func (l *DnsListener) Start() error {
 	return nil
 }
 
-// startPair starts UDP and TCP listeners for a single address.
+// startWaitTimeout bounds the wait for the bound sockets to report started.
+// The sockets are already bound, so only a stalled scheduler can exhaust it.
+const startWaitTimeout = 5 * time.Second
+
+// startPair starts UDP and TCP listeners for a single address. It returns once
+// both are serving. miekg/dns marks a server started inside ActivateAndServe,
+// so a Start that returned earlier would let Stop miss a server that has not
+// started yet and then wait forever for the goroutine that starts it later.
 func (l *DnsListener) startPair(addr string) (*serverPair, error) {
 	timeout := time.Duration(l.config.Timeout) * time.Second
 
@@ -104,14 +110,16 @@ func (l *DnsListener) startPair(addr string) (*serverPair, error) {
 	if err != nil {
 		return nil, fmt.Errorf("listen udp: %w", err)
 	}
+	udpStarted := make(chan struct{})
 	udpSrv := &dns.Server{
-		Addr:         addr,
-		Net:          "udp",
-		PacketConn:   udpConn,
-		Handler:      dns.HandlerFunc(l.handlePacket),
-		UDPSize:      1452,
-		ReadTimeout:  timeout,
-		WriteTimeout: timeout,
+		Addr:              addr,
+		Net:               "udp",
+		PacketConn:        udpConn,
+		Handler:           dns.HandlerFunc(l.handlePacket),
+		UDPSize:           1452,
+		ReadTimeout:       timeout,
+		WriteTimeout:      timeout,
+		NotifyStartedFunc: func() { close(udpStarted) },
 	}
 
 	tcpListener, err := net.Listen("tcp", addr)
@@ -119,39 +127,71 @@ func (l *DnsListener) startPair(addr string) (*serverPair, error) {
 		_ = udpConn.Close()
 		return nil, fmt.Errorf("listen tcp: %w", err)
 	}
+	tcpStarted := make(chan struct{})
 	tcpSrv := &dns.Server{
-		Addr:         addr,
-		Net:          "tcp",
-		Listener:     tcpListener,
-		Handler:      dns.HandlerFunc(l.handlePacket),
-		ReadTimeout:  timeout,
-		WriteTimeout: timeout,
+		Addr:              addr,
+		Net:               "tcp",
+		Listener:          tcpListener,
+		Handler:           dns.HandlerFunc(l.handlePacket),
+		ReadTimeout:       timeout,
+		WriteTimeout:      timeout,
+		NotifyStartedFunc: func() { close(tcpStarted) },
 	}
 
-	l.wg.Add(1)
+	serveErr := make(chan error, 2)
+	l.wg.Add(2)
 	go func() {
 		defer l.wg.Done()
 		log.Printf("[dns] UDP listener starting on %s", addr)
 		if err := udpSrv.ActivateAndServe(); err != nil {
 			log.Printf("[dns] UDP listener stopped: %v", err)
+			serveErr <- fmt.Errorf("udp: %w", err)
 		}
 	}()
-
-	l.wg.Add(1)
 	go func() {
 		defer l.wg.Done()
 		log.Printf("[dns] TCP listener starting on %s", addr)
 		if err := tcpSrv.ActivateAndServe(); err != nil {
 			log.Printf("[dns] TCP listener stopped: %v", err)
+			serveErr <- fmt.Errorf("tcp: %w", err)
 		}
 	}()
+
+	if err := waitStarted(udpStarted, tcpStarted, serveErr); err != nil {
+		// The sockets are still ours: closing them unblocks a server that did
+		// start, so its goroutine ends and Stop is not left waiting for a
+		// listener no Shutdown call can reach.
+		_ = udpConn.Close()
+		_ = tcpListener.Close()
+		return nil, err
+	}
 
 	return &serverPair{udp: udpSrv, tcp: tcpSrv}, nil
 }
 
-// Stop gracefully shuts down all listeners. A pair that never finished
-// starting reports "server not started"; that is the normal residue of a
-// failed bind, not an error worth logging.
+// waitStarted blocks until both servers report that they are serving, one of
+// them returns an error, or the start deadline expires.
+func waitStarted(udp, tcp <-chan struct{}, serveErr <-chan error) error {
+	timer := time.NewTimer(startWaitTimeout)
+	defer timer.Stop()
+	for udp != nil || tcp != nil {
+		select {
+		case <-udp:
+			udp = nil
+		case <-tcp:
+			tcp = nil
+		case err := <-serveErr:
+			return fmt.Errorf("start listener: %w", err)
+		case <-timer.C:
+			return fmt.Errorf("listener did not start within %s", startWaitTimeout)
+		}
+	}
+	return nil
+}
+
+// Stop gracefully shuts down all listeners. Every pair in l.servers comes from
+// a startPair that waited for both servers, so Shutdown always finds a started
+// server to close and wg.Wait is not left behind by one that starts later.
 func (l *DnsListener) Stop() error {
 	if l.cancel != nil {
 		l.cancel()
@@ -160,13 +200,13 @@ func (l *DnsListener) Stop() error {
 	var lastErr error
 	for _, pair := range l.servers {
 		if pair.udp != nil {
-			if err := pair.udp.Shutdown(); err != nil && !isNotStarted(err) {
+			if err := pair.udp.Shutdown(); err != nil {
 				log.Printf("[dns] UDP shutdown error: %v", err)
 				lastErr = err
 			}
 		}
 		if pair.tcp != nil {
-			if err := pair.tcp.Shutdown(); err != nil && !isNotStarted(err) {
+			if err := pair.tcp.Shutdown(); err != nil {
 				log.Printf("[dns] TCP shutdown error: %v", err)
 				lastErr = err
 			}
@@ -346,12 +386,6 @@ func dropSigs(rrs []dns.RR) []dns.RR {
 		}
 	}
 	return out
-}
-
-// isNotStarted reports the miekg/dns shutdown error of a server that never
-// finished starting. Callers see it after a failed bind; it carries no signal.
-func isNotStarted(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "server not started")
 }
 
 var defaultAllowedClients = []netip.Prefix{
