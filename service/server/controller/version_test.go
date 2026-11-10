@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/v2rayA/v2rayA/common"
+	"github.com/v2rayA/v2rayA/pkg/server/jwt"
 )
 
 func TestGetSettingReportsGFWListAndGeoSiteVersionsSeparately(t *testing.T) {
@@ -50,10 +51,45 @@ func TestGetSettingReportsGFWListAndGeoSiteVersionsSeparately(t *testing.T) {
 	}
 }
 
-func TestGetVersionIncludesDockerFlag(t *testing.T) {
+func TestGetVersionHidesHostFactsWithoutASession(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(recorder)
 	ctx.Request = httptest.NewRequest(http.MethodGet, "/version", nil)
+	GetVersion(ctx)
+	var response struct {
+		Data map[string]interface{} `json:"data"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"isRoot", "tunSupported", "docker", "coreVersion"} {
+		if _, ok := response.Data[key]; ok {
+			t.Errorf("%s was returned without a session", key)
+		}
+	}
+	for _, key := range []string{"version", "lite", "hasAccounts"} {
+		if _, ok := response.Data[key]; !ok {
+			t.Errorf("%s is missing from the minimal answer", key)
+		}
+	}
+}
+
+func TestGetVersionIncludesDockerFlagWithASession(t *testing.T) {
+	sessionID, _, err := jwt.CreateSession("version-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer jwt.RevokeSession(sessionID)
+	ttl := jwt.AccessTTL
+	token, err := jwt.MakeJWT(map[string]string{"uname": "version-test", "jti": sessionID}, &ttl)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/version", nil)
+	ctx.Request.Header.Set("Authorization", "Bearer "+token)
 	GetVersion(ctx)
 	var response struct {
 		Data struct {

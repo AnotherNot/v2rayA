@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/v2rayA/v2rayA/common/cmds"
 	"github.com/v2rayA/v2rayA/kernel/v2ray/asset"
+	"github.com/v2rayA/v2rayA/pkg/util/log"
 )
 
 var (
@@ -36,30 +36,31 @@ func init() {
 }
 
 func (t *legacyTproxy) AddIPWhitelist(cidr string) {
+	cidr, ok := normalizeCIDR(cidr)
+	if !ok {
+		log.Warn("tproxy: refusing invalid whitelist CIDR %q", cidr)
+		return
+	}
 	// avoid duplication
 	t.RemoveIPWhitelist(cidr)
 	pos := 7
 	if notSkip, _ := strconv.ParseBool(TproxyNotSkipBr); notSkip {
 		pos--
 	}
-
-	var commands string
-	commands = fmt.Sprintf(`iptables -w 2 -t mangle -I TP_RULE %v -d %s -j RETURN`, pos, cidr)
-	if !strings.Contains(cidr, ".") {
-		//ipv6
-		commands = strings.Replace(commands, "iptables", "ip6tables", 1)
-	}
-	cmds.ExecCommands(commands, false)
+	runIPWhitelist(strings.Contains(cidr, ":"), []string{
+		"-w", "2", "-t", "mangle", "-I", "TP_RULE", strconv.Itoa(pos), "-d", cidr, "-j", "RETURN",
+	})
 }
 
 func (t *legacyTproxy) RemoveIPWhitelist(cidr string) {
-	var commands string
-	commands = fmt.Sprintf(`iptables -w 2 -t mangle -D TP_RULE -d %s -j RETURN`, cidr)
-	if !strings.Contains(cidr, ".") {
-		//ipv6
-		commands = strings.Replace(commands, "iptables", "ip6tables", 1)
+	cidr, ok := normalizeCIDR(cidr)
+	if !ok {
+		log.Warn("tproxy: refusing invalid whitelist CIDR %q", cidr)
+		return
 	}
-	cmds.ExecCommands(commands, false)
+	runIPWhitelist(strings.Contains(cidr, ":"), []string{
+		"-w", "2", "-t", "mangle", "-D", "TP_RULE", "-d", cidr, "-j", "RETURN",
+	})
 }
 
 func (t *legacyTproxy) GetSetupCommands(dnsHijack bool) Setter {
@@ -219,19 +220,21 @@ ipset destroy v2raya_white6 2>/dev/null || true
 }
 
 func (t *nftTproxy) AddIPWhitelist(cidr string) {
-	command := fmt.Sprintf("nft add element inet v2raya local_ips { %s }", cidr)
-	if !strings.Contains(cidr, ".") {
-		command = strings.Replace(command, "local_ips", "local_ips6", 1)
+	cidr, ok := normalizeCIDR(cidr)
+	if !ok {
+		log.Warn("tproxy: refusing invalid whitelist CIDR %q", cidr)
+		return
 	}
-	cmds.ExecCommands(command, false)
+	runNftWhitelist([]string{"add", "element", "inet", "v2raya", nftSetFor(cidr), "{", cidr, "}"})
 }
 
 func (t *nftTproxy) RemoveIPWhitelist(cidr string) {
-	command := fmt.Sprintf("nft delete element inet v2raya local_ips { %s }", cidr)
-	if !strings.Contains(cidr, ".") {
-		command = strings.Replace(command, "local_ips", "local_ips6", 1)
+	cidr, ok := normalizeCIDR(cidr)
+	if !ok {
+		log.Warn("tproxy: refusing invalid whitelist CIDR %q", cidr)
+		return
 	}
-	cmds.ExecCommands(command, false)
+	runNftWhitelist([]string{"delete", "element", "inet", "v2raya", nftSetFor(cidr), "{", cidr, "}"})
 }
 
 func (t *nftTproxy) GetSetupCommands(dnsHijack bool) Setter {

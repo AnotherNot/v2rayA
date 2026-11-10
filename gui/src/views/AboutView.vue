@@ -38,7 +38,7 @@ const repo = "https://github.com/AnotherNot/v2rayA";
           variant="tonal"
           :href="repo"
           target="_blank"
-          rel="noreferrer"
+          rel="noopener noreferrer"
           :prepend-icon="mdiGithub"
           >GitHub</v-btn
         >
@@ -46,7 +46,7 @@ const repo = "https://github.com/AnotherNot/v2rayA";
           variant="tonal"
           href="https://github.com/v2rayA/v2rayA"
           target="_blank"
-          rel="noreferrer"
+          rel="noopener noreferrer"
           :prepend-icon="mdiSourceFork"
           >{{ t("about.upstream") }}</v-btn
         >
@@ -60,7 +60,7 @@ const repo = "https://github.com/AnotherNot/v2rayA";
           variant="tonal"
           :href="`${repo}/discussions`"
           target="_blank"
-          rel="noreferrer"
+          rel="noopener noreferrer"
           :prepend-icon="mdiForumOutline"
           >{{ t("about.discussions") }}</v-btn
         >

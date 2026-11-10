@@ -1,10 +1,18 @@
-FROM alpine:latest AS builder
+# Image used by the GitHub Action. The binaries come from a published
+# release, so the build requires its version and verifies every downloaded
+# binary against the release's SHA-256 sidecar. There is no "latest" path:
+# an image built from a moving tag is not reproducible.
+FROM alpine:latest@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf AS builder
+ARG V2RAYA_VERSION
+ARG V2RAYA_REPO=AnotherNot/v2rayA
 WORKDIR /
 COPY ./install/docker/docker_helper.sh ./docker_helper.sh
 COPY ./install/docker/iptables.sh ./iptables.sh
 COPY ./install/docker/ip6tables.sh ./ip6tables.sh
-RUN sh -c "$(cat ./docker_helper.sh)"
-RUN rm ./docker_helper.sh
+RUN V2RAYA_VERSION="$V2RAYA_VERSION" V2RAYA_REPO="$V2RAYA_REPO" sh -c 'test -n "$V2RAYA_VERSION" && test "$V2RAYA_VERSION" != latest' \
+    && V2RAYA_VERSION="$V2RAYA_VERSION" V2RAYA_REPO="$V2RAYA_REPO" sh ./docker_helper.sh \
+    && rm ./docker_helper.sh
 EXPOSE 2017
 VOLUME /etc/v2raya
 ENTRYPOINT ["v2raya"]
+CMD ["--address", "0.0.0.0:2017"]

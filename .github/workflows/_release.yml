@@ -12,6 +12,9 @@ on:
       publish_downstream:
         type: boolean
         required: true
+    secrets:
+      RELEASE_PAT:
+        required: false
 
 jobs:
   Build_v2rayA_Web:
@@ -26,10 +29,12 @@ jobs:
     steps:
       - name: Compute Version
         id: prep
+        env:
+          TAG: ${{ inputs.tag }}
         run: |
-          tag=${{ inputs.tag }}
-          version=$(echo $tag | sed 's/v//g')
-          echo "VERSION=$version" >> $GITHUB_OUTPUT
+          tag="$TAG"
+          version="${tag#v}"
+          echo "VERSION=$version" >> "$GITHUB_OUTPUT"
 
   Build_v2rayA_Binaries:
     needs: [Build_v2rayA_Web, Compute_Version]
@@ -51,22 +56,23 @@ jobs:
 
   GitHub_Release:
     runs-on: ubuntu-latest
+    environment: release
     needs: [Build_v2rayA_Binaries, Build_Windows_Installers, Build_Linux_Packages]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - name: Check Version
         id: prep
         env:
-          REF: ${{ inputs.tag }}
+          TAG: ${{ inputs.tag }}
         run: |
-          tag=${{ inputs.tag }}
-          version=$(echo $tag | sed 's/v//g')
-          echo "VERSION=$version" >> $GITHUB_OUTPUT
-          echo "VERSION=$version" >> $GITHUB_ENV
+          tag="$TAG"
+          version="${tag#v}"
+          echo "VERSION=$version" >> "$GITHUB_OUTPUT"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
       - name: Download Artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           path: builds/
       - name: Move Files to Release Directory
@@ -91,40 +97,47 @@ jobs:
       - name: Upload Release
         env:
           GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          VERSION: ${{ steps.prep.outputs.VERSION }}
+          PRERELEASE: ${{ inputs.prerelease }}
         run: |
-          Latest_Releases=$(curl -s -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r '.tag_name')
-          Latest_tag=v${{ steps.prep.outputs.VERSION }}
+          Latest_Releases=$(curl -s -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/$REPOSITORY/releases/latest" | jq -r '.tag_name')
+          Latest_tag="v$VERSION"
           if [ "$Latest_Releases" != "$Latest_tag" ]; then
             prerelease=()
-            if [ "${{ inputs.prerelease }}" = "true" ]; then
+            if [ "$PRERELEASE" = "true" ]; then
               prerelease+=(--prerelease)
             fi
-            gh release create "v${{ steps.prep.outputs.VERSION }}" -t "v${{ steps.prep.outputs.VERSION }}" --generate-notes "${prerelease[@]}"
+            gh release create "v$VERSION" -t "v$VERSION" --generate-notes "${prerelease[@]}"
           fi
-          gh release upload "v${{ steps.prep.outputs.VERSION }}" release/*
+          gh release upload "v$VERSION" release/*
 
   Release_v2rayA_to_Docker:
     if: inputs.publish_downstream
     runs-on: ubuntu-latest
+    environment: release
     needs: [GitHub_Release]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - name: Check Version
         id: prep
+        env:
+          TAG: ${{ inputs.tag }}
         run: |
-          tag=${{ inputs.tag }}
-          version=$(echo $tag | sed 's/v//g')
-          echo "VERSION=$version" >> $GITHUB_OUTPUT
-          echo "VERSION=$version" >> $GITHUB_ENV
-          echo tag=${{ inputs.tag }} >> $GITHUB_OUTPUT
+          tag="$TAG"
+          version="${tag#v}"
+          echo "VERSION=$version" >> "$GITHUB_OUTPUT"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        id: buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
       - name: Login to GitHub container registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -133,13 +146,15 @@ jobs:
         run: |
           echo "LOWERCASE_REPOSITORY_OWNER=${GITHUB_REPOSITORY_OWNER@L}" >>${GITHUB_ENV}
       - name: Build and push
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           builder: ${{ steps.buildx.outputs.name }}
           file: install/docker/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
+          provenance: true
+          sbom: true
           build-args: |
             VERSION=${{ steps.prep.outputs.VERSION }}
           tags: |
@@ -151,31 +166,33 @@ jobs:
   Release_v2rayA_GUI_to_Docker:
     if: inputs.publish_downstream
     runs-on: ubuntu-latest
+    environment: release
     needs: [Build_v2rayA_Web]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - name: Check Version
         id: prep
         env:
-          REF: ${{ inputs.tag }}
+          TAG: ${{ inputs.tag }}
         run: |
-          tag=${{ inputs.tag }}
-          version=$(echo $tag | sed 's/v//g')
-          echo "VERSION=$version" >> $GITHUB_OUTPUT
-          echo "VERSION=$version" >> $GITHUB_ENV
+          tag="$TAG"
+          version="${tag#v}"
+          echo "VERSION=$version" >> "$GITHUB_OUTPUT"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
       - name: Download Web Files
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: web
           path: web
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        id: buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
       - name: Login to GitHub container registry
-        uses: docker/login-action@v4
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -184,13 +201,15 @@ jobs:
         run: |
           echo "LOWERCASE_REPOSITORY_OWNER=${GITHUB_REPOSITORY_OWNER@L}" >>${GITHUB_ENV}
       - name: Build and push
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           builder: ${{ steps.buildx.outputs.name }}
           file: install/docker/Dockerfile.GUI.Action
           platforms: linux/amd64,linux/arm64
           push: true
+          provenance: true
+          sbom: true
           tags: |
             ghcr.io/${{ env.LOWERCASE_REPOSITORY_OWNER }}/v2raya-gui:latest
           cache-from: type=gha
@@ -199,56 +218,62 @@ jobs:
   Submit_to_Microsoft_winget:
     if: inputs.publish_downstream
     runs-on: windows-latest
+    environment: release
     needs: [GitHub_Release]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - name: Check Version
         id: prep
         shell: bash
         env:
-          REF: ${{ inputs.tag }}
+          TAG: ${{ inputs.tag }}
         run: |
-          tag=${{ inputs.tag }}
-          version=$(echo $tag | sed 's/v//g')
-          echo "VERSION=$version" >> $GITHUB_OUTPUT
-          echo "VERSION=$version" >> $GITHUB_ENV
+          tag="$TAG"
+          version="${tag#v}"
+          echo "VERSION=$version" >> "$GITHUB_OUTPUT"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
       - name: Submit to Microsoft winget
         shell: pwsh
         env:
           RELEASE_PAT: ${{ secrets.RELEASE_PAT }}
+          REPOSITORY: ${{ github.repository }}
+          VERSION: ${{ steps.prep.outputs.VERSION }}
         run: |
           iwr https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
-          $Installer_x64_url = "https://github.com/${{ github.repository }}/releases/download/v${{ steps.prep.outputs.VERSION }}/installer_windows_inno_x64_${{ steps.prep.outputs.VERSION }}.exe"
-          $Installer_ARM64_url = "https://github.com/${{ github.repository }}/releases/download/v${{ steps.prep.outputs.VERSION }}/installer_windows_inno_arm64_${{ steps.prep.outputs.VERSION }}.exe"
+          $Installer_x64_url = "https://github.com/$env:REPOSITORY/releases/download/v$env:VERSION/installer_windows_inno_x64_$env:VERSION.exe"
+          $Installer_ARM64_url = "https://github.com/$env:REPOSITORY/releases/download/v$env:VERSION/installer_windows_inno_arm64_$env:VERSION.exe"
           # update submits a version bump for the fork's own package id; the
           # very first release has no manifest yet, so fall back to creating
           # it.
-          ./wingetcreate.exe update AnotherNot.v2rayA --urls $Installer_x64_url $Installer_ARM64_url --version ${{ steps.prep.outputs.VERSION }} --token $env:RELEASE_PAT --submit
+          ./wingetcreate.exe update AnotherNot.v2rayA --urls $Installer_x64_url $Installer_ARM64_url --version $env:VERSION --token $env:RELEASE_PAT --submit
           if ($LASTEXITCODE -ne 0) {
             ./wingetcreate.exe new $Installer_x64_url $Installer_ARM64_url `
               --package-identifier AnotherNot.v2rayA `
               --package-name "v2rayA" --publisher "AnotherNot" `
-              --package-url "https://github.com/${{ github.repository }}" `
+              --package-url "https://github.com/$env:REPOSITORY" `
               --license "GPL-3.0-only" `
               --description "A web client for its own Xray-based core with global transparent proxy." `
-              --version ${{ steps.prep.outputs.VERSION }} `
+              --version $env:VERSION `
               --token $env:RELEASE_PAT --submit
           }
 
   Release_to_Scoop:
     if: inputs.publish_downstream
     runs-on: ubuntu-latest
+    environment: release
     needs: [GitHub_Release]
     steps:
       - name: Check Version
         id: prep
+        env:
+          TAG: ${{ inputs.tag }}
         run: |
-          version=$(echo '${{ inputs.tag }}' | sed 's/v//g')
-          echo "VERSION=$version" >> $GITHUB_OUTPUT
+          version="${TAG#v}"
+          echo "VERSION=$version" >> "$GITHUB_OUTPUT"
       - name: Download Windows installers
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           pattern: installer_windows_inno_*_${{ steps.prep.outputs.VERSION }}.exe
           merge-multiple: true
@@ -256,8 +281,9 @@ jobs:
       - name: Push the manifest to the bucket
         env:
           RELEASE_PAT: ${{ secrets.RELEASE_PAT }}
+          VERSION: ${{ steps.prep.outputs.VERSION }}
         run: |
-          version=${{ steps.prep.outputs.VERSION }}
+          version="$VERSION"
           x64_hash=$(sha256sum installers/installer_windows_inno_x64_${version}.exe | awk '{print $1}')
           arm64_hash=$(sha256sum installers/installer_windows_inno_arm64_${version}.exe | awk '{print $1}')
           rm -rf bucket && git clone "https://x-access-token:${RELEASE_PAT}@github.com/AnotherNot/scoop-v2raya.git" bucket

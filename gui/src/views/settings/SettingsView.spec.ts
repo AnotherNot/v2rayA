@@ -31,6 +31,8 @@ const loaded: Setting = {
   transparentType: "tproxy",
   ipforward: true,
   portSharing: false,
+  portSharingUsername: "",
+  portSharingPassword: "",
   tproxyExcludedInterfaces: "docker*,veth*",
   tunAutoRoute: true,
   tunRouteShellType: "bash",

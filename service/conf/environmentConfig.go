@@ -11,6 +11,7 @@ import (
 	"github.com/stevenroose/gonfig"
 	"github.com/v2rayA/v2rayA/common"
 	"github.com/v2rayA/v2rayA/common/fileperm"
+	"github.com/v2rayA/v2rayA/common/netguard"
 	"github.com/v2rayA/v2rayA/pkg/util/log"
 	"github.com/v2rayA/v2rayA/pkg/util/privilege"
 )
@@ -21,6 +22,7 @@ type Params struct {
 	SocketGroup          string `id:"socket-group" desc:"Group allowed to use the unix socket. Empty keeps it owner-only (0600)."`
 	CorsOrigins          string `id:"cors-origin" desc:"Comma-separated origins allowed to call the API cross-origin. Empty allows the serving origin only."`
 	AllowedHosts         string `id:"allowed-host" desc:"Comma-separated host names allowed in the Host header. Local addresses and localhost are always accepted."`
+	AllowPrivateFetch    bool   `id:"allow-private-fetch" desc:"Allow subscriptions and rule sources to fetch loopback, private, link-local and other non-public addresses. Off by default to stop a provider redirecting a fetch into the host's network."`
 	BaseUrl              string `id:"baseurl" default:"/" desc:"Base URL path prefix"`
 	V2rayBin             string `id:"v2ray-bin" short:"b" desc:"Executable v2ray binary path. Auto-detect if put it empty."`
 	Config               string `id:"config" short:"c" desc:"v2rayA configuration directory"`
@@ -67,6 +69,7 @@ func initFunc() {
 			log2.Fatal(err)
 		}
 	}
+	netguard.SetAllowPrivate(params.AllowPrivateFetch)
 	if params.BaseUrl == "" {
 		params.BaseUrl = "/"
 	} else {

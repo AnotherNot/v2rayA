@@ -122,7 +122,7 @@ func ImportDnsSource(url string) (DnsSource, error) {
 	}
 	if err := validateDnsRules(rules); err != nil {
 		return out, common.Coded("DNS_RULES_INCOMPATIBLE", err, map[string]interface{}{
-			"url":    url,
+			"url":    redact.URL(url),
 			"detail": err.Error(),
 		})
 	}
