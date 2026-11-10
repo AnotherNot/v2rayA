@@ -15,6 +15,7 @@ import (
 
 	"github.com/v2rayA/v2rayA/common"
 	"github.com/v2rayA/v2rayA/conf"
+	"github.com/v2rayA/v2rayA/pkg/util/privilege"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -124,6 +125,9 @@ func GetV2rayBinPath() (string, error) {
 	if v2rayBinPath == "" {
 		return getV2rayBinPathAnyway()
 	}
+	if err := safeExecutablePath(v2rayBinPath); err != nil {
+		return "", err
+	}
 	return v2rayBinPath, nil
 }
 
@@ -144,12 +148,50 @@ func getV2rayBinPath(target string) (string, error) {
 	if exe, err := os.Executable(); err == nil {
 		pa := filepath.Join(filepath.Dir(exe), target)
 		if _, err := os.Stat(pa); err == nil {
+			if err := safeExecutablePath(pa); err != nil {
+				return "", err
+			}
 			return pa, nil
 		}
 	}
 	// 再从 PATH 环境变量里查找
 	if pa, err := exec.LookPath(target); err == nil {
+		if err := safeExecutablePath(pa); err != nil {
+			return "", err
+		}
 		return pa, nil
 	}
 	return "", NotFoundErr
+}
+
+// safeExecutablePath refuses a core binary or a parent directory that a
+// non-root local user can replace. Running v2rayA as root from a checkout in
+// a user-writable directory is otherwise a path-hijack: the next start runs
+// the user's file as root.
+func safeExecutablePath(path string) error {
+	if !privilege.IsRootOrAdmin() {
+		return nil
+	}
+	absolute, err := filepath.Abs(path)
+	if err != nil {
+		return err
+	}
+	info, err := os.Stat(absolute)
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("refusing v2raya core %q: not a regular file", absolute)
+	}
+	if info.Mode().Perm()&0o022 != 0 {
+		return fmt.Errorf("refusing v2raya core %q: group or world writable", absolute)
+	}
+	dir, err := os.Stat(filepath.Dir(absolute))
+	if err != nil {
+		return err
+	}
+	if dir.Mode().Perm()&0o022 != 0 {
+		return fmt.Errorf("refusing v2raya core %q: its directory is group or world writable", absolute)
+	}
+	return nil
 }

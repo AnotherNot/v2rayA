@@ -178,6 +178,7 @@ export default {
   },
   register: {
     title: "Create an admin account first",
+    passwordHint: "At least 12 characters; at most 72 bytes.",
     messages: [
       "Remember your admin account which is importantly used to login.",
       "Account information is stored in local. We never send information to any server.",
@@ -217,6 +218,8 @@ export default {
     tunAutoRoute: "Auto Route",
     ipForwardOn: "IP Forward",
     portSharingOn: "Port Sharing",
+    portSharingUsername: "Port sharing username",
+    portSharingPassword: "Port sharing password",
     concurrency: "Concurrency",
     inboundSniffing: "Sniffing",
     tunExcludeProcesses: "TUN Excluded Processes",
@@ -249,6 +252,10 @@ export default {
       tunUnsupported: "not supported on this platform",
     },
     messages: {
+      portSharing:
+        "Port sharing binds the built-in SOCKS and HTTP inbounds to every interface. They are protected by this username and password; without both, the ports stay on 127.0.0.1.",
+      portSharingCredentials:
+        "Set a username and password below, otherwise the proxy ports stay on loopback.",
       inboundSniffing:
         "Sniff inbound traffic. If it is not turned on, some traffic may not be diverted correctly.",
       routeOnly:

@@ -1,0 +1,8 @@
+# Review ownership for the paths where a mistake is root-equivalent.
+* @AnotherNot
+
+/.github/ @AnotherNot
+/install/ @AnotherNot
+/service/ @AnotherNot
+/core/ @AnotherNot
+/gui/src/locales/ @AnotherNot

@@ -15,7 +15,7 @@ An inbound is a port on which the core accepts connections from applications or 
 | VMess with rules  | off     | a VMess inbound for other devices; the page shows its share link   |
 | API               | random  | the core's own API, used by v2rayA for statistics and the balancer |
 
-The proxy inbounds listen on `127.0.0.1`. **Port Sharing** (Settings → Proxy) makes them listen on all interfaces so phones and other machines on the LAN can use them; the API port stays on loopback. On a network you do not trust, add a custom inbound with a username and password for the other devices and close the built-in SOCKS and HTTP ports, which take no password, or block them in the firewall.
+The proxy inbounds listen on `127.0.0.1`. **Port Sharing** (Settings → Proxy) makes them listen on all interfaces so phones and other machines on the LAN can use them, but only after a port-sharing username and password are set; without both the ports stay on loopback. The API port always stays on loopback. On a network you do not trust, add a custom inbound with a username and password for the other devices and close the built-in SOCKS and HTTP ports, which take no password, or block them in the firewall.
 
 ## Custom inbounds
 

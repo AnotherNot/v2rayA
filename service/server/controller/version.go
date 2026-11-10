@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -14,16 +15,31 @@ import (
 	"github.com/v2rayA/v2rayA/kernel/v2ray/asset/dat"
 	"github.com/v2rayA/v2rayA/kernel/v2ray/service"
 	"github.com/v2rayA/v2rayA/kernel/v2ray/where"
+	"github.com/v2rayA/v2rayA/pkg/server/jwt"
 	"github.com/v2rayA/v2rayA/pkg/util/privilege"
 )
 
 func GetVersion(ctx *gin.Context) {
-	var lite int
+	lite := 0
 	if conf.GetEnvironmentConfig().Lite {
 		lite = 1
 	}
+	// The login page needs to know whether the first account exists. The
+	// host's privilege, TUN support, Docker mode and the core probe answer a
+	// different question: which exploit applies. They are returned only to a
+	// caller that already holds a session.
+	payload := gin.H{
+		"version":     conf.Version,
+		"lite":        lite,
+		"hasAccounts": configure.HasAnyAccounts(),
+		"variant":     where.V2rayaCore,
+		"os":          runtime.GOOS,
+	}
+	if !requestAuthenticated(ctx) {
+		common.ResponseSuccess(ctx, payload)
+		return
+	}
 
-	// Detect if running as root (Linux/macOS only)
 	isRoot := false
 	switch runtime.GOOS {
 	case "linux", "darwin":
@@ -39,30 +55,39 @@ func GetVersion(ctx *gin.Context) {
 		coreVersion = ver
 	}
 
-	common.ResponseSuccess(ctx, gin.H{
-		"version":          conf.Version,
-		"foundNew":         conf.FoundNew,
-		"remoteVersion":    conf.RemoteVersion,
-		"serviceValid":     service.IsV2rayServiceValid(),
-		"v5":               versionErr == nil,
-		"lite":             lite,
-		"loadBalanceValid": true,
-		"variant":          where.V2rayaCore,
-		"coreVersion":      coreVersion,
-		"os":               runtime.GOOS,
-		"isRoot":           isRoot,
-		"tunSupported":     v2ray.TunSupported(),
-		"coreVersionValid": versionErr == nil,
-		"coreVersionErr": func() string {
-			if versionErr != nil {
-				return versionErr.Error()
-			}
-			return ""
-		}(),
-		"hasAccounts":    configure.HasAnyAccounts(),
-		"lastKernelExit": configure.GetLastKernelExitStatus(),
-		"docker":         common.IsDocker(),
-	})
+	payload["foundNew"] = conf.FoundNew
+	payload["remoteVersion"] = conf.RemoteVersion
+	payload["serviceValid"] = service.IsV2rayServiceValid()
+	payload["v5"] = versionErr == nil
+	payload["loadBalanceValid"] = true
+	payload["coreVersion"] = coreVersion
+	payload["isRoot"] = isRoot
+	payload["tunSupported"] = v2ray.TunSupported()
+	payload["coreVersionValid"] = versionErr == nil
+	payload["coreVersionErr"] = func() string {
+		if versionErr != nil {
+			return versionErr.Error()
+		}
+		return ""
+	}()
+	payload["lastKernelExit"] = configure.GetLastKernelExitStatus()
+	payload["docker"] = common.IsDocker()
+	common.ResponseSuccess(ctx, payload)
+}
+
+// requestAuthenticated reports whether the request carries a live session.
+// The version probe does not abort an unauthenticated request: it serves a
+// smaller answer instead.
+func requestAuthenticated(ctx *gin.Context) bool {
+	header := strings.TrimSpace(ctx.GetHeader("Authorization"))
+	if header == "" {
+		return false
+	}
+	fields := strings.Fields(header)
+	if len(fields) == 2 && strings.EqualFold(fields[0], "Bearer") {
+		header = fields[1]
+	}
+	return jwt.ValidateToken(header)
 }
 
 func GetRemoteGFWListVersion(ctx *gin.Context) {

@@ -158,3 +158,36 @@ func TestIsNftablesSupported(t *testing.T) {
 		})
 	}
 }
+
+func TestNormalizeCIDR(t *testing.T) {
+	cases := []struct {
+		raw  string
+		want string
+		ok   bool
+	}{
+		{"1.2.3.4", "1.2.3.4/32", true},
+		{" 1.2.3.0/24 ", "1.2.3.0/24", true},
+		{"1.2.3.4/24", "1.2.3.0/24", true},
+		{"2001:db8::1", "2001:db8::1/128", true},
+		{"2001:db8::/32", "2001:db8::/32", true},
+		{"", "", false},
+		{"1.2.3.4/33", "", false},
+		{"1.2.3.4; rm -rf /", "", false},
+		{"example.com", "", false},
+	}
+	for _, tc := range cases {
+		got, ok := normalizeCIDR(tc.raw)
+		if ok != tc.ok || (ok && got != tc.want) {
+			t.Errorf("normalizeCIDR(%q) = %q, %v; want %q, %v", tc.raw, got, ok, tc.want, tc.ok)
+		}
+	}
+}
+
+func TestNftSetFor(t *testing.T) {
+	if got := nftSetFor("192.0.2.0/24"); got != "local_ips" {
+		t.Errorf("IPv4 set = %q", got)
+	}
+	if got := nftSetFor("2001:db8::/32"); got != "local_ips6" {
+		t.Errorf("IPv6 set = %q", got)
+	}
+}

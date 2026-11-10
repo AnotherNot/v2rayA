@@ -129,9 +129,9 @@ export const useAppStore = defineStore("app", {
       this.version = v;
       this.lite = v.lite > 0;
       this.docker = !!v.docker;
-      this.variant = v.variant;
-      this.loadBalanceValid = v.loadBalanceValid;
-      this.coreVersionValid = v.coreVersionValid;
+      this.variant = v.variant ?? "";
+      this.loadBalanceValid = v.loadBalanceValid ?? true;
+      this.coreVersionValid = v.coreVersionValid ?? true;
       this.coreVersionErr = v.coreVersionErr ?? "";
       localStorage.setItem("lite", String(v.lite));
       localStorage.setItem("docker", String(!!v.docker));

@@ -316,6 +316,29 @@ defineExpose({ sync: () => settings.load() });
             hide-details
           />
         </SettingRow>
+        <v-expand-transition>
+          <div v-if="form.portSharing" class="px-4 pb-3">
+            <v-text-field
+              v-model="form.portSharingUsername"
+              :label="t('setting.portSharingUsername')"
+              density="compact"
+              autocomplete="username"
+              hide-details
+              class="mb-2"
+            />
+            <v-text-field
+              v-model="form.portSharingPassword"
+              :label="t('setting.portSharingPassword')"
+              type="password"
+              density="compact"
+              autocomplete="new-password"
+              hide-details
+            />
+            <div class="text-caption text-medium-emphasis mt-2">
+              {{ t("setting.messages.portSharing") }}
+            </div>
+          </div>
+        </v-expand-transition>
       </v-list>
 
       <v-list class="mb-4" bg-color="surface-container-low" rounded="xl">

@@ -28,20 +28,20 @@ var (
 )
 
 func ReqCache(ctx *gin.Context) {
-	reqId := ctx.GetHeader(common.RequestIdHeader)
-	if reqId == "" {
+	key := common.RequestCacheKey(ctx)
+	if key == "" {
 		return
 	}
 	glen.reqMu.Lock()
-	if resp, ok := common.RespCache.Get(reqId); ok {
+	if resp, ok := common.GetCachedResponse(key); ok {
 		glen.reqMu.Unlock()
 		ctx.AbortWithStatusJSON(resp.Status, resp.Body)
 		return
 	}
-	mu, ok := glen.reqIdMu[reqId]
+	mu, ok := glen.reqIdMu[key]
 	if !ok {
 		mu = new(requestLock)
-		glen.reqIdMu[reqId] = mu
+		glen.reqIdMu[key] = mu
 	}
 	mu.users++
 	glen.reqMu.Unlock()
@@ -51,11 +51,11 @@ func ReqCache(ctx *gin.Context) {
 		glen.reqMu.Lock()
 		mu.users--
 		if mu.users == 0 {
-			delete(glen.reqIdMu, reqId)
+			delete(glen.reqIdMu, key)
 		}
 		glen.reqMu.Unlock()
 	}()
-	if resp, ok := common.RespCache.Get(reqId); ok {
+	if resp, ok := common.GetCachedResponse(key); ok {
 		ctx.AbortWithStatusJSON(resp.Status, resp.Body)
 		return
 	}

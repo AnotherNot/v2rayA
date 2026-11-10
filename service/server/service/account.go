@@ -7,11 +7,27 @@ import (
 	"github.com/v2rayA/v2rayA/common"
 	"github.com/v2rayA/v2rayA/db/configure"
 	"github.com/v2rayA/v2rayA/pkg/server/jwt"
+	"github.com/v2rayA/v2rayA/pkg/util/log"
 )
 
 func Login(username, password string) (token, refreshToken string, err error) {
-	if !IsValidAccount(username, password) {
+	hash, hashErr := configure.GetPasswordOfAccount(username)
+	if hashErr != nil {
 		return "", "", common.Coded("WRONG_CREDENTIALS", fmt.Errorf("wrong username or password"), nil)
+	}
+	ok, needsRehash := common.CheckPasswordAndRehash(password, hash)
+	if !ok {
+		return "", "", common.Coded("WRONG_CREDENTIALS", fmt.Errorf("wrong username or password"), nil)
+	}
+	if needsRehash {
+		// An old installation still carries the MD5-derived hash. A
+		// successful login is the only moment the plaintext is available,
+		// so migrate it now; a failure here must not cost the session.
+		if upgraded, hashErr := common.CryptoPwd(password); hashErr == nil {
+			if err := configure.SetAccount(username, upgraded); err != nil {
+				log.Warn("account: cannot upgrade the password hash for %q: %v", username, err)
+			}
+		}
 	}
 	sessionID, refreshToken, err := jwt.CreateSession(username)
 	if err != nil {
@@ -64,7 +80,11 @@ func Register(username, password string) (token, refreshToken string, err error)
 	if configure.ExistsAccount(username) {
 		return "", "", common.Coded("USERNAME_TAKEN", fmt.Errorf("username %q is already taken", username), map[string]interface{}{"username": username})
 	}
-	err = configure.SetAccount(username, common.CryptoPwd(password))
+	hash, err := common.CryptoPwd(password)
+	if err != nil {
+		return "", "", common.Coded("PASSWORD_HASH_FAILED", err, nil)
+	}
+	err = configure.SetAccount(username, hash)
 	if err != nil {
 		return
 	}
@@ -72,9 +92,11 @@ func Register(username, password string) (token, refreshToken string, err error)
 }
 
 func ValidPasswordLength(password string) (bool, error) {
-	if len(password) >= 6 && len(password) <= 32 {
+	// This is the administrator of a root-equivalent service, and bcrypt
+	// refuses more than 72 bytes. The lower bound applies to new passwords;
+	// an old account with a shorter one can still sign in.
+	if len([]byte(password)) >= 12 && len([]byte(password)) <= 72 {
 		return true, nil
-	} else {
-		return false, fmt.Errorf("length of password should be between 6 and 32")
 	}
+	return false, fmt.Errorf("length of password should be between 12 and 72 bytes")
 }
