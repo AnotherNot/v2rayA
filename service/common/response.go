@@ -3,6 +3,7 @@ package common
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	lru "github.com/hashicorp/golang-lru/v2"
@@ -33,7 +34,14 @@ func codedErrorBody(err error, coded *CodedError) gin.H {
 	return body
 }
 
-var RespCache, _ = lru.New[string, Resp](10)
+type cachedResponse struct {
+	resp Resp
+	at   time.Time
+}
+
+const responseCacheTTL = time.Minute
+
+var responseCache, _ = lru.New[string, cachedResponse](64)
 
 const (
 	SUCCESS         = "SUCCESS"
@@ -42,15 +50,54 @@ const (
 	RequestIdHeader = "X-V2raya-Request-Id"
 )
 
+// RequestCacheKey scopes a replay id to the method, URI and authenticated
+// user. A request id guessed or reused from another screen must not return
+// that screen's cached body.
+func RequestCacheKey(ctx *gin.Context) string {
+	reqID := ctx.GetHeader(RequestIdHeader)
+	if reqID == "" || ctx.Request == nil || ctx.Request.URL == nil {
+		return ""
+	}
+	user := ctx.GetString("Name")
+	if user == "" {
+		user = ctx.GetString("SessionID")
+	}
+	return ctx.Request.Method + "\x00" + ctx.Request.URL.RequestURI() + "\x00" + user + "\x00" + reqID
+}
+
+// GetCachedResponse returns a response stored under key while it is fresh.
+func GetCachedResponse(key string) (Resp, bool) {
+	if key == "" {
+		return Resp{}, false
+	}
+	cached, ok := responseCache.Get(key)
+	if !ok {
+		return Resp{}, false
+	}
+	if time.Since(cached.at) > responseCacheTTL {
+		responseCache.Remove(key)
+		return Resp{}, false
+	}
+	return cached.resp, true
+}
+
+// CacheResponse stores a response under key for later replays.
+func CacheResponse(key string, resp Resp) {
+	if key == "" {
+		return
+	}
+	responseCache.Add(key, cachedResponse{resp: resp, at: time.Now()})
+}
+
 // 当code为FAIL时，data为string类型返回给前端的消息
 func Response(ctx *gin.Context, code Code, data interface{}) (status int, body gin.H) {
-	if reqId := ctx.GetHeader(RequestIdHeader); reqId != "" {
-		if resp, ok := RespCache.Get(reqId); ok {
+	if key := RequestCacheKey(ctx); key != "" {
+		if resp, ok := GetCachedResponse(key); ok {
 			ctx.JSON(resp.Status, resp.Body)
 			return resp.Status, resp.Body
 		}
 		defer func() {
-			RespCache.Add(reqId, Resp{
+			CacheResponse(key, Resp{
 				Status: status,
 				Body:   body,
 			})

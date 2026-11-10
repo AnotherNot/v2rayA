@@ -98,6 +98,13 @@ type DnsListenerConfig struct {
 	// For example, ["127.2.0.17:53"] to handle hijacked system DNS queries
 	// directly, avoiding the need for iptables REDIRECT rules.
 	ExtraListenAddrs []string `json:"extra_listen_addrs,omitempty"`
+	// AllowedClients lists the IPs and CIDRs whose queries the listener
+	// answers. Empty means loopback only: a listener bound to a wildcard
+	// address must not become an open resolver by default.
+	AllowedClients []string `json:"allowed_clients,omitempty"`
+	// RateLimit caps queries per second from one client. Zero disables the
+	// cap; the service sets a value when the listener is reachable off-host.
+	RateLimit int `json:"rate_limit,omitempty"`
 	// Timeout is the query timeout in seconds, default 5.
 	Timeout int `json:"timeout"`
 }

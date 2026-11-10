@@ -15,4 +15,5 @@ jobs:
       tag: ${{ inputs.tag }}
       prerelease: false
       publish_downstream: true
-    secrets: inherit
+    secrets:
+      RELEASE_PAT: ${{ secrets.RELEASE_PAT }}

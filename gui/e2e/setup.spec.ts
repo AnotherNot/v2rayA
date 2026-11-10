@@ -23,7 +23,7 @@ test("first run registers the admin account", async ({ page }) => {
   await expect(dialog).toBeVisible();
 
   await dialog.locator('input[name="username"]').fill("e2e");
-  await dialog.locator('input[name="password"]').fill("e2e-password");
+  await dialog.locator('input[name="password"]').fill("e2e-password-123");
   await dialog.locator('input[name="setup-token"]').fill(setupToken);
   await dialog.getByRole("button", { name: "Create" }).click();
 

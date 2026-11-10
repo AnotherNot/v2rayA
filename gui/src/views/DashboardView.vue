@@ -361,6 +361,15 @@ defineExpose({ sync });
             class="mt-2"
             @update:model-value="(value) => setQuick('portSharing', !!value)"
           />
+          <div
+            v-if="
+              quick.portSharing &&
+              (!quick.portSharingUsername || !quick.portSharingPassword)
+            "
+            class="text-caption text-warning mt-1"
+          >
+            {{ t("setting.messages.portSharingCredentials") }}
+          </div>
           <v-switch
             v-if="store.version?.os === 'linux' && !store.lite"
             :model-value="quick.ipforward"
