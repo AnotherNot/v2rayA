@@ -17,26 +17,33 @@ already runs v2rayA, see [testing-on-a-real-machine.md](testing-on-a-real-machin
 
 **No root is needed.** The transparent proxy is off by default
 (`service/db/configure/setting.go`), so v2rayA installs no firewall rules, does
-not touch `/etc/resolv.conf` and opens no TUN device. It only listens on
-loopback ports.
+not touch `/etc/resolv.conf` and opens no TUN device. The proxy inbounds listen
+on loopback.
 
-## The five ports
+## The ports
 
-| Port | Tag in the core configuration | Receives routing rules |
-| --- | --- | --- |
-| 2017 | `api-in` | — |
-| 20170 | `socks` | **no** |
-| 20171 | `http` | **no** |
-| 20172 | `rule-http` | **yes** |
+Out of the box only the interface and one proxy inbound are open:
+
+| Port | What it is | Default | Receives routing rules |
+| --- | --- | --- | --- |
+| 2017 | v2rayA's web interface and API, not a core inbound | on | — |
+| 20170 | SOCKS5 with rules (`rule-socks`) | on | **yes** |
+| 20171 | HTTP without rules (`http`) | off (0) | no |
+| 20172 | HTTP with rules (`rule-http`) | off (0) | **yes** |
+| `socks5` | SOCKS5 without rules | off (0) | no |
+
+The core's own API inbound (`api-in`) listens on a random loopback port; v2rayA
+uses it for statistics and the balancer, and it is not one of the ports above.
 
 This table is the single most common reason a rule set "does nothing": rules
 are attached to the rule ports only
-(`service/kernel/v2ray/template_routing.go`, `setRulePortRouting`). A client
-pointed at 20170 or 20171 will never see them. There is also a SOCKS5-with-rules
-inbound, off by default.
+(`service/kernel/v2ray/template_routing.go`, `setRulePortRouting`). The default
+20170 is a rule port, so it does see them; a client pointed at a plain SOCKS or
+HTTP port never will.
 
-In a generated configuration the tags carry an address-family suffix, so a rule
-reads `["rule-http_ipv4", "rule-socks", "rule-http_ipv6"]`. Match on the `rule-`
+In a generated configuration the rule inbounds appear as `rule-http` and
+`rule-socks_ipv4`/`rule-socks_ipv6`, so a rule reads
+`["rule-http", "rule-socks_ipv4", "rule-socks_ipv6"]`. Match on the `rule-`
 prefix rather than an exact name.
 
 ## Step 1 — build
@@ -71,14 +78,15 @@ cd ~/v2raya-test/src
 ./v2raya --lite > /tmp/v2raya.log 2>&1 &
 
 sleep 5
-ss -lntp | grep -E '2017|20170|20171'
+ss -lntp | grep -E ':2017\b'
 ```
 
-**You should see** three lines, one per port.
+**You should see** one line for the web interface. The core is not running yet;
+it starts with the node in step 4 and then opens 20170.
 
-On the very first start v2rayA downloads `geoip.dat` and `geosite.dat`, about
-90 MB together, and the API does not answer until that finishes. Wait a minute
-or two, then:
+On the very first start v2rayA downloads `geoip.dat` and `geosite.dat`, tens of
+megabytes together, and the API does not answer until that finishes. Wait a
+minute or two, then:
 
 ```bash
 curl -s http://127.0.0.1:2017/api/version | head -c 200; echo
@@ -90,21 +98,28 @@ so the intent is on the record.
 
 ## Step 3 — an account, and keep the token
 
-There are no accounts on a fresh install, so the API answers `first: true` and
-refuses everything else until one exists.
+On a fresh install `/api/version` reports `hasAccounts: false`, and every other
+endpoint refuses requests until an account exists. Registration also needs the
+one-time token the service printed on the first start (it is also in
+`setup-token` under the configuration directory). The password must be 12 to 72
+bytes.
 
 ```bash
+CONF="${XDG_CONFIG_HOME:-$HOME/.config}/v2raya"
+SETUP_TOKEN=$(cat "$CONF/setup-token")
+
 curl -s -X POST http://127.0.0.1:2017/api/account \
   -H 'Content-Type: application/json' \
-  -d '{"username":"admin","password":"test1234"}'
+  -d "{\"username\":\"admin\",\"password\":\"test12345678\",\"setupToken\":\"$SETUP_TOKEN\"}"
 ```
 
-Every later request needs the token. Store it so you never paste it by hand:
+The token file is removed once the account exists. Every later request needs
+the login token. Store it so you never paste it by hand:
 
 ```bash
 curl -s -X POST http://127.0.0.1:2017/api/login \
   -H 'Content-Type: application/json' \
-  -d '{"username":"admin","password":"test1234"}' \
+  -d '{"username":"admin","password":"test12345678"}' \
   | python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["token"])' > /tmp/token
 
 export TOKEN=$(cat /tmp/token)
@@ -152,6 +167,16 @@ curl -s -X POST http://127.0.0.1:2017/api/v2ray -H "Authorization: Bearer $TOKEN
 
 **You should see** `running: True`.
 
+The core is up now, so the default inbound appears:
+
+```bash
+ss -lntp | grep -E ':2017|:20170'
+```
+
+**You should see** 2017 and 20170. 20170 is the SOCKS5-with-rules inbound;
+20171 and 20172 stay closed until they are enabled under Settings → Address and
+Ports.
+
 ## Step 5 — does the node work at all?
 
 This step is not optional. Everything after it measures routing, and a broken
@@ -178,8 +203,8 @@ harder than proving each in turn.
 
 ```bash
 cat > /tmp/rule.txt <<'EOF'
-# control: example.com goes out directly, everything else through the proxy
-domain(example.com)->direct
+# control: ifconfig.me goes out directly, everything else through the proxy
+domain(ifconfig.me)->direct
 default: proxy
 EOF
 
@@ -213,7 +238,7 @@ is worth reading before going on.
 RoutingA did not apply and every measurement below is meaningless:
 
 ```bash
-CFG="$HOME/.config/v2raya/config.json"
+CFG="${XDG_CONFIG_HOME:-$HOME/.config}/v2raya/config.json"
 python3 - "$CFG" <<'PY'
 import json,sys
 rules = json.load(open(sys.argv[1])).get("routing", {}).get("rules", [])
@@ -228,15 +253,31 @@ PY
 
 **You should see** `on rule ports: 2`, one `direct` and one `proxy`.
 
-Finally, compare the two ports. This is the proof that rules are being applied:
+The rule port is 20170. To show that rules do not leak to a port without them,
+open a plain SOCKS5 inbound as well:
 
 ```bash
-echo "20172 (expect A): $(curl -s --max-time 15 -x http://127.0.0.1:20172 https://ifconfig.me)"
-echo "20170 (expect B): $(curl -s --max-time 15 --socks5-hostname 127.0.0.1:20170 https://ifconfig.me)"
+curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:2017/api/ports \
+  | python3 -c '
+import json,sys
+p=json.load(sys.stdin)["data"]
+p["socks5"]=20173
+p.pop("vmessLink",None)
+print(json.dumps(p))' > /tmp/ports.json
+curl -s -X PUT http://127.0.0.1:2017/api/ports \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d @/tmp/ports.json
 ```
 
-20172 must give **A** and 20170 must give **B**. If both give B, the rule did
-not apply.
+Finally, compare the rule port with the plain one:
+
+```bash
+echo "20170 (rule port, expect A): $(curl -s --max-time 15 --socks5-hostname 127.0.0.1:20170 https://ifconfig.me)"
+echo "20173 (plain port, expect B): $(curl -s --max-time 15 --socks5-hostname 127.0.0.1:20173 https://ifconfig.me)"
+```
+
+20170 must give **A** and the plain 20173 must give **B**. If both give B, the
+rule did not apply; if 20173 refuses the connection, the `/api/ports` call above
+did not take effect.
 
 ## Step 6b — install the geo files the rules need
 
@@ -347,7 +388,7 @@ what step 6b exists to prevent.
 Two values from step 5: **A** is the direct exit, **B** is the node's.
 
 ```bash
-P="-x http://127.0.0.1:20172 --max-time 10"
+P="--socks5-hostname 127.0.0.1:20170 --max-time 10"
 
 # geoip:private -> direct: should answer fast and give A
 curl -s $P http://192.168.0.1/ -o /dev/null -w 'private: %{http_code}\n'
@@ -436,16 +477,17 @@ PY
 
 | Symptom | Cause | What to do |
 | --- | --- | --- |
-| 2017 does not answer on the first start | geo files are downloading, ~90 MB | wait two minutes, then `tail /tmp/v2raya.log` |
+| 2017 does not answer on the first start | geo files are downloading, tens of megabytes | wait a couple of minutes, then `tail /tmp/v2raya.log` |
 | Step 5: A equals B | the node carries no traffic | check `running: True` in step 4, then the log |
 | `no server is selected` | step 4's connect call was skipped | run the connect call, then start the core again |
-| `curl: (7) Failed to connect` on 20172 | the rule port is not in RoutingA mode | `pacMode` must be `routingA`, see step 6 |
+| `curl: (7) Failed to connect` on 20170 | the rule port is not in RoutingA mode | `pacMode` must be `routingA`, see step 6 |
+| `curl: (7) Failed to connect` on 20171 or 20172 | those inbounds are off by default | enable them under Settings → Address and Ports |
 | `pacMode` is still the old value after the PUT | the body was wrapped in `{"setting": …}` | the body is the setting object itself, see step 6 |
 | `on rule ports: 0` | rules did not apply | repeat step 6 and confirm `pacMode` |
 | `invalid config: the core could not restart` | a rule names a tag the geo files do not have | step 6b; the detail is in the log |
 | 401 on any request | the token is stale or changed | `export TOKEN=$(cat /tmp/token)` |
 | `REQUEST_IN_PROGRESS` | another mutation is running | wait five seconds and retry |
-| Rules "sort of work" on 20170 | they are not there at all | use **20172** |
+| Rules work on 20170 but not on the plain port | the plain port has no rules by design | use a rule port, or add rules for the plain one with a custom inbound |
 | The import answers `ROUTING_RULES_INCOMPATIBLE` | the set matches on process name, which RoutingA cannot express | pick a different set, or file the omission upstream |
 
 The two steps that must not be skipped are **step 5** and the configuration
@@ -456,7 +498,7 @@ set that does not work.
 
 ```bash
 pkill -f 'v2raya --lite'
-rm -rf "$HOME/.config/v2raya"     # this removes every setting
+rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/v2raya"     # this removes every setting
 ```
 
 ## What has been observed, and what has not
@@ -470,9 +512,9 @@ as documented, except `PUT /api/setting`, whose body is the setting object
 itself — a `{"setting": …}` wrapper is silently ignored (found that way, after
 the mode appeared not to take effect). Selecting a node starts the core, so the
 later start call only confirms. A versus B differ, and both are stable across
-repeated requests. The control rule `domain(ifconfig.me)->direct` on port 20172
-returns the direct egress while the default returns the node's, which proves
-the mechanism before any import.
+repeated requests. The control rule `domain(ifconfig.me)->direct` on the rule
+port returns the direct egress while the default, and the plain port, return the
+node's, which proves the mechanism before any import.
 
 Importing the published index and the "Заблокированное" set over the network
 succeeds and reports `version: RUv1`, with eleven rules on the rule ports (nine
@@ -491,9 +533,9 @@ not inferred from timing:
 | an ads domain from geosite:category-ads-all | block | connection killed in ~0.01 s |
 | neverssl.com:80 | direct (trailing rule) | fast refusal |
 
-The SOCKS5-with-rules port (20173, enabled for the check) routes through the
-same set: an unmatched domain returns the direct egress, as the trailing rule
-says. The rule-source fetch itself was seen in the core log going through the
+The SOCKS5-with-rules port (moved to 20173 for that check with the ports API)
+routes through the same set: an unmatched domain returns the direct egress, as
+the trailing rule says. The rule-source fetch itself was seen in the core log going through the
 local SOCKS inbound into the proxy outbound
 (`accepted tcp:raw.githubusercontent.com:443 [socks_ipv4 -> proxy]`), which
 proves the proxy download path.

@@ -1,0 +1,133 @@
+# v2rayA in Docker: two layouts in one file, chosen with a Compose profile.
+#
+#   --profile transparent   host networking; traffic of this host (and,
+#                           optionally, of the LAN) is intercepted.
+#   --profile socks         bridge networking; nothing is intercepted, the
+#                           SOCKS5 inbound is published on the host.
+#
+# From the repository root:
+#   docker compose -f install/docker/docker-compose.yaml --profile transparent up -d
+#   docker compose -f install/docker/docker-compose.yaml --profile socks up -d
+#
+# Open http://127.0.0.1:2017. The first registration asks for the setup token:
+# it is printed to the container log
+#   docker compose -f install/docker/docker-compose.yaml logs -f
+# and written to /etc/v2raya/setup-token. Import a node, then press Start.
+#
+# Both profiles share the v2raya-data volume, so a node configured in one is
+# available in the other. Run one at a time: both serve 2017.
+#
+# Requirements: a Linux host with a rootful Docker daemon. The transparent
+# profile needs the host network namespace and makes no sense on Docker
+# Desktop (macOS, Windows); use the socks profile there.
+
+name: v2raya
+
+x-v2raya: &v2raya
+  # `V2RAYA_TAG` pins a release (`2.5.14` or `v2.5.14`); without it the image
+  # uses `latest`, which follows every release. `docker compose pull` upgrades.
+  # `V2RAYA_IMAGE` replaces the whole image reference, tag included, when a
+  # different registry or mirror is needed.
+  image: ${V2RAYA_IMAGE:-ghcr.io/anothernot/v2raya:${V2RAYA_TAG:-latest}}
+  restart: unless-stopped
+  # Give v2rayA time to remove firewall rules and stop the core on SIGTERM;
+  # Docker's default 10 seconds can cut that short.
+  stop_grace_period: 30s
+  environment:
+    TZ: ${TZ:-UTC}
+    # geoip.dat/geosite.dat are downloaded on the first start; keep them in
+    # the data volume. Without this, the default XDG location is not writable
+    # under read_only, and the download is lost when the container is recreated.
+    V2RAYA_V2RAY_ASSETSDIR: /etc/v2raya
+  # The image logs to stdout, where the first-run setup token appears. An
+  # initial "unhealthy" is normal while the geo databases are downloading.
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+  # -------------------------------------------------------------------------
+  # Transparent proxy. redirect/tproxy/tun is selected in the interface, not
+  # here; the container needs a superset of what they require.
+  # -------------------------------------------------------------------------
+  v2raya-transparent:
+    <<: *v2raya
+    profiles: ["transparent"]
+    # Firewall rules and routes must be applied in the host network namespace.
+    # With a bridge network they would only affect the container, and `ports`
+    # cannot be combined with host networking.
+    network_mode: host
+    cap_drop: [ALL]
+    # NET_ADMIN for iptables/nftables, routes and the TUN device; NET_RAW for
+    # the core's probes. Nothing else is needed, and --privileged is not.
+    cap_add: [NET_ADMIN, NET_RAW]
+    security_opt:
+      - no-new-privileges:true
+    # Only tun mode opens this device. On a host without it, load the module
+    # (`sudo modprobe tun`) or remove this block and use redirect/tproxy.
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    volumes:
+      - v2raya-data:/etc/v2raya
+      # Keep the host's resolver visible. v2rayA cannot rewrite a bind-mounted
+      # /etc/resolv.conf inside a container (rename over the mount point
+      # returns EBUSY), so DNS is redirected by the firewall or captured by
+      # the TUN. Read-only keeps the host file untouched.
+      - /etc/resolv.conf:/etc/resolv.conf:ro
+      # tproxy loads xt_TPROXY with modprobe, but that check is skipped in a
+      # container. Load it on the host first (`sudo modprobe xt_TPROXY`) or
+      # use redirect. Uncomment only if the image really needs the modules:
+      # - /lib/modules:/lib/modules:ro
+    # The image listens on 0.0.0.0:2017. With host networking that would
+    # expose the administrator interface to the LAN before an account exists.
+    # Keep it on loopback and use an SSH tunnel:
+    #   ssh -L 2017:127.0.0.1:2017 user@host
+    # Put it behind a firewall or a TLS reverse proxy before changing this.
+    command: ["v2raya", "--address", "127.0.0.1:2017"]
+    # To build the image from this checkout instead of pulling it, run from the
+    # repository root with `docker build -f install/docker/Dockerfile
+    # -t v2raya-local .`, then replace the image above with `v2raya-local`.
+
+  # -------------------------------------------------------------------------
+  # SOCKS5 only. The host's traffic is not touched; clients use the published
+  # port. Works on any Docker host, including Docker Desktop.
+  # -------------------------------------------------------------------------
+  v2raya-socks:
+    <<: *v2raya
+    profiles: ["socks"]
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    # The service writes only to /etc/v2raya (a volume) and /tmp.
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run
+    ports:
+      # Administrator interface on loopback only. "0.0.0.0:2017:2017" makes
+      # it reachable from the LAN; the setup token still guards registration,
+      # but do that only behind a firewall.
+      - "127.0.0.1:2017:2017"
+      # 20170 is the inbound enabled by default: SOCKS5 with your routing
+      # rules. Publishing the port is not enough: in Settings, enable
+      # "Port Sharing" and set BOTH a username and a password. Without both,
+      # v2rayA keeps the inbound on 127.0.0.1 and the published port refuses
+      # connections. Clients must authenticate with those credentials.
+      - "20170:20170/tcp"
+      - "20170:20170/udp" # SOCKS5 UDP relay; drop it for TCP-only clients
+      # HTTP (20171), plain SOCKS and VMess inbounds are off by default.
+      # Enable one under Settings -> Address and Ports, add its port here and
+      # recreate the container with the same --profile socks command.
+    volumes:
+      - v2raya-data:/etc/v2raya
+
+volumes:
+  # The SQLite database, generated core config, setup token and geo data.
+  # Back up while the service runs, from the repository root:
+  #   docker compose -f install/docker/docker-compose.yaml exec -T v2raya-socks \
+  #     tar czf - -C /etc/v2raya . > v2raya-data.tgz
+  # `docker compose -f install/docker/docker-compose.yaml --profile socks down -v`
+  # deletes it.
+  v2raya-data:

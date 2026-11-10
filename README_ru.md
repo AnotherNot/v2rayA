@@ -167,7 +167,7 @@ docker run -d --restart=always --network=host \
   ghcr.io/anothernot/v2raya:latest
 ```
 
-Пример для хоста Linux: контейнер получает сеть хоста и только те две возможности и устройство TUN, без которых не работает прозрачный прокси; `--privileged` не нужен. Добавьте `--read-only --tmpfs /tmp --tmpfs /run`, если корневая файловая система должна оставаться неизменяемой. Чтобы собрать образ из исходников (нужен только Docker):
+Пример для хоста Linux: контейнер получает сеть хоста и только те две возможности и устройство TUN, без которых не работает прозрачный прокси; `--privileged` не нужен. Добавьте `--read-only --tmpfs /tmp --tmpfs /run -e V2RAYA_V2RAY_ASSETSDIR=/etc/v2raya`, если корневая файловая система должна оставаться неизменяемой; geo-файлы при первом запуске скачиваются в этот том. Чтобы собрать образ из исходников (нужен только Docker):
 
 ```sh
 docker build -f install/docker/Dockerfile -t v2raya-local .
@@ -184,11 +184,11 @@ docker run -d --restart=always --network=host \
 
 При сети bridge опубликуйте порт 2017 и используемые входящие порты, включите общий доступ к портам в настройках и задайте имя пользователя и пароль для общего доступа; без обоих входящие остаются на loopback контейнера, а опубликованные порты отказывают в соединении. Прозрачный прокси в такой схеме недоступен.
 
-В [`install/docker/docker-compose.yml`](install/docker/docker-compose.yml) обе схемы оформлены как профили Compose; в файле описаны первый запуск и общий доступ к портам:
+В [`install/docker/docker-compose.yaml`](install/docker/docker-compose.yaml) обе схемы оформлены как профили Compose; в файле описаны первый запуск и общий доступ к портам:
 
 ```sh
-docker compose -f install/docker/docker-compose.yml --profile transparent up -d  # сеть хоста
-docker compose -f install/docker/docker-compose.yml --profile socks up -d        # bridge, опубликованный SOCKS5
+docker compose -f install/docker/docker-compose.yaml --profile transparent up -d  # сеть хоста
+docker compose -f install/docker/docker-compose.yaml --profile socks up -d        # bridge, опубликованный SOCKS5
 ```
 
 </details>

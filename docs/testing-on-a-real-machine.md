@@ -31,20 +31,26 @@ application points at SOCKS, and v2rayA carries the traffic into VLESS.
 
 ### Which ports carry rules
 
-| Port | Core tag | Receives RoutingA rules |
-| --- | --- | --- |
-| 20170 | `socks` | no |
-| 20171 | `http` | no |
-| 20172 | `rule-http` | yes |
-| `socks5WithPac` | `rule-socks` | yes |
+| Port | Core tag | Default | Receives RoutingA rules |
+| --- | --- | --- | --- |
+| 20170 | `rule-socks` | on | yes |
+| 20171 | `http` | off (0) | no |
+| 20172 | `rule-http` | off (0) | yes |
+| `socks5` | `socks` | off (0) | no |
 
 Rules are attached to `rule-http` and `rule-socks` only
-(`service/kernel/v2ray/template_routing.go`, `setRulePortRouting`). A client
-pointed at 20170 or 20171 will not see an imported rule set. This is the most
-likely reason for "the rules do nothing".
+(`service/kernel/v2ray/template_routing.go`, `setRulePortRouting`). The default
+20170 is a rule port, so it does see an imported set; a client pointed at a
+plain SOCKS or HTTP port will not. This is the most likely reason for "the rules
+do nothing".
 
-`socks5WithPac` defaults to `0`, meaning the SOCKS5-with-rules inbound is off
-until you enable it.
+`socks5WithPac` defaults to `20170`; `socks5`, `http` and `httpWithPac` default
+to `0`, meaning those inbounds are off until enabled
+(`service/db/configure/configure.go`).
+
+2017 is v2rayA's web interface, not a core inbound. The core's own API
+(`api-in`) listens on a random loopback port and is used for statistics and the
+balancer.
 
 ### Prove the mechanism before trusting an import
 
@@ -105,21 +111,30 @@ Without root the configuration lives under `$XDG_CONFIG_HOME/v2raya`
 
 ```sh
 curl -s http://127.0.0.1:2017/api/version | head -c 400
-ss -lntp | grep -E '2017|20170|20171|20172'
+ss -lntp | grep -E ':2017\b'
 ```
+
+Only the web interface is listening; the core starts in section 2 and then opens
+20170.
 
 ### 1.3 First run: an account
 
-The API answers `first: true` until an account exists.
+`/api/version` reports `hasAccounts: false` until an account exists. Registration
+also needs the one-time setup token the service printed on the first start and
+wrote to `setup-token` under the configuration directory. The password must be 12
+to 72 bytes.
 
 ```sh
+CONF="${XDG_CONFIG_HOME:-$HOME/.config}/v2raya"
+SETUP_TOKEN=$(cat "$CONF/setup-token")
+
 curl -s -X POST http://127.0.0.1:2017/api/account \
   -H 'Content-Type: application/json' \
-  -d '{"username":"admin","password":"CHANGE_ME"}'
+  -d "{\"username\":\"admin\",\"password\":\"CHANGE_ME_123\",\"setupToken\":\"$SETUP_TOKEN\"}"
 
 TOKEN=$(curl -s -X POST http://127.0.0.1:2017/api/login \
   -H 'Content-Type: application/json' \
-  -d '{"username":"admin","password":"CHANGE_ME"}' \
+  -d '{"username":"admin","password":"CHANGE_ME_123"}' \
   | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
 ```
 
@@ -150,6 +165,12 @@ curl -s -X POST http://127.0.0.1:2017/api/v2ray -H "Authorization: Bearer $TOKEN
 
 The whole sequence is in [running-from-source.md](running-from-source.md) step 4.
 
+The core is up now, so the default inbound appears:
+
+```sh
+ss -lntp | grep -E ':2017|:20170'
+```
+
 Then measure the two addresses everything else is compared against:
 
 ```sh
@@ -169,8 +190,8 @@ If A equals B the node is not working; nothing below will tell you anything.
 
 ```sh
 cat > /tmp/known.txt <<'EOF'
-# control rule: example.com goes out directly, everything else through the proxy
-domain(example.com)->direct
+# control rule: ifconfig.me goes out directly, everything else through the proxy
+domain(ifconfig.me)->direct
 default: proxy
 EOF
 
@@ -218,7 +239,7 @@ PY
 ### 3.4 Measure
 
 ```sh
-P="-x http://127.0.0.1:20172"
+P="--socks5-hostname 127.0.0.1:20170"
 curl -s $P https://example.com     -o /dev/null -w '%{http_code}\n'
 curl -s $P https://ifconfig.me; echo    # expect A
 curl -s $P https://api.github.com -o /dev/null -w '%{http_code}\n'
@@ -295,7 +316,7 @@ do not reach the configuration.
 ### 4.5 Check branch by branch
 
 ```sh
-P="-x http://127.0.0.1:20172"
+P="--socks5-hostname 127.0.0.1:20170"
 
 # geoip:private -> direct. Must return A, and must not stall.
 curl -s $P --max-time 10 http://192.168.0.1/ -o /dev/null -w '%{http_code}\n'
@@ -502,14 +523,18 @@ Each item below changes the host. Do not start here until sections 1–7 are
 green: a broken rule set combined with a transparent mode sends traffic
 nowhere, and you will not be able to tell which of the two is at fault.
 
-### 8.1 SOCKS5 with rules
+### 8.1 Move the rule port
+
+SOCKS5 with rules is already on at 20170. This moves it to 20173; the same rules
+apply on the new port:
 
 ```sh
 curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:2017/api/ports \
   | python3 -c '
 import json,sys
-p=json.load(sys.stdin)["data"]["ports"]
+p=json.load(sys.stdin)["data"]
 p["socks5WithPac"]=20173
+p.pop("vmessLink",None)
 print(json.dumps(p))' > /tmp/ports.json
 curl -s -X PUT http://127.0.0.1:2017/api/ports \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d @/tmp/ports.json
@@ -526,10 +551,11 @@ the mode, so verify them through a rule port first.
 
 ### 8.3 Port sharing
 
-Enabling `portSharing` moves the built-in inbounds onto all interfaces. The
-built-in SOCKS and HTTP inbounds take **no password**
-(`service/kernel/v2ray/templateJson.go`). On a network you do not trust that is
-an open proxy on your node; use a custom inbound with a username and password.
+Enabling `portSharing` alone changes nothing: the built-in inbounds stay on
+`127.0.0.1` until both `portSharingUsername` and `portSharingPassword` are set.
+With both, they move onto all interfaces and require that username and password
+(`service/kernel/v2ray/template_inbound.go`). The core's API port always stays
+on loopback.
 
 ## 9. API reference
 
@@ -542,6 +568,8 @@ an open proxy on your node; use a custom inbound with a username and password.
 | PUT | `/api/dnsSource` | `{url}` | imports DNS rules, restarts the core |
 | DELETE | `/api/dnsSource` | — | forgets the source, keeps the rules |
 | GET | `/api/setting` | — | `pacMode` selects `routingA`; `proxyModeWhenSubscribe` selects how sources are fetched |
+| GET | `/api/ports` | — | the ports object directly under `data`; `vmessLink` appears when the VMess inbound is on |
+| PUT | `/api/ports` | the ports object | restarts the core; 0 closes an inbound |
 | GET | `/api/touch` | — | current nodes and connections |
 
 ## 10. Automated coverage
