@@ -18,7 +18,7 @@
   "dependencies": {
     "@material/material-color-utilities": "0.4.0",
     "@mdi/js": "^7.4.47",
-    "@nuintun/qrcode": "^3.3.0",
+    "@nuintun/qrcode": "^5.1.0",
     "axios": "^0.34.0",
     "dayjs": "^1.11.23",
     "js-base64": "^2.5.1",
