@@ -12,7 +12,7 @@ require (
 	github.com/daeuniverse/outbound v0.0.0-20250722064253-00c4fbb38759
 	github.com/metacubex/mipstack v0.0.0-20260918021735-5e78149cf123
 	github.com/miekg/dns v1.1.73
-	github.com/sagernet/sing v0.6.0
+	github.com/sagernet/sing v0.9.6
 	github.com/vishvananda/netlink v1.3.1
 	// Pseudo-version for Xray-core v26.10.31 (commit a4a3dff5). v26 tags are not
 	// resolvable via go mod because Xray's module path lacks the /v26 suffix.
@@ -20,7 +20,7 @@ require (
 	golang.org/x/sys v0.49.0
 	golang.zx2c4.com/wireguard v0.0.0-20250521234502-f333402bd9cb
 	golang.zx2c4.com/wireguard/windows v1.1.1
-	google.golang.org/grpc v1.84.0
+	google.golang.org/grpc v1.85.0
 	google.golang.org/protobuf v1.36.12
 )
 
@@ -79,7 +79,7 @@ require (
 	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/tools v0.51.0 // indirect
 	golang.zx2c4.com/wintun v0.0.0-20230126152724-0fa3db229ce2 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260706201446-f0a921348800 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260817212433-ac3dfec99bb1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	layeh.com/gopher-luar v1.0.11 // indirect
 	lukechampine.com/blake3 v1.4.1 // indirect

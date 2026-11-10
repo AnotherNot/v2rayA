@@ -3,12 +3,12 @@
 // a QR code image can supply the link. Resolves true after an import.
 import { ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { Decoder } from "@nuintun/qrcode";
 import { mdiQrcodeScan } from "@mdi/js";
 import { postImport } from "@/api";
 import { ApiError } from "@/api/client";
 import { errorText } from "@/api/errors";
 import { useNotify } from "@/composables/useNotify";
+import { decodeQrImage } from "@/lib/qrcode";
 
 defineOptions({ name: "ImportDialog" });
 const props = defineProps<{
@@ -40,7 +40,7 @@ async function submit(url = text.value.trim()) {
   }
 }
 
-function onImage(event: Event) {
+async function onImage(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0];
   input.value = "";
@@ -49,17 +49,13 @@ function onImage(event: Event) {
     notify.warning(t("import.notImage"));
     return;
   }
-  const reader = new FileReader();
-  reader.onload = async () => {
-    try {
-      const result = await new Decoder().scan(reader.result as string);
-      text.value = result.data;
-      await submit(result.data);
-    } catch {
-      notify.warning(t("import.qrcodeError"));
-    }
-  };
-  reader.readAsDataURL(file);
+  try {
+    const link = await decodeQrImage(file);
+    text.value = link;
+    await submit(link);
+  } catch {
+    notify.warning(t("import.qrcodeError"));
+  }
 }
 </script>
 
