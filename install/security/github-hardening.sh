@@ -66,7 +66,8 @@ api -X PUT "repos/$repo/private-vulnerability-reporting" || true
 api -X PUT "repos/$repo/immutable-releases" || true
 
 # Default code scanning (CodeQL) for the languages GitHub can configure
-# without a custom build. The workflow in this repository covers JS/TS.
+# without a custom build. Do not add an advanced codeql.yml while default
+# setup is enabled: GitHub rejects SARIF from an advanced configuration.
 api -X PATCH "repos/$repo/code-scanning/default-setup" \
   -f state=configured \
   -f 'query_suite=default' || true
