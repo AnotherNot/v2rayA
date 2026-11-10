@@ -6,7 +6,6 @@ import (
 	"log"
 	"net"
 	"net/netip"
-	"strings"
 	"sync"
 	"time"
 
@@ -190,9 +189,9 @@ func waitStarted(udp, tcp <-chan struct{}, serveErr <-chan error) error {
 	return nil
 }
 
-// Stop gracefully shuts down all listeners. A pair that never finished
-// starting reports "server not started"; that is the normal residue of a
-// failed bind, not an error worth logging.
+// Stop gracefully shuts down all listeners. Every pair in l.servers comes from
+// a startPair that waited for both servers, so Shutdown always finds a started
+// server to close and wg.Wait is not left behind by one that starts later.
 func (l *DnsListener) Stop() error {
 	if l.cancel != nil {
 		l.cancel()
@@ -201,13 +200,13 @@ func (l *DnsListener) Stop() error {
 	var lastErr error
 	for _, pair := range l.servers {
 		if pair.udp != nil {
-			if err := pair.udp.Shutdown(); err != nil && !isNotStarted(err) {
+			if err := pair.udp.Shutdown(); err != nil {
 				log.Printf("[dns] UDP shutdown error: %v", err)
 				lastErr = err
 			}
 		}
 		if pair.tcp != nil {
-			if err := pair.tcp.Shutdown(); err != nil && !isNotStarted(err) {
+			if err := pair.tcp.Shutdown(); err != nil {
 				log.Printf("[dns] TCP shutdown error: %v", err)
 				lastErr = err
 			}
@@ -387,12 +386,6 @@ func dropSigs(rrs []dns.RR) []dns.RR {
 		}
 	}
 	return out
-}
-
-// isNotStarted reports the miekg/dns shutdown error of a server that never
-// finished starting. Callers see it after a failed bind; it carries no signal.
-func isNotStarted(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "server not started")
 }
 
 var defaultAllowedClients = []netip.Prefix{

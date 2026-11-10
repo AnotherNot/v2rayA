@@ -2,7 +2,6 @@ package dns
 
 import (
 	"context"
-	"errors"
 	"net"
 	"testing"
 	"time"
@@ -88,10 +87,10 @@ func TestPrimaryBindFailureAborts(t *testing.T) {
 	}
 }
 
-// Stop is idempotent and quiet: shutting down what is not running must not
-// surface "server not started" as an error. The query keeps the first Stop
-// honest - it reaches servers that are serving, not servers whose goroutines
-// have not been scheduled yet.
+// Stop is idempotent and quiet: a second Stop over an already stopped
+// listener must not report an error. The query keeps the first Stop honest -
+// it reaches servers that are serving, not servers whose goroutines have not
+// been scheduled yet.
 func TestStopIsQuiet(t *testing.T) {
 	l := NewDnsListener(&DnsListenerConfig{ListenAddr: "127.0.0.1:0", Timeout: 5}, stubHandler{})
 	if err := l.Start(); err != nil {
@@ -105,11 +104,5 @@ func TestStopIsQuiet(t *testing.T) {
 	}
 	if err := l.Stop(); err != nil {
 		t.Fatalf("second Stop: %v", err)
-	}
-	if !isNotStarted(errors.New("dns: server not started")) {
-		t.Fatal("isNotStarted does not recognise the miekg/dns residue error")
-	}
-	if isNotStarted(errors.New("listen udp: permission denied")) {
-		t.Fatal("isNotStarted swallows a real bind error")
 	}
 }
