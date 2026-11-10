@@ -29,16 +29,16 @@ jobs:
           - { os: macos-latest, goarch: arm64 }
     needs: Build_v2rayA_Web
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - name: Download Artifact
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: web
           path: service/server/router/web
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
         with:
           cache-dependency-path: |
             service/go.mod
@@ -67,7 +67,7 @@ jobs:
             -ldflags "-X main.Version=$version -s -w" \
             -o "$CurrentDir/v2raya_bin/v2raya_core_pr_build_${os}_${{ matrix.goarch }}_${version}${ext}" ./main
       - name: Upload v2rayA Binary
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: v2raya_pr_build_${{ matrix.os }}_${{ matrix.goarch }}
           path: v2raya_bin/v2raya*

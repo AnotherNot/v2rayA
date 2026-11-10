@@ -193,6 +193,7 @@ func (m *UpstreamManager) exchangeDirect(upstream *UpstreamInstance, query *DnsQ
 	if err := ValidateQuestionMatch(resp, query.Name, query.QType); err != nil {
 		return nil, fmt.Errorf("dns upstream: question mismatch: %w", err)
 	}
+	FilterBailiwick(resp)
 
 	var ttl uint32
 	if len(resp.Answer) > 0 {
@@ -330,6 +331,7 @@ func (m *UpstreamManager) exchangeViaProxy(upstream *UpstreamInstance, query *Dn
 	if err := ValidateQuestionMatch(resp, query.Name, query.QType); err != nil {
 		return nil, fmt.Errorf("dns upstream: proxy question mismatch: %w", err)
 	}
+	FilterBailiwick(resp)
 
 	// Calculate TTL.
 	var ttl uint32
@@ -425,6 +427,7 @@ func (m *UpstreamManager) finishProxy(upstream *UpstreamInstance, query *DnsQuer
 	if err := ValidateQuestionMatch(dnsResp, query.Name, query.QType); err != nil {
 		return nil, fmt.Errorf("dns upstream: proxy question mismatch: %w", err)
 	}
+	FilterBailiwick(dnsResp)
 
 	var ttl uint32
 	if len(dnsResp.Answer) > 0 {
@@ -808,6 +811,7 @@ func (m *UpstreamManager) finishDispatched(upstream *UpstreamInstance, query *Dn
 	if err := ValidateQuestionMatch(dnsResp, query.Name, query.QType); err != nil {
 		return nil, fmt.Errorf("dns upstream: dispatcher question mismatch: %w", err)
 	}
+	FilterBailiwick(dnsResp)
 
 	// Calculate TTL.
 	var ttl uint32

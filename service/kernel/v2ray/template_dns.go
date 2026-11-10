@@ -53,6 +53,90 @@ func dnsModuleListenAddr(setting *configure.Setting) string {
 	return "127.0.0.1:52353"
 }
 
+// dnsAllowedClients is the ACL the module applies to a query. Loopback always
+// answers; a listener that serves the LAN also accepts the host's private and
+// link-local interface subnets. It does not accept the rest of the network,
+// even when the socket is bound to a wildcard address.
+func dnsAllowedClients(setting *configure.Setting, listenAddr string) []string {
+	clients := []string{"127.0.0.0/8", "::1/128"}
+	if !dnsServesLan(setting, listenAddr) {
+		return clients
+	}
+	seen := map[string]struct{}{}
+	add := func(prefix string) {
+		if _, ok := seen[prefix]; ok {
+			return
+		}
+		seen[prefix] = struct{}{}
+		clients = append(clients, prefix)
+	}
+	interfaces, err := net.Interfaces()
+	if err == nil {
+		for _, iface := range interfaces {
+			addrs, err := iface.Addrs()
+			if err != nil {
+				continue
+			}
+			for _, addr := range addrs {
+				ipnet, ok := addr.(*net.IPNet)
+				if !ok || ipnet.IP.IsLoopback() {
+					continue
+				}
+				if !ipnet.IP.IsPrivate() && !ipnet.IP.IsLinkLocalUnicast() {
+					continue
+				}
+				ones, bits := ipnet.Mask.Size()
+				if ones < 0 || bits == 0 {
+					continue
+				}
+				add(fmt.Sprintf("%s/%d", ipnet.IP.Mask(ipnet.Mask).String(), ones))
+			}
+		}
+	}
+	// A listener bound to one address on an interface that is not up yet
+	// still needs that address in the ACL.
+	if host, _, err := net.SplitHostPort(listenAddr); err == nil {
+		if ip := net.ParseIP(host); ip != nil && !ip.IsUnspecified() && !ip.IsLoopback() {
+			if ipnet := ipNetOf(ip); ipnet != nil {
+				add(ipnet.String())
+			}
+		}
+	}
+	return clients
+}
+
+func dnsServesLan(setting *configure.Setting, listenAddr string) bool {
+	if setting.PortSharing || setting.IpForward {
+		return true
+	}
+	host, _, err := net.SplitHostPort(listenAddr)
+	if err != nil {
+		return true
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		return !ip.IsLoopback()
+	}
+	return host != "" && !strings.EqualFold(host, "localhost")
+}
+
+func ipNetOf(ip net.IP) *net.IPNet {
+	bits := 32
+	if ip.To4() == nil {
+		bits = 128
+	}
+	return &net.IPNet{IP: ip, Mask: net.CIDRMask(bits, bits)}
+}
+
+// dnsRateLimit caps one client's query rate when the listener is reachable
+// from the LAN. Loopback-only service keeps the cap off: local resolvers can
+// burst during startup and are not the amplifier this protects against.
+func dnsRateLimit(setting *configure.Setting, listenAddr string) int {
+	if dnsServesLan(setting, listenAddr) {
+		return 200
+	}
+	return 0
+}
+
 // dnsModuleExtraListenAddrs adds the 127.2.0.17:53 listener the resolv.conf
 // hijack points at, but only when port 53 is free for it: a resolver bound
 // to the wildcard address would make the bind fail and the core exit.
@@ -225,6 +309,8 @@ func (t *Template) generateDnsModuleConfig(serverInfos []serverInfo) error {
 		"listener": map[string]interface{}{
 			"listen_addr":        listenAddr,
 			"extra_listen_addrs": dnsModuleExtraListenAddrs(setting),
+			"allowed_clients":    dnsAllowedClients(setting, listenAddr),
+			"rate_limit":         dnsRateLimit(setting, listenAddr),
 			"timeout":            5,
 		},
 		"group_tags": groupTags,

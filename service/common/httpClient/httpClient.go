@@ -3,6 +3,7 @@ package httpClient
 import (
 	"fmt"
 	"github.com/v2rayA/v2rayA/common"
+	"github.com/v2rayA/v2rayA/common/netguard"
 	"github.com/v2rayA/v2rayA/db/configure"
 	"github.com/v2rayA/v2rayA/kernel/v2ray"
 	"net"
@@ -18,7 +19,7 @@ func GetHttpClientWithProxy(proxyURL string) (client *http.Client, err error) {
 	if err != nil {
 		return
 	}
-	return &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(u)}}, nil
+	return netguard.WrapClient(&http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(u)}}), nil
 }
 
 func GetHttpClientWithv2rayAProxy() (client *http.Client, err error) {
@@ -54,22 +55,22 @@ func GetHttpClientWithv2rayAPac() (client *http.Client, err error) {
 func GetHttpClientAutomatically() (c *http.Client) {
 	setting := configure.GetSettingNotNil()
 	if !v2ray.ProcessManager.Running() || configure.GetConnectedServers() == nil || v2ray.IsTransparentOn(setting) {
-		return http.DefaultClient
+		return netguard.WrapClient(http.DefaultClient)
 	}
 	var err error
 	switch setting.ProxyModeWhenSubscribe {
 	case configure.ProxyModePac:
 		c, err = GetHttpClientWithv2rayAPac()
 		if err != nil {
-			return http.DefaultClient
+			return netguard.WrapClient(http.DefaultClient)
 		}
 	case configure.ProxyModeProxy:
 		c, err = GetHttpClientWithv2rayAProxy()
 		if err != nil {
-			return http.DefaultClient
+			return netguard.WrapClient(http.DefaultClient)
 		}
 	default:
 		c = http.DefaultClient
 	}
-	return c
+	return netguard.WrapClient(c)
 }

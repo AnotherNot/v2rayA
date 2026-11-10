@@ -175,6 +175,7 @@ export default {
   },
   register: {
     title: "먼저 관리자 계정을 만드세요",
+    passwordHint: "12자 이상, 최대 72바이트.",
     messages: [
       "로그인에 사용할 관리자 계정을 꼭 기억하세요.",
       "계정 정보는 로컬에 저장되며 어떤 서버에도 전송되지 않습니다.",
@@ -214,6 +215,8 @@ export default {
     tunAutoRoute: "자동 라우트",
     ipForwardOn: "IP 포워딩",
     portSharingOn: "포트 공유",
+    portSharingUsername: "포트 공유 사용자 이름",
+    portSharingPassword: "포트 공유 비밀번호",
     concurrency: "동시 실행 수",
     inboundSniffing: "인바운드 스니핑",
     tunExcludeProcesses: "TUN 제외 프로세스",
@@ -247,6 +250,10 @@ export default {
       tunUnsupported: "이 플랫폼에서는 지원되지 않음",
     },
     messages: {
+      portSharing:
+        "포트 공유는 내장 SOCKS/HTTP 인바운드를 모든 인터페이스에 바인딩합니다. 이 사용자 이름과 비밀번호로 보호되며, 둘 다 없으면 포트는 127.0.0.1에 남습니다.",
+      portSharingCredentials:
+        "아래에 사용자 이름과 비밀번호를 설정하세요. 그렇지 않으면 프록시 포트는 루프백에 남습니다.",
       inboundSniffing:
         "인바운드 트래픽을 스니핑합니다. 활성화하지 않으면 일부 트래픽이 올바르게 분할되지 않을 수 있습니다.",
       routeOnly:

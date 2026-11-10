@@ -100,6 +100,7 @@ onBeforeUnmount(markSeen);
             :prepend-icon="mdiBookOpenPageVariantOutline"
             :href="`#docs/${item.docs}`"
             target="_blank"
+            rel="noopener noreferrer"
           >
             {{ t("common.docs") }}
           </v-btn>

@@ -2,9 +2,113 @@ package dns
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/miekg/dns"
 )
+
+// FilterBailiwick removes records that are not part of the answer to the
+// question. A recursive upstream can append an A record for a name the client
+// never asked about; storing it in the cache would hand that record to the
+// next client. The filter keeps the question's name, every CNAME target that
+// is reachable from it, authority records for the question's ancestors, and
+// the additional addresses those records name. It returns the number of
+// records it dropped.
+func FilterBailiwick(msg *dns.Msg) int {
+	if msg == nil || len(msg.Question) == 0 {
+		return 0
+	}
+	qname := canonicalName(msg.Question[0].Name)
+	allowed := map[string]struct{}{qname: {}}
+
+	// A CNAME chain can arrive out of order; close over it before deciding
+	// which records belong to the answer.
+	for {
+		added := false
+		for _, rr := range msg.Answer {
+			cname, ok := rr.(*dns.CNAME)
+			if !ok {
+				continue
+			}
+			if _, known := allowed[canonicalName(cname.Hdr.Name)]; !known {
+				continue
+			}
+			target := canonicalName(cname.Target)
+			if _, known := allowed[target]; !known {
+				allowed[target] = struct{}{}
+				added = true
+			}
+		}
+		if !added {
+			break
+		}
+	}
+
+	removed := 0
+	answer := msg.Answer[:0]
+	referenced := make(map[string]struct{})
+	for _, rr := range msg.Answer {
+		if _, ok := allowed[canonicalName(rr.Header().Name)]; !ok {
+			removed++
+			continue
+		}
+		answer = append(answer, rr)
+		switch typed := rr.(type) {
+		case *dns.MX:
+			referenced[canonicalName(typed.Mx)] = struct{}{}
+		case *dns.SRV:
+			referenced[canonicalName(typed.Target)] = struct{}{}
+		case *dns.NAPTR:
+			referenced[canonicalName(typed.Replacement)] = struct{}{}
+		}
+	}
+	msg.Answer = answer
+
+	authority := msg.Ns[:0]
+	for _, rr := range msg.Ns {
+		name := canonicalName(rr.Header().Name)
+		// A zone apex is an ancestor of the question, so a SOA or NS there is
+		// a legitimate authority record. An unrelated zone's record is not.
+		if !dns.IsSubDomain(name, qname) {
+			removed++
+			continue
+		}
+		authority = append(authority, rr)
+		if ns, ok := rr.(*dns.NS); ok {
+			referenced[canonicalName(ns.Ns)] = struct{}{}
+		}
+	}
+	msg.Ns = authority
+
+	extra := msg.Extra[:0]
+	for _, rr := range msg.Extra {
+		if rr.Header().Rrtype == dns.TypeOPT {
+			extra = append(extra, rr)
+			continue
+		}
+		name := canonicalName(rr.Header().Name)
+		_, inAnswer := allowed[name]
+		_, isReferenced := referenced[name]
+		// Glue is useful only for the names the kept answer and authority
+		// records point at, and only as an address.
+		if isReferenced && (rr.Header().Rrtype == dns.TypeA || rr.Header().Rrtype == dns.TypeAAAA) {
+			extra = append(extra, rr)
+			continue
+		}
+		if inAnswer {
+			extra = append(extra, rr)
+			continue
+		}
+		removed++
+	}
+	msg.Extra = extra
+
+	return removed
+}
+
+func canonicalName(name string) string {
+	return strings.ToLower(dns.Fqdn(name))
+}
 
 // ValidateResponse validates a DNS response message for integrity and consistency.
 // It checks:

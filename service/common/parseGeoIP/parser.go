@@ -1,16 +1,22 @@
 package parseGeoIP
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
+	"sort"
 	"strings"
-	"sync"
 
+	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/v2rayA/v2rayA/kernel/v2ray/asset"
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 )
+
+// ErrCountryNotFound reports a code that the asset does not carry. It is
+// distinct from a country whose list is empty, which is a valid answer.
+var ErrCountryNotFound = errors.New("country code not found in the geoip asset")
 
 type parserResult struct {
 	ipv4 []string
@@ -24,14 +30,27 @@ type parserCacheKey struct {
 	countryCode string
 }
 
-var parserCache sync.Map
+type codesCacheKey struct {
+	path    string
+	size    int64
+	modTime int64
+}
+
+// Both caches are bounded: a caller can ask for arbitrary two-letter codes,
+// and an unbounded map of decoded CIDR lists is a memory leak with a remote
+// trigger. The asset is one file per path/size/mtime, so a changed file is a
+// new key and the old entries age out.
+var (
+	parserCache, _       = lru.New[parserCacheKey, parserResult](128)
+	countryCodesCache, _ = lru.New[codesCacheKey, []string](8)
+)
 
 func Parser(filename string, countryCode string) ([]string, []string, error) {
-	realpath, err := asset.GetV2rayLocationAsset(filename)
-	if err != nil {
-		return nil, nil, err
+	countryCode = strings.ToUpper(strings.TrimSpace(countryCode))
+	if countryCode == "" {
+		return nil, nil, ErrCountryNotFound
 	}
-	info, err := os.Stat(realpath)
+	realpath, info, err := assetInfo(filename)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -42,9 +61,8 @@ func Parser(filename string, countryCode string) ([]string, []string, error) {
 		modTime:     info.ModTime().UnixNano(),
 		countryCode: countryCode,
 	}
-	if cached, ok := parserCache.Load(cacheKey); ok {
-		result := cached.(parserResult)
-		return result.ipv4, result.ipv6, nil
+	if cached, ok := parserCache.Get(cacheKey); ok {
+		return cached.ipv4, cached.ipv6, nil
 	}
 
 	data, err := os.ReadFile(realpath)
@@ -52,41 +70,81 @@ func Parser(filename string, countryCode string) ([]string, []string, error) {
 		return nil, nil, err
 	}
 
-	ipv4List, ipv6List, err := parseGeoIP(data, countryCode)
+	ipv4List, ipv6List, found, err := parseGeoIP(data, countryCode)
 	if err != nil {
 		return ipv4List, ipv6List, err
 	}
+	if !found {
+		return nil, nil, ErrCountryNotFound
+	}
 
-	parserCache.Store(cacheKey, parserResult{ipv4: ipv4List, ipv6: ipv6List})
+	parserCache.Add(cacheKey, parserResult{ipv4: ipv4List, ipv6: ipv6List})
 	return ipv4List, ipv6List, nil
 }
 
-func parseGeoIP(data []byte, countryCode string) ([]string, []string, error) {
+// CountryCodes lists the codes the asset carries. The controller checks a
+// submitted code against this set before storing it, so an unknown code never
+// reaches the per-code parser above.
+func CountryCodes(filename string) ([]string, error) {
+	realpath, info, err := assetInfo(filename)
+	if err != nil {
+		return nil, err
+	}
+	key := codesCacheKey{path: realpath, size: info.Size(), modTime: info.ModTime().UnixNano()}
+	if cached, ok := countryCodesCache.Get(key); ok {
+		return cached, nil
+	}
+	data, err := os.ReadFile(realpath)
+	if err != nil {
+		return nil, err
+	}
+	codes, err := countryCodesFromData(data)
+	if err != nil {
+		return nil, err
+	}
+	countryCodesCache.Add(key, codes)
+	return codes, nil
+}
+
+func assetInfo(filename string) (string, os.FileInfo, error) {
+	realpath, err := asset.GetV2rayLocationAsset(filename)
+	if err != nil {
+		return "", nil, err
+	}
+	info, err := os.Stat(realpath)
+	if err != nil {
+		return "", nil, err
+	}
+	return realpath, info, nil
+}
+
+// parseGeoIP decodes one entry at a time and stops at the requested country.
+// Decoding the complete GeoIPList expands a roughly 22 MiB asset to hundreds
+// of MiB in memory.
+func parseGeoIP(data []byte, countryCode string) ([]string, []string, bool, error) {
 	var ipv4List []string
 	var ipv6List []string
+	countryCode = strings.ToUpper(strings.TrimSpace(countryCode))
 
-	// GeoIPList contains repeated GeoIP messages in field 1. Decoding the
-	// complete list expands a roughly 22 MiB asset to hundreds of MiB in
-	// memory. Decode one entry at a time and stop at the requested country.
 	for len(data) > 0 {
 		number, wireType, n := protowire.ConsumeTag(data)
 		if n < 0 {
-			return ipv4List, ipv6List, protowire.ParseError(n)
+			return ipv4List, ipv6List, false, protowire.ParseError(n)
 		}
 		data = data[n:]
 
 		if number == 1 && wireType == protowire.BytesType {
 			entryData, consumed := protowire.ConsumeBytes(data)
 			if consumed < 0 {
-				return ipv4List, ipv6List, protowire.ParseError(consumed)
+				return ipv4List, ipv6List, false, protowire.ParseError(consumed)
 			}
 			data = data[consumed:]
 
 			var geo GeoIP
 			if err := proto.Unmarshal(entryData, &geo); err != nil {
-				return ipv4List, ipv6List, err
+				return ipv4List, ipv6List, false, err
 			}
-			if geo.CountryCode != countryCode {
+			if strings.ToUpper(strings.TrimSpace(geo.CountryCode)) != countryCode {
 				continue
 			}
 
@@ -102,15 +160,53 @@ func parseGeoIP(data []byte, countryCode string) ([]string, []string, error) {
 					ipv4List = append(ipv4List, fmt.Sprintf("%s/%d", ip.String(), c.Prefix))
 				}
 			}
-			return ipv4List, ipv6List, nil
+			return ipv4List, ipv6List, true, nil
 		}
 
 		consumed := protowire.ConsumeFieldValue(number, wireType, data)
 		if consumed < 0 {
-			return ipv4List, ipv6List, protowire.ParseError(consumed)
+			return ipv4List, ipv6List, false, protowire.ParseError(consumed)
 		}
 		data = data[consumed:]
 	}
 
-	return ipv4List, ipv6List, nil
+	return ipv4List, ipv6List, false, nil
+}
+
+func countryCodesFromData(data []byte) ([]string, error) {
+	seen := make(map[string]struct{})
+	var codes []string
+	for len(data) > 0 {
+		number, wireType, n := protowire.ConsumeTag(data)
+		if n < 0 {
+			return nil, protowire.ParseError(n)
+		}
+		data = data[n:]
+		if number == 1 && wireType == protowire.BytesType {
+			entryData, consumed := protowire.ConsumeBytes(data)
+			if consumed < 0 {
+				return nil, protowire.ParseError(consumed)
+			}
+			data = data[consumed:]
+			var geo GeoIP
+			if err := proto.Unmarshal(entryData, &geo); err != nil {
+				return nil, err
+			}
+			code := strings.ToUpper(strings.TrimSpace(geo.CountryCode))
+			if code != "" {
+				if _, ok := seen[code]; !ok {
+					seen[code] = struct{}{}
+					codes = append(codes, code)
+				}
+			}
+			continue
+		}
+		consumed := protowire.ConsumeFieldValue(number, wireType, data)
+		if consumed < 0 {
+			return nil, protowire.ParseError(consumed)
+		}
+		data = data[consumed:]
+	}
+	sort.Strings(codes)
+	return codes, nil
 }

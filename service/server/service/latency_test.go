@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/v2rayA/v2rayA/common"
+	"github.com/v2rayA/v2rayA/common/netguard"
 	"github.com/v2rayA/v2rayA/conf"
 	"github.com/v2rayA/v2rayA/db/configure"
 	"github.com/v2rayA/v2rayA/kernel/serverObj"
@@ -57,6 +58,9 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	conf.GetEnvironmentConfig().Config = dir
+	// The suite fetches httptest servers on loopback; the real-fetch guard
+	// would refuse them.
+	netguard.SetAllowPrivate(true)
 	code := m.Run()
 	os.RemoveAll(dir)
 	os.Exit(code)

@@ -55,3 +55,38 @@ func TestConcurrentRequestReplay(t *testing.T) {
 		t.Fatalf("handler ran %d times", n)
 	}
 }
+
+func TestRequestReplayIsScopedToMethodPathAndUser(t *testing.T) {
+	var calls atomic.Int32
+	r := gin.New()
+	r.Use(func(c *gin.Context) {
+		c.Set("Name", c.GetHeader("X-Test-User"))
+		c.Next()
+	}, ReqCache)
+	r.Any("/*path", func(c *gin.Context) {
+		calls.Add(1)
+		common.ResponseSuccess(c, "ok")
+	})
+
+	do := func(method, path, user string) {
+		req := httptest.NewRequest(method, path, nil)
+		req.Header.Set(common.RequestIdHeader, "same-id")
+		req.Header.Set("X-Test-User", user)
+		r.ServeHTTP(httptest.NewRecorder(), req)
+	}
+
+	do(http.MethodGet, "/a", "alice")
+	if calls.Load() != 1 {
+		t.Fatalf("first call ran %d times", calls.Load())
+	}
+	do(http.MethodGet, "/a", "alice")
+	if calls.Load() != 1 {
+		t.Fatalf("an identical replay ran %d times", calls.Load())
+	}
+	do(http.MethodGet, "/a", "bob")
+	do(http.MethodPost, "/a", "alice")
+	do(http.MethodGet, "/b", "alice")
+	if calls.Load() != 4 {
+		t.Fatalf("different scope ran %d times, want 4", calls.Load())
+	}
+}

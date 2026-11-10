@@ -64,12 +64,15 @@ func killOrphanCore(p *netstat.Process) bool {
 	if runtime.GOOS == "windows" || p.PPID != "1" {
 		return false
 	}
+	pid, err := strconv.Atoi(p.PID)
+	if err != nil {
+		return false
+	}
 	binPath, err := where.GetV2rayBinPath()
 	if err != nil || filepath.Base(binPath) != p.Name {
 		return false
 	}
-	pid, err := strconv.Atoi(p.PID)
-	if err != nil {
+	if !processExecutableMatches(pid, binPath) {
 		return false
 	}
 	proc, err := os.FindProcess(pid)
@@ -86,6 +89,26 @@ func killOrphanCore(p *netstat.Process) bool {
 	_, _ = proc.Wait()
 	time.Sleep(200 * time.Millisecond)
 	return true
+}
+
+// processExecutableMatches checks the kernel's own answer for "which file is
+// this process running", not just its name. A local user can name a process
+// v2raya_core; only the /proc link says whether it is the core this service
+// started. Other platforms keep the name and PPID check.
+func processExecutableMatches(pid int, binPath string) bool {
+	if runtime.GOOS != "linux" {
+		return true
+	}
+	target, err := os.Readlink(filepath.Join("/proc", strconv.Itoa(pid), "exe"))
+	if err != nil {
+		return false
+	}
+	target = strings.TrimSuffix(target, " (deleted)")
+	absolute, err := filepath.Abs(binPath)
+	if err != nil {
+		return false
+	}
+	return filepath.Clean(target) == filepath.Clean(absolute)
 }
 
 var OccupiedErr = fmt.Errorf("is already in use")
