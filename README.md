@@ -167,7 +167,7 @@ docker run -d --restart=always --network=host \
   ghcr.io/anothernot/v2raya:latest
 ```
 
-This example is for a Linux host and gives the container the host network and only the two capabilities and the TUN device the transparent proxy needs; `--privileged` is not required. Add `--read-only --tmpfs /tmp --tmpfs /run` when the root filesystem should stay immutable. To build the image from source instead, which needs only Docker:
+This example is for a Linux host and gives the container the host network and only the two capabilities and the TUN device the transparent proxy needs; `--privileged` is not required. Add `--read-only --tmpfs /tmp --tmpfs /run -e V2RAYA_V2RAY_ASSETSDIR=/etc/v2raya` when the root filesystem should stay immutable; the geo databases are downloaded into the data volume on the first start. To build the image from source instead, which needs only Docker:
 
 ```sh
 docker build -f install/docker/Dockerfile -t v2raya-local .
@@ -184,11 +184,11 @@ docker run -d --restart=always --network=host \
 
 With bridge networking instead, publish port 2017 and the inbound ports you use, turn on port sharing in the settings, and set a port-sharing username and password; without both, the inbounds stay on the container's loopback and the published ports refuse connections. Transparent proxy is not available in that setup.
 
-[`install/docker/docker-compose.yml`](install/docker/docker-compose.yml) carries both layouts as Compose profiles, with the first-run and port-sharing notes:
+[`install/docker/docker-compose.yaml`](install/docker/docker-compose.yaml) carries both layouts as Compose profiles, with the first-run and port-sharing notes:
 
 ```sh
-docker compose -f install/docker/docker-compose.yml --profile transparent up -d  # host network
-docker compose -f install/docker/docker-compose.yml --profile socks up -d        # bridge, published SOCKS5
+docker compose -f install/docker/docker-compose.yaml --profile transparent up -d  # host network
+docker compose -f install/docker/docker-compose.yaml --profile socks up -d        # bridge, published SOCKS5
 ```
 
 </details>

@@ -167,7 +167,7 @@ docker run -d --restart=always --network=host \
   ghcr.io/anothernot/v2raya:latest
 ```
 
-以下示例针对 Linux 宿主机，只赋予透明代理所需的宿主机网络、两个 capability 与 TUN 设备；不需要 `--privileged`。若希望根文件系统只读，可加 `--read-only --tmpfs /tmp --tmpfs /run`。若要用源码构建镜像（只需要 Docker）：
+以下示例针对 Linux 宿主机，只赋予透明代理所需的宿主机网络、两个 capability 与 TUN 设备；不需要 `--privileged`。若希望根文件系统只读，可加 `--read-only --tmpfs /tmp --tmpfs /run -e V2RAYA_V2RAY_ASSETSDIR=/etc/v2raya`；geo 数据库会在首次启动时下载到数据卷。若要用源码构建镜像（只需要 Docker）：
 
 ```sh
 docker build -f install/docker/Dockerfile -t v2raya-local .
@@ -184,11 +184,11 @@ docker run -d --restart=always --network=host \
 
 改用桥接网络时，需要映射 2017 端口和使用的入站端口，在设置中开启端口共享，并设置端口共享的用户名和密码；缺少任一项时，入站只监听容器的回环地址，映射的端口会拒绝连接。这种方式不提供透明代理。
 
-[`install/docker/docker-compose.yml`](install/docker/docker-compose.yml) 以 Compose 配置文件（profile）的形式提供两种方案，并说明首次启动和端口共享：
+[`install/docker/docker-compose.yaml`](install/docker/docker-compose.yaml) 以 Compose 配置文件（profile）的形式提供两种方案，并说明首次启动和端口共享：
 
 ```sh
-docker compose -f install/docker/docker-compose.yml --profile transparent up -d  # 宿主机网络
-docker compose -f install/docker/docker-compose.yml --profile socks up -d        # 桥接网络，映射 SOCKS5
+docker compose -f install/docker/docker-compose.yaml --profile transparent up -d  # 宿主机网络
+docker compose -f install/docker/docker-compose.yaml --profile socks up -d        # 桥接网络，映射 SOCKS5
 ```
 
 </details>

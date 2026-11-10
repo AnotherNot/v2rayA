@@ -31,20 +31,26 @@ TUN-устройства. Поэтому вся процедура ниже вы
 
 ### Какие порты несут правила
 
-| Порт | Тег ядра | Получает правила RoutingA |
-| --- | --- | --- |
-| 20170 | `socks` | нет |
-| 20171 | `http` | нет |
-| 20172 | `rule-http` | да |
-| `socks5WithPac` | `rule-socks` | да |
+| Порт | Тег ядра | По умолчанию | Получает правила RoutingA |
+| --- | --- | --- | --- |
+| 20170 | `rule-socks` | включён | да |
+| 20171 | `http` | выключен (0) | нет |
+| 20172 | `rule-http` | выключен (0) | да |
+| `socks5` | `socks` | выключен (0) | нет |
 
 Правила прикреплены только к `rule-http` и `rule-socks`
-(`service/kernel/v2ray/template_routing.go`, `setRulePortRouting`). Клиент,
-направленный на 20170 или 20171, не увидит импортированный набор правил. Это наиболее
-вероятная причина «правила ничего не делают».
+(`service/kernel/v2ray/template_routing.go`, `setRulePortRouting`). По умолчанию
+20170 — rule-порт, поэтому импортированный набор он видит; клиент, направленный
+на обычный SOCKS- или HTTP-порт, его не увидит. Это наиболее вероятная причина
+«правила ничего не делают».
 
-`socks5WithPac` по умолчанию равен `0`, то есть входящее подключение SOCKS5-с-правилами выключено,
-пока вы его не включите.
+`socks5WithPac` по умолчанию равен `20170`; `socks5`, `http` и `httpWithPac` по
+умолчанию равны `0`, то есть эти входящие выключены, пока их не включат
+(`service/db/configure/configure.go`).
+
+2017 — это веб-интерфейс v2rayA, а не входящее подключение ядра. Собственное
+API ядра (`api-in`) слушает случайный loopback-порт и используется для
+статистики и балансировщика.
 
 ### Сначала докажите механизм, потом доверяйте импорту
 
@@ -105,21 +111,29 @@ docker run --rm --network host -v "$PWD:/repo" -w /repo/gui node:24 \
 
 ```sh
 curl -s http://127.0.0.1:2017/api/version | head -c 400
-ss -lntp | grep -E '2017|20170|20171|20172'
+ss -lntp | grep -E ':2017\b'
 ```
+
+Слушает только веб-интерфейс; ядро стартует в разделе 2 и тогда открывает 20170.
 
 ### 1.3 Первый запуск: учётная запись
 
-API отвечает `first: true`, пока учётная запись не существует.
+`/api/version` отвечает `hasAccounts: false`, пока учётной записи нет. Для
+регистрации также нужен одноразовый токен, который сервис печатает при первом
+запуске и записывает в `setup-token` в каталоге конфигурации. Пароль должен быть
+от 12 до 72 байт.
 
 ```sh
+CONF="${XDG_CONFIG_HOME:-$HOME/.config}/v2raya"
+SETUP_TOKEN=$(cat "$CONF/setup-token")
+
 curl -s -X POST http://127.0.0.1:2017/api/account \
   -H 'Content-Type: application/json' \
-  -d '{"username":"admin","password":"CHANGE_ME"}'
+  -d "{\"username\":\"admin\",\"password\":\"CHANGE_ME_123\",\"setupToken\":\"$SETUP_TOKEN\"}"
 
 TOKEN=$(curl -s -X POST http://127.0.0.1:2017/api/login \
   -H 'Content-Type: application/json' \
-  -d '{"username":"admin","password":"CHANGE_ME"}' \
+  -d '{"username":"admin","password":"CHANGE_ME_123"}' \
   | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
 ```
 
@@ -150,6 +164,12 @@ curl -s -X POST http://127.0.0.1:2017/api/v2ray -H "Authorization: Bearer $TOKEN
 
 Вся последовательность — в [running-from-source.md](running-from-source.md), шаг 4.
 
+Ядро запущено, поэтому входящее по умолчанию уже слушает:
+
+```sh
+ss -lntp | grep -E ':2017|:20170'
+```
+
 Затем измерьте два адреса, с которыми сравнивается всё остальное:
 
 ```sh
@@ -169,8 +189,8 @@ curl -s --socks5-hostname 127.0.0.1:20170 https://ifconfig.me; echo # B: the nod
 
 ```sh
 cat > /tmp/known.txt <<'EOF'
-# control rule: example.com goes out directly, everything else through the proxy
-domain(example.com)->direct
+# control rule: ifconfig.me goes out directly, everything else through the proxy
+domain(ifconfig.me)->direct
 default: proxy
 EOF
 
@@ -218,7 +238,7 @@ PY
 ### 3.4 Измерьте
 
 ```sh
-P="-x http://127.0.0.1:20172"
+P="--socks5-hostname 127.0.0.1:20170"
 curl -s $P https://example.com     -o /dev/null -w '%{http_code}\n'
 curl -s $P https://ifconfig.me; echo    # expect A
 curl -s $P https://api.github.com -o /dev/null -w '%{http_code}\n'
@@ -295,7 +315,7 @@ direct     <- port(0-65535)
 ### 4.5 Проверьте каждую ветвь
 
 ```sh
-P="-x http://127.0.0.1:20172"
+P="--socks5-hostname 127.0.0.1:20170"
 
 # geoip:private -> direct. Must return A, and must not stall.
 curl -s $P --max-time 10 http://192.168.0.1/ -o /dev/null -w '%{http_code}\n'
@@ -501,14 +521,18 @@ Settings** для DNS-источника. Панель показывает URL,
 зелёные: сломанный набор правил в сочетании с прозрачным режимом отправляет трафик
 в никуда, и вы не сможете понять, что из двух виновато.
 
-### 8.1 SOCKS5 с правилами
+### 8.1 Перенос rule-порта
+
+SOCKS5 с правилами уже включён на 20170. Этот вызов переносит его на 20173; на
+новом порту действуют те же правила:
 
 ```sh
 curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:2017/api/ports \
   | python3 -c '
 import json,sys
-p=json.load(sys.stdin)["data"]["ports"]
+p=json.load(sys.stdin)["data"]
 p["socks5WithPac"]=20173
+p.pop("vmessLink",None)
 print(json.dumps(p))' > /tmp/ports.json
 curl -s -X PUT http://127.0.0.1:2017/api/ports \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d @/tmp/ports.json
@@ -525,10 +549,11 @@ nftables, а для `tun` — устройство `/dev/net/tun`. Правил�
 
 ### 8.3 Совместное использование портов
 
-Включение `portSharing` переносит встроенные входящие подключения на все интерфейсы.
-Встроенные входящие подключения SOCKS и HTTP принимают **без пароля**
-(`service/kernel/v2ray/templateJson.go`). В сети, которой вы не доверяете, это
-открытый прокси на вашем узле; используйте собственное входящее подключение с именем пользователя и паролем.
+Включение `portSharing` само по себе ничего не меняет: встроенные входящие
+остаются на `127.0.0.1`, пока не заданы и `portSharingUsername`, и
+`portSharingPassword`. С обоими они выходят на все интерфейсы и требуют эти имя
+пользователя и пароль (`service/kernel/v2ray/template_inbound.go`). API-порт ядра
+всегда остаётся на loopback.
 
 ## 9. Справочник API
 
@@ -541,6 +566,8 @@ nftables, а для `tun` — устройство `/dev/net/tun`. Правил�
 | PUT | `/api/dnsSource` | `{url}` | импортирует DNS-правила, перезапускает ядро |
 | DELETE | `/api/dnsSource` | — | забывает источник, сохраняет правила |
 | GET | `/api/setting` | — | `pacMode` выбирает `routingA`; `proxyModeWhenSubscribe` выбирает, как загружаются источники |
+| GET | `/api/ports` | — | объект портов лежит прямо в `data`; `vmessLink` появляется, когда включён VMess-вход |
+| PUT | `/api/ports` | объект портов | перезапускает ядро; 0 закрывает входящее |
 | GET | `/api/touch` | — | текущие узлы и подключения |
 
 ## 10. Автоматическое покрытие
