@@ -6,6 +6,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/sha512"
+	"crypto/subtle"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
@@ -18,17 +19,16 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// CryptoPwd 使用 bcrypt 加密密码。
-// 如果 bcrypt 失败（极少情况），回退到旧版 MD5 哈希方式以保持兼容。
-func CryptoPwd(password string) string {
+// CryptoPwd hashes a password with bcrypt. There is no fallback: a hash that
+// silently changes algorithm is a hash whose strength cannot be reasoned
+// about. The caller handles the error, which only a password longer than
+// bcrypt's 72-byte limit can cause.
+func CryptoPwd(password string) (string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		// fallback to legacy hash on error
-		shaed := sha512.Sum512_256([]byte(password))
-		pwd := md5.Sum(shaed[:])
-		return fmt.Sprintf("%x", pwd)
+		return "", fmt.Errorf("bcrypt: %w", err)
 	}
-	return string(hash)
+	return string(hash), nil
 }
 
 // isBcryptHash 判断字符串是否为 bcrypt 哈希（以 $2a$、$2b$ 或 $2y$ 开头）
@@ -45,20 +45,28 @@ func isLegacyMD5Hash(hash string) bool {
 	return err == nil
 }
 
-// CheckPassword 验证密码，优先使用 bcrypt，同时向后兼容旧版 MD5 哈希。
-// 旧版哈希方式：sha512.Sum512_256(password) → md5.Sum → 32位十六进制字符串
+// CheckPassword verifies a password. It keeps accepting the legacy MD5
+// hash so an installation created years ago can still sign in; the caller
+// that wants to migrate it uses CheckPasswordAndRehash.
 func CheckPassword(password, hash string) bool {
-	// 如果是 bcrypt 哈希，使用 bcrypt 验证
+	ok, _ := CheckPasswordAndRehash(password, hash)
+	return ok
+}
+
+// CheckPasswordAndRehash verifies a password and reports whether the stored
+// hash is the legacy MD5 form. A successful login with needsRehash=true must
+// store a bcrypt hash in its place.
+func CheckPasswordAndRehash(password, hash string) (ok bool, needsRehash bool) {
 	if isBcryptHash(hash) {
-		return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
+		return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil, false
 	}
-	// 如果是旧版 MD5 哈希（32位十六进制），使用旧版方式验证
 	if isLegacyMD5Hash(hash) {
 		shaed := sha512.Sum512_256([]byte(password))
 		pwd := md5.Sum(shaed[:])
-		return fmt.Sprintf("%x", pwd) == hash
+		expected := fmt.Sprintf("%x", pwd)
+		return subtle.ConstantTimeCompare([]byte(expected), []byte(hash)) == 1, true
 	}
-	return false
+	return false, false
 }
 
 // HMACSHA256

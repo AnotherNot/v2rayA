@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/v2rayA/v2rayA/common"
 	"github.com/v2rayA/v2rayA/common/httpClient"
+	"github.com/v2rayA/v2rayA/common/netguard"
 	"github.com/v2rayA/v2rayA/common/redact"
 	"github.com/v2rayA/v2rayA/common/resolv"
 	"github.com/v2rayA/v2rayA/db/configure"
@@ -110,6 +112,11 @@ func TestHttpLatency(which []*configure.Which, timeout time.Duration, maxParalle
 		if err != nil || (testURL.Scheme != "http" && testURL.Scheme != "https") || testURL.Hostname() == "" {
 			return nil, common.Coded("INVALID_TEST_URL", fmt.Errorf("test URL %q must be an HTTP or HTTPS URL with a host", customTestUrl), map[string]interface{}{"testUrl": customTestUrl})
 		}
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := netguard.CheckURL(ctx, testURL); err != nil {
+			return nil, common.Coded("INVALID_TEST_URL", fmt.Errorf("test URL host is not a public address: %w", err), map[string]interface{}{"testUrl": testURL.Hostname()})
+		}
 	}
 	var whiches = configure.NewWhiches(which)
 	which = whiches.Get()
@@ -167,10 +174,9 @@ func TestHttpLatency(which []*configure.Which, timeout time.Duration, maxParalle
 	}()
 	inboundPortMap := make([]string, len(vms))
 	pluginPortMap := make(map[int]int)
+	// The probe inbounds exist for one measurement and have no credentials;
+	// they never leave loopback, even when port sharing serves the LAN.
 	listenAddr := "127.0.0.1"
-	if tmpl.Setting != nil && tmpl.Setting.PortSharing {
-		listenAddr = "0.0.0.0"
-	}
 	var toClose []io.Closer
 	defer func() {
 		for _, l := range toClose {

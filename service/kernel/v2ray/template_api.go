@@ -28,11 +28,13 @@ func (t *Template) SetAPI(serverData *ServerData) (port int, err error) {
 			time.Sleep(30 * time.Millisecond)
 		}
 	}
+	// The loopback API is unauthenticated. Only the two services v2rayA
+	// itself needs are exposed; a user-provided HandlerService would let
+	// anything that can reach the port rewrite routing.
 	services := []string{
 		"LoggerService",
 		"StatsService",
 	}
-	services = slicex.Uniq(append(services, config.Api.Services...))
 	// observatory
 	if serverData != nil {
 		outbounds := t.outNames()
@@ -107,6 +109,10 @@ func (t *Template) SetAPI(serverData *ServerData) (port int, err error) {
 			}
 		}
 	}
+	if t.MultiObservatory != nil || t.Observatory != nil {
+		services = append(services, "ObservatoryService")
+	}
+	services = slicex.Uniq(services)
 	t.API = &coreObj.APIObject{
 		Tag:      "api-out",
 		Services: services,

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/netip"
 	"strings"
 	"sync"
 	"time"
@@ -31,6 +32,8 @@ type DnsListener struct {
 	config  *DnsListenerConfig
 	handler Handler
 	servers []serverPair
+	allowed []netip.Prefix
+	limiter *clientLimiter
 	wg      sync.WaitGroup
 	ctx     context.Context
 	cancel  context.CancelFunc
@@ -61,6 +64,15 @@ func (l *DnsListener) Start() error {
 	}
 
 	l.ctx, l.cancel = context.WithCancel(context.Background())
+	allowed, err := allowedClientPrefixes(l.config.AllowedClients)
+	if err != nil {
+		l.Stop()
+		return fmt.Errorf("dns listener: allowed clients: %w", err)
+	}
+	l.allowed = allowed
+	if l.config.RateLimit > 0 {
+		l.limiter = newClientLimiter(l.config.RateLimit)
+	}
 
 	// The primary listener is mandatory: without it the module serves nothing.
 	primary, err := l.startPair(l.config.ListenAddr)
@@ -182,6 +194,36 @@ func (l *DnsListener) handlePacket(w dns.ResponseWriter, msg *dns.Msg) {
 
 	q := msg.Question[0]
 	clientAddr := w.RemoteAddr()
+	clientIP, hasIP := addressIP(clientAddr)
+
+	// The listener is a resolver, not a public service. A wildcard bind is
+	// how port sharing and IP forwarding reach LAN clients, and this check is
+	// what keeps the same wildcard from answering the rest of the network.
+	if !hasIP || !l.clientAllowed(clientIP) {
+		dnsLogf("[dns] refused query from %s: not in allowed_clients", clientAddr)
+		m := new(dns.Msg)
+		m.SetRcode(msg, dns.RcodeRefused)
+		_ = w.WriteMsg(m)
+		return
+	}
+	if l.limiter != nil && !l.limiter.Allow(clientIP) {
+		// Rate-limited UDP queries are dropped rather than refused: a REFUSED
+		// reply still amplifies a spoofed source.
+		if _, udp := clientAddr.(*net.UDPAddr); !udp {
+			m := new(dns.Msg)
+			m.SetRcode(msg, dns.RcodeRefused)
+			_ = w.WriteMsg(m)
+		}
+		return
+	}
+	// ANY against a recursive resolver is a reflection amplifier; a local
+	// client that needs it can ask the upstream directly.
+	if q.Qtype == dns.TypeANY && !clientIP.IsLoopback() {
+		m := new(dns.Msg)
+		m.SetRcode(msg, dns.RcodeRefused)
+		_ = w.WriteMsg(m)
+		return
+	}
 
 	// A query carrying this process's own token has been sent back to us by an
 	// upstream — a local resolver that forwards to v2rayA while a rule points
@@ -310,6 +352,55 @@ func dropSigs(rrs []dns.RR) []dns.RR {
 // finished starting. Callers see it after a failed bind; it carries no signal.
 func isNotStarted(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "server not started")
+}
+
+var defaultAllowedClients = []netip.Prefix{
+	netip.MustParsePrefix("127.0.0.0/8"),
+	netip.MustParsePrefix("::1/128"),
+}
+
+// allowedClientPrefixes turns the configured strings into prefixes. An empty
+// list is loopback only: a config written before this field existed must not
+// silently keep answering the whole network.
+func allowedClientPrefixes(raw []string) ([]netip.Prefix, error) {
+	// Loopback is never removed: the module's own hijacked resolv.conf and a
+	// local client both arrive from there, and an ACL that omits it turns the
+	// host's own resolver off.
+	prefixes := append([]netip.Prefix(nil), defaultAllowedClients...)
+	for _, value := range raw {
+		prefix, err := ParseClientPrefix(value)
+		if err != nil {
+			return nil, err
+		}
+		prefixes = append(prefixes, prefix)
+	}
+	return prefixes, nil
+}
+
+func (l *DnsListener) clientAllowed(ip netip.Addr) bool {
+	if !ip.IsValid() {
+		return false
+	}
+	ip = ip.Unmap()
+	for _, prefix := range l.allowed {
+		if prefix.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+func addressIP(addr net.Addr) (netip.Addr, bool) {
+	switch a := addr.(type) {
+	case *net.UDPAddr:
+		ip, ok := netip.AddrFromSlice(a.IP)
+		return ip.Unmap(), ok
+	case *net.TCPAddr:
+		ip, ok := netip.AddrFromSlice(a.IP)
+		return ip.Unmap(), ok
+	default:
+		return netip.Addr{}, false
+	}
 }
 
 // Healthy returns true if all listeners are active.

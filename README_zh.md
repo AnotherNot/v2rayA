@@ -141,7 +141,10 @@ sudo rc-service v2raya start
 该分支发布 GitHub Container Registry 镜像，覆盖 `linux/amd64` 与 `linux/arm64`。`latest` 随每个非预发布版本更新；每个发布同时带有版本标签（`2.5.14` 与 `v2.5.14`）。无需登录：
 
 ```sh
-docker run -d --restart=always --privileged --network=host --name v2raya \
+docker run -d --restart=always --network=host \
+  --cap-drop ALL --cap-add NET_ADMIN --cap-add NET_RAW \
+  --device /dev/net/tun --security-opt no-new-privileges \
+  --name v2raya \
   -e V2RAYA_LOG_FILE=/tmp/v2raya.log \
   -v /lib/modules:/lib/modules:ro \
   -v /etc/resolv.conf:/etc/resolv.conf \
@@ -149,11 +152,14 @@ docker run -d --restart=always --privileged --network=host --name v2raya \
   ghcr.io/anothernot/v2raya:latest
 ```
 
-以下示例针对 Linux 宿主机，赋予容器宿主机网络与特权，透明代理需要这两项。若要用源码构建镜像（只需要 Docker）：
+以下示例针对 Linux 宿主机，只赋予透明代理所需的宿主机网络、两个 capability 与 TUN 设备；不需要 `--privileged`。若希望根文件系统只读，可加 `--read-only --tmpfs /tmp --tmpfs /run`。若要用源码构建镜像（只需要 Docker）：
 
 ```sh
 docker build -f install/docker/Dockerfile -t v2raya-local .
-docker run -d --restart=always --privileged --network=host --name v2raya \
+docker run -d --restart=always --network=host \
+  --cap-drop ALL --cap-add NET_ADMIN --cap-add NET_RAW \
+  --device /dev/net/tun --security-opt no-new-privileges \
+  --name v2raya \
   -e V2RAYA_LOG_FILE=/tmp/v2raya.log \
   -v /lib/modules:/lib/modules:ro \
   -v /etc/resolv.conf:/etc/resolv.conf \
