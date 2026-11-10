@@ -2,11 +2,9 @@ name: Build v2rayA Web (Reusable)
 
 on:
   workflow_call:
-    inputs:
-      upload_archive:
-        description: "Whether to also upload the web.tar.gz archive as a release asset"
-        type: boolean
-        default: false
+
+permissions:
+  contents: read
 
 jobs:
   Build_v2rayA_Web:
@@ -19,21 +17,19 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "24"
+          cache: yarn
+          cache-dependency-path: gui/yarn.lock
+      # The release build must come from the committed lockfile, exactly as
+      # the GUI check does; --check-files would let a drifted lockfile pass.
       - name: Build GUI
         run: |
-          yarn --cwd gui --check-files
+          yarn --cwd gui install --frozen-lockfile
           yarn --cwd gui build
-          echo "Use tar to generate web.tar.gz..."
-          tar -zcvf web.tar.gz web/
+      # The web artifact is consumed within the same run and never published
+      # on its own, so it does not need the default retention.
       - name: Upload Web Files to Artifacts
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           path: web/*
           name: web
-      - name: Upload the tar archive to Artifacts
-        if: inputs.upload_archive
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        with:
-          name: web.tar.gz
-          path: |
-            web.tar.gz
+          retention-days: 1

@@ -5,34 +5,22 @@ _pkgname=v2raya
 pkgver=The_Real_Version
 pkgrel=1
 pkgdesc="A web GUI client of Project V which supports VMess, VLESS, Shadowsocks, Trojan, TUIC, Juicity and AnyTLSs"
-arch=('i686' 'x86_64' 'armv7h' 'aarch64' 'loong64')
-url="https://github.com/v2rayA/v2rayA"
+arch=('x86_64' 'aarch64')
+url="https://github.com/AnotherNot/v2rayA"
 license=('AGPL3')
 provides=('v2raya')
 conflicts=('v2raya')
 backup=("etc/default/v2raya")
 
-source_i686=(
-    "installer_archlinux_x86_${pkgver}.pkg.tar.zst::https://github.com/v2rayA/v2rayA/releases/download/v${pkgver}/installer_archlinux_x86_${pkgver}.pkg.tar.zst"
-)
 source_x86_64=(
-    "installer_archlinux_x64_${pkgver}.pkg.tar.zst::https://github.com/v2rayA/v2rayA/releases/download/v${pkgver}/installer_archlinux_x64_${pkgver}.pkg.tar.zst"
-)
-source_armv7h=(
-    "installer_archlinux_armv7_${pkgver}.pkg.tar.zst::https://github.com/v2rayA/v2rayA/releases/download/v${pkgver}/installer_archlinux_armv7_${pkgver}.pkg.tar.zst"
+    "installer_archlinux_x64_${pkgver}.pkg.tar.zst::https://github.com/AnotherNot/v2rayA/releases/download/v${pkgver}/installer_archlinux_x64_${pkgver}.pkg.tar.zst"
 )
 source_aarch64=(
-    "installer_archlinux_arm64_${pkgver}.pkg.tar.zst::https://github.com/v2rayA/v2rayA/releases/download/v${pkgver}/installer_archlinux_arm64_${pkgver}.pkg.tar.zst"
-)
-source_loong64=(
-    "installer_archlinux_loongarch64_${pkgver}.pkg.tar.zst::https://github.com/v2rayA/v2rayA/releases/download/v${pkgver}/installer_archlinux_loongarch64_${pkgver}.pkg.tar.zst"
+    "installer_archlinux_arm64_${pkgver}.pkg.tar.zst::https://github.com/AnotherNot/v2rayA/releases/download/v${pkgver}/installer_archlinux_arm64_${pkgver}.pkg.tar.zst"
 )
 
-sha256sums_i686=('{{sha256sums_i686}}')
 sha256sums_x86_64=('{{sha256sums_x86_64}}')
-sha256sums_armv7h=('{{sha256sums_armv7h}}')
 sha256sums_aarch64=('{{sha256sums_aarch64}}')
-sha256sums_loong64=('{{sha256sums_loong64}}')
 
 package() {
     depends+=('v2ray-domain-list-community' 'v2ray-geoip')

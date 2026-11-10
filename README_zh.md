@@ -64,6 +64,12 @@ sudo systemctl enable --now v2raya
 
 修改服务单元请用 `sudo systemctl edit --full v2raya.service`；直接修改已安装的文件会在下次升级时被覆盖。
 
+发布页也提供 `installer_debian_x64_<version>.deb`（或 `arm64`），供无法使用该软件源的机器安装：
+
+```sh
+sudo dpkg -i installer_debian_x64_<version>.deb
+```
+
 </details>
 
 <details>
@@ -86,6 +92,13 @@ sudo zypper install v2raya
 然后启用服务：
 
 ```sh
+sudo systemctl enable --now v2raya
+```
+
+发布页也提供 `installer_redhat_x64_<version>.rpm`（或 `arm64`）：
+
+```sh
+sudo rpm -i installer_redhat_x64_<version>.rpm
 sudo systemctl enable --now v2raya
 ```
 
@@ -114,19 +127,21 @@ sudo rc-update add v2raya default
 sudo rc-service v2raya start
 ```
 
-在 Alpine 上，从[发布页](https://github.com/AnotherNot/v2rayA/releases)取 `installer_alpine_linux_x64_${VERSION}.apk`，文件名中的架构部分按机器改成对应值。包内包含 OpenRC 脚本与 `/etc/conf.d/v2raya`；该包未用 Alpine 信任库中的密钥签名，因此需要 `--allow-untrusted`：
+在 Alpine 上，从[发布页](https://github.com/AnotherNot/v2rayA/releases)取 `installer_alpine_x64_${VERSION}.apk`（或 `arm64`）。包内包含 OpenRC 脚本与 `/etc/conf.d/v2raya`；该包未用 Alpine 信任库中的密钥签名，因此需要 `--allow-untrusted`：
 
 ```sh
-sudo apk add --allow-untrusted ./installer_alpine_linux_x64_${VERSION}.apk
+sudo apk add --allow-untrusted ./installer_alpine_x64_${VERSION}.apk
 sudo rc-update add v2raya default
 sudo rc-service v2raya start
 ```
 
-其他系统从[发布页](https://github.com/AnotherNot/v2rayA/releases)下载对应架构的两个二进制文件，并使用 [`install/universal/`](install/universal/) 中的 OpenRC 文件。以下命令在仓库检出目录中执行，`VERSION` 为不带前缀 `v` 的版本号，示例为 x64：
+其他系统从[发布页](https://github.com/AnotherNot/v2rayA/releases)下载 `v2raya_linux_x64_${VERSION}.tar.gz`（或 `arm64`），并使用 [`install/universal/`](install/universal/) 中的 OpenRC 文件。以下命令在仓库检出目录中执行，`VERSION` 为不带前缀 `v` 的版本号，示例为 x64：
 
 ```sh
-sudo install -m755 "v2raya_linux_x64_${VERSION}" /usr/bin/v2raya
-sudo install -m755 "v2raya_core_linux_x64_${VERSION}" /usr/bin/v2raya_core
+mkdir -p /tmp/v2raya
+tar -xzf "v2raya_linux_x64_${VERSION}.tar.gz" -C /tmp/v2raya
+sudo install -m755 /tmp/v2raya/v2raya /usr/bin/v2raya
+sudo install -m755 /tmp/v2raya/v2raya_core /usr/bin/v2raya_core
 sudo install -m755 install/universal/v2raya.initd /etc/init.d/v2raya
 sudo install -m644 install/universal/v2raya.confd /etc/conf.d/v2raya
 sudo rc-update add v2raya default
@@ -167,14 +182,21 @@ docker run -d --restart=always --network=host \
   v2raya-local
 ```
 
-改用桥接网络时，需要映射 2017 端口和使用的入站端口，并在设置中开启端口共享，否则入站只监听容器的回环地址。这种方式不提供透明代理。
+改用桥接网络时，需要映射 2017 端口和使用的入站端口，在设置中开启端口共享，并设置端口共享的用户名和密码；缺少任一项时，入站只监听容器的回环地址，映射的端口会拒绝连接。这种方式不提供透明代理。
+
+[`install/docker/docker-compose.yml`](install/docker/docker-compose.yml) 以 Compose 配置文件（profile）的形式提供两种方案，并说明首次启动和端口共享：
+
+```sh
+docker compose -f install/docker/docker-compose.yml --profile transparent up -d  # 宿主机网络
+docker compose -f install/docker/docker-compose.yml --profile socks up -d        # 桥接网络，映射 SOCKS5
+```
 
 </details>
 
 <details>
 <summary><strong>Windows</strong></summary>
 
-[发布页](https://github.com/AnotherNot/v2rayA/releases)的 `installer_windows_inno_x64_<version>.exe`（或 `arm64`）安装两个二进制文件并注册服务。`winget install --id AnotherNot.v2rayA` 与本分支的 scoop bucket（`scoop bucket add v2raya https://github.com/AnotherNot/scoop-v2raya && scoop install v2raya`））使用同一个安装程序。
+[发布页](https://github.com/AnotherNot/v2rayA/releases)的 `installer_windows_inno_x64_<version>.exe`（或 `arm64`）安装两个二进制文件并注册服务。同一发布页也提供 `v2raya_windows_x64_<version>.zip`（或 `arm64`），供不使用安装程序的机器。`winget install --id AnotherNot.v2rayA` 与本分支的 scoop bucket（`scoop bucket add v2raya https://github.com/AnotherNot/scoop-v2raya && scoop install v2raya`）使用同一个安装程序。
 
 </details>
 
@@ -197,14 +219,22 @@ brew services start v2raya        # 当前用户：系统代理
 <details>
 <summary><strong>OpenWrt</strong></summary>
 
-[v2raya-openwrt](https://github.com/v2rayA/v2raya-openwrt) 软件源与官方 packages 源目前打包的是 2.2.7.x，搭配独立的 `xray-core`，不是本文描述的版本。在它们更新之前，按下一节的方式手动安装 `mips32`、`mips32le`、`arm64` 或 `x64` 的发布二进制文件，并自行编写 init 脚本。
+[v2raya-openwrt](https://github.com/v2rayA/v2raya-openwrt) 软件源与官方 packages 源目前打包的是 2.2.7.x，搭配独立的 `xray-core`，不是本文描述的版本。在它们更新之前，按下一节的方式手动安装 `arm64` 或 `x64` 的发布二进制文件，并自行编写 init 脚本。
 
 </details>
 
 <details>
 <summary><strong>其他 Linux，不使用软件包</strong></summary>
 
-从[发布页](https://github.com/AnotherNot/v2rayA/releases)下载 `v2raya_linux_<arch>_<version>` 与 `v2raya_core_linux_<arch>_<version>`（`x86`、`x64`、`arm64`、`armv7`、`riscv64`、`loongarch64`、`mips32`、`mips32le`、`mips64`、`mips64le`），用同名的 `.sha256.txt` 校验，两者都安装到 `/usr/bin`。使用 systemd 时：
+从[发布页](https://github.com/AnotherNot/v2rayA/releases)下载 `v2raya_linux_x64_<version>.tar.gz`（或 `arm64`）与 `SHA256SUMS`，校验并解压归档，把两个二进制文件安装到 `/usr/bin`：
+
+```sh
+grep " v2raya_linux_x64_${VERSION}.tar.gz\$" SHA256SUMS | sha256sum -c -
+tar -xzf "v2raya_linux_x64_${VERSION}.tar.gz"
+sudo install -m755 v2raya v2raya_core /usr/bin/
+```
+
+使用 systemd 时：
 
 ```sh
 sudo install -m644 install/universal/v2raya.service /etc/systemd/system/v2raya.service

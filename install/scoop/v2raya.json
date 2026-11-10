@@ -2,7 +2,7 @@
   "version": "0.0.0",
   "description": "A web client for its own Xray-based core with global transparent proxy.",
   "homepage": "https://github.com/AnotherNot/v2rayA",
-  "license": "GPL-3.0-only",
+  "license": "AGPL-3.0-only",
   "architecture": {
     "64bit": {
       "url": "https://github.com/AnotherNot/v2rayA/releases/download/v0.0.0/installer_windows_inno_x64_0.0.0.exe",

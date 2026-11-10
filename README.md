@@ -64,6 +64,12 @@ sudo systemctl enable --now v2raya
 
 Change the unit with `sudo systemctl edit --full v2raya.service`; an edit of the installed file is overwritten by the next upgrade.
 
+A release also carries `installer_debian_x64_<version>.deb` (or `arm64`) for a machine where the repository is not an option:
+
+```sh
+sudo dpkg -i installer_debian_x64_<version>.deb
+```
+
 </details>
 
 <details>
@@ -86,6 +92,13 @@ sudo zypper install v2raya
 Then:
 
 ```sh
+sudo systemctl enable --now v2raya
+```
+
+A release also carries `installer_redhat_x64_<version>.rpm` (or `arm64`):
+
+```sh
+sudo rpm -i installer_redhat_x64_<version>.rpm
 sudo systemctl enable --now v2raya
 ```
 
@@ -114,19 +127,21 @@ sudo rc-update add v2raya default
 sudo rc-service v2raya start
 ```
 
-On Alpine, take `installer_alpine_linux_x64_${VERSION}.apk` from the [releases](https://github.com/AnotherNot/v2rayA/releases), with the architecture part of the name changed to match the machine. The archive carries the OpenRC script and `/etc/conf.d/v2raya`; it is not signed with a key in Alpine's trust store, hence `--allow-untrusted`:
+On Alpine, take `installer_alpine_x64_${VERSION}.apk` (or `arm64`) from the [releases](https://github.com/AnotherNot/v2rayA/releases). The archive carries the OpenRC script and `/etc/conf.d/v2raya`; it is not signed with a key in Alpine's trust store, hence `--allow-untrusted`:
 
 ```sh
-sudo apk add --allow-untrusted ./installer_alpine_linux_x64_${VERSION}.apk
+sudo apk add --allow-untrusted ./installer_alpine_x64_${VERSION}.apk
 sudo rc-update add v2raya default
 sudo rc-service v2raya start
 ```
 
-Elsewhere, download the two binaries for the architecture from the [releases](https://github.com/AnotherNot/v2rayA/releases) and use the OpenRC files from [`install/universal/`](install/universal/). Run this from a checkout of the repository, with `VERSION` set to the release number without the leading `v`; the example is for x64:
+Elsewhere, download `v2raya_linux_x64_${VERSION}.tar.gz` (or `arm64`) and the OpenRC files from [`install/universal/`](install/universal/). Run this from a checkout of the repository, with `VERSION` set to the release number without the leading `v`; the example is for x64:
 
 ```sh
-sudo install -m755 "v2raya_linux_x64_${VERSION}" /usr/bin/v2raya
-sudo install -m755 "v2raya_core_linux_x64_${VERSION}" /usr/bin/v2raya_core
+mkdir -p /tmp/v2raya
+tar -xzf "v2raya_linux_x64_${VERSION}.tar.gz" -C /tmp/v2raya
+sudo install -m755 /tmp/v2raya/v2raya /usr/bin/v2raya
+sudo install -m755 /tmp/v2raya/v2raya_core /usr/bin/v2raya_core
 sudo install -m755 install/universal/v2raya.initd /etc/init.d/v2raya
 sudo install -m644 install/universal/v2raya.confd /etc/conf.d/v2raya
 sudo rc-update add v2raya default
@@ -167,14 +182,21 @@ docker run -d --restart=always --network=host \
   v2raya-local
 ```
 
-With bridge networking instead, publish port 2017 and the inbound ports you use, and turn on port sharing in the settings; the inbounds listen on the container's loopback otherwise. Transparent proxy is not available in that setup.
+With bridge networking instead, publish port 2017 and the inbound ports you use, turn on port sharing in the settings, and set a port-sharing username and password; without both, the inbounds stay on the container's loopback and the published ports refuse connections. Transparent proxy is not available in that setup.
+
+[`install/docker/docker-compose.yml`](install/docker/docker-compose.yml) carries both layouts as Compose profiles, with the first-run and port-sharing notes:
+
+```sh
+docker compose -f install/docker/docker-compose.yml --profile transparent up -d  # host network
+docker compose -f install/docker/docker-compose.yml --profile socks up -d        # bridge, published SOCKS5
+```
 
 </details>
 
 <details>
 <summary><strong>Windows</strong></summary>
 
-`installer_windows_inno_x64_<version>.exe` (or `arm64`) from the [releases](https://github.com/AnotherNot/v2rayA/releases) installs both binaries and registers a service. The same installer is behind `winget install --id AnotherNot.v2rayA` and the fork's scoop bucket (`scoop bucket add v2raya https://github.com/AnotherNot/scoop-v2raya && scoop install v2raya`)).
+`installer_windows_inno_x64_<version>.exe` (or `arm64`) from the [releases](https://github.com/AnotherNot/v2rayA/releases) installs both binaries and registers a service. The same release also carries `v2raya_windows_x64_<version>.zip` (or `arm64`) for a machine without the installer. The installer is behind `winget install --id AnotherNot.v2rayA` and the fork's scoop bucket (`scoop bucket add v2raya https://github.com/AnotherNot/scoop-v2raya && scoop install v2raya`).
 
 </details>
 
@@ -197,14 +219,22 @@ A service started with `sudo` is stopped with `sudo brew services stop v2raya`, 
 <details>
 <summary><strong>OpenWrt</strong></summary>
 
-The [v2raya-openwrt](https://github.com/v2rayA/v2raya-openwrt) feed and the official packages feed currently package 2.2.7.x with a separate `xray-core`, not the release described here. Until they are updated, install the `mips32`, `mips32le`, `arm64` or `x64` release binaries by hand, as in the next section, with the init script of your choice.
+The [v2raya-openwrt](https://github.com/v2rayA/v2raya-openwrt) feed and the official packages feed currently package 2.2.7.x with a separate `xray-core`, not the release described here. Until they are updated, install the `arm64` or `x64` release binaries by hand, as in the next section, with the init script of your choice.
 
 </details>
 
 <details>
 <summary><strong>Other Linux, without a package</strong></summary>
 
-Download `v2raya_linux_<arch>_<version>` and `v2raya_core_linux_<arch>_<version>` from the [releases](https://github.com/AnotherNot/v2rayA/releases) (`x86`, `x64`, `arm64`, `armv7`, `riscv64`, `loongarch64`, `mips32`, `mips32le`, `mips64`, `mips64le`), check them against the `.sha256.txt` next to each, and install both into `/usr/bin`. With systemd:
+Download `v2raya_linux_x64_<version>.tar.gz` (or `arm64`) and the `SHA256SUMS` published with the [release](https://github.com/AnotherNot/v2rayA/releases), verify the archive, unpack it and install both binaries into `/usr/bin`:
+
+```sh
+grep " v2raya_linux_x64_${VERSION}.tar.gz\$" SHA256SUMS | sha256sum -c -
+tar -xzf "v2raya_linux_x64_${VERSION}.tar.gz"
+sudo install -m755 v2raya v2raya_core /usr/bin/
+```
+
+With systemd:
 
 ```sh
 sudo install -m644 install/universal/v2raya.service /etc/systemd/system/v2raya.service

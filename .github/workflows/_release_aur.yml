@@ -48,9 +48,27 @@ jobs:
           podman run -d --rm --name archContainer -v "$PWD/aur:/aur" docker.io/archlinux:latest sleep infinity
           podman exec --user root:root archContainer pacman -Syu base-devel pacman-contrib --noconfirm
           podman exec --user root:root archContainer chown -R "$(id --user):$(id --user)" /aur
+      - name: Render the package checksums
+        env:
+          VERSION: ${{ steps.prep.outputs.VERSION }}
+        run: |
+          version="$VERSION"
+          base="https://github.com/AnotherNot/v2rayA/releases/download/v$version"
+          for arch in x64 arm64; do
+            curl -fsSL -o "/tmp/installer_archlinux_${arch}_${version}.pkg.tar.zst" \
+              "$base/installer_archlinux_${arch}_${version}.pkg.tar.zst"
+          done
+          x64=$(sha256sum "/tmp/installer_archlinux_x64_${version}.pkg.tar.zst" | awk '{print $1}')
+          arm64=$(sha256sum "/tmp/installer_archlinux_arm64_${version}.pkg.tar.zst" | awk '{print $1}')
+          # AUR runs makepkg on one architecture at a time, so the checksums
+          # of both cannot come from a single --geninteg run; they are taken
+          # from the published packages here.
+          sed -i "s|sha256sums_x86_64=.*|sha256sums_x86_64=('$x64')|" aur/v2raya-bin/PKGBUILD
+          sed -i "s|sha256sums_aarch64=.*|sha256sums_aarch64=('$arm64')|" aur/v2raya-bin/PKGBUILD
+          grep -n 'sha256sums_' aur/v2raya-bin/PKGBUILD
       - name: Update HASH
         run: |
-          podman exec --user "$(id --user):$(id --user)" archContainer bash -c "cd /aur/v2raya-bin && updpkgsums && makepkg --printsrcinfo > .SRCINFO"
+          podman exec --user "$(id --user):$(id --user)" archContainer bash -c "cd /aur/v2raya-bin && makepkg --printsrcinfo > .SRCINFO"
           podman exec --user "$(id --user):$(id --user)" archContainer bash -c "cd /aur/v2raya && makepkg --printsrcinfo > .SRCINFO"
       - name: Import OpenSSH Key
         shell: bash

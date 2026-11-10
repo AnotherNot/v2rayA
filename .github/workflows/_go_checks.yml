@@ -55,6 +55,29 @@ jobs:
         shell: bash
         run: cd service && go test -race -timeout 20m ./...
 
+  # The core carries its own tests (the DNS module in particular) and embeds
+  # no interface files, so it needs neither the web artifact nor the service.
+  core-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache-dependency-path: |
+            core/go.mod
+            core/go.sum
+          go-version: "1.27"
+      - name: Test
+        shell: bash
+        run: |
+          # The loopback DNS hijack test allows two seconds for a reply, which
+          # is tight for the whole suite under the race detector; race
+          # coverage stays where the concurrency is, in the DNS module.
+          cd core
+          go test -timeout 20m ./...
+          go test -race -timeout 20m ./dns/...
+
   vuln:
     runs-on: ubuntu-latest
     steps:
@@ -79,10 +102,12 @@ jobs:
         run: go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
       - name: Scan the service
         working-directory: service
-        run: $(go env GOPATH)/bin/govulncheck ./...
+        run: |
+          "$(go env GOPATH)/bin/govulncheck" ./...
       - name: Scan the core
         working-directory: core
-        run: $(go env GOPATH)/bin/govulncheck ./...
+        run: |
+          "$(go env GOPATH)/bin/govulncheck" ./...
 
   repository-hygiene:
     runs-on: ubuntu-latest

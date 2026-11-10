@@ -36,11 +36,15 @@ The browser tests drive the built service rather than a mock: `./build-all.sh`, 
 
 ## Releasing
 
-Releases come from the **Release Binaries & Images** workflow, started by hand in Actions: choose `public`, enter the tag to create (`v2.5.14`) and tick the box if it is a pre-release. It needs nothing prepared beforehand and uses only the token Actions provides.
+Releases come from the **Release Binaries & Images** workflow, started by hand in Actions: choose `public`, enter the tag to create (`v2.5.14`), tick the box if it is a pre-release, and leave `dry_run` off. It needs nothing prepared beforehand and uses only the token Actions provides.
 
-The run builds the interface, then `v2raya` and `v2raya_core` for Linux and Windows on amd64 and arm64. Each pair is packed with `LICENSE` into a `.tar.gz` or `.zip`, and every file gets a `.sha256` next to it. The image goes to `ghcr.io/anothernot/v2raya` under the tag, the bare version and `latest`. The tag is created at the commit the run was started from, and the release is published only after every build has succeeded; a tag that already points at another commit stops the run instead.
+The run builds the interface, then `v2raya` and `v2raya_core` for Linux and Windows on amd64 and arm64. Each pair is packed with `LICENSE` into a `.tar.gz` or `.zip`; the Linux archives become `deb`, `rpm`, `apk` and Arch packages, and the Windows ones become Inno Setup installers. The release carries those four archives, the eight Linux packages, the two installers and one `SHA256SUMS`; the bare binaries are an intermediate and are never published. The image goes to `ghcr.io/anothernot/v2raya` under the tag, the bare version and `latest`. The tag is created at the commit the run was started from, and the release waits for the packages, the installers and the image; a tag that already points at another commit stops the run instead.
 
-`release_main.yml` is upstream's full pipeline and stays in the tree. It expects a tag that already exists and continues to the deb/rpm/apk packages, the Windows installers, the container images, winget and scoop; the last two need the `RELEASE_PAT` secret. This fork releases from `release_binaries.yml`.
+`dry_run` builds and checks everything without creating the tag, the release or an image push, and the intermediate artifacts expire on their own. Use it to validate a change to the workflow.
+
+The packages and installers carry pinned copies of `geoip.dat` and `geosite.dat`. The service updates its own copy at runtime and verifies the download against the checksum published next to it, so a pinned release is not a frozen one.
+
+Publishing to winget and scoop needs the repository secret `RELEASE_PAT`; the separate **Release to AUR** workflow needs `AUR_SSH_PRIVATE_KEY`. The winget and scoop jobs are skipped for a pre-release, and a job whose secret is missing fails after the release is published rather than silently skipping its step.
 
 ## AI-assisted contributions
 

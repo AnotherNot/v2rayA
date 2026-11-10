@@ -64,6 +64,12 @@ sudo systemctl enable --now v2raya
 
 Юнит меняйте через `sudo systemctl edit --full v2raya.service`: правку установленного файла перезапишет следующее обновление.
 
+В выпуске есть и `installer_debian_x64_<version>.deb` (или `arm64`) для машины, где репозиторий не подходит:
+
+```sh
+sudo dpkg -i installer_debian_x64_<version>.deb
+```
+
 </details>
 
 <details>
@@ -86,6 +92,13 @@ sudo zypper install v2raya
 Затем:
 
 ```sh
+sudo systemctl enable --now v2raya
+```
+
+В выпуске есть и `installer_redhat_x64_<version>.rpm` (или `arm64`):
+
+```sh
+sudo rpm -i installer_redhat_x64_<version>.rpm
 sudo systemctl enable --now v2raya
 ```
 
@@ -114,19 +127,21 @@ sudo rc-update add v2raya default
 sudo rc-service v2raya start
 ```
 
-В Alpine возьмите `installer_alpine_linux_x64_${VERSION}.apk` со [страницы выпусков](https://github.com/AnotherNot/v2rayA/releases), заменив часть имени с архитектурой на подходящую. В архиве лежат скрипт OpenRC и `/etc/conf.d/v2raya`; он не подписан ключом из доверенного хранилища Alpine, поэтому нужен `--allow-untrusted`:
+В Alpine возьмите `installer_alpine_x64_${VERSION}.apk` (или `arm64`) со [страницы выпусков](https://github.com/AnotherNot/v2rayA/releases). В архиве лежат скрипт OpenRC и `/etc/conf.d/v2raya`; он не подписан ключом из доверенного хранилища Alpine, поэтому нужен `--allow-untrusted`:
 
 ```sh
-sudo apk add --allow-untrusted ./installer_alpine_linux_x64_${VERSION}.apk
+sudo apk add --allow-untrusted ./installer_alpine_x64_${VERSION}.apk
 sudo rc-update add v2raya default
 sudo rc-service v2raya start
 ```
 
-В остальных системах скачайте оба бинарных файла для своей архитектуры со [страницы выпусков](https://github.com/AnotherNot/v2rayA/releases) и возьмите файлы OpenRC из [`install/universal/`](install/universal/). Команды выполняются из клона репозитория; `VERSION` — номер выпуска без ведущей `v`; пример для x64:
+В остальных системах скачайте `v2raya_linux_x64_${VERSION}.tar.gz` (или `arm64`) со [страницы выпусков](https://github.com/AnotherNot/v2rayA/releases) и возьмите файлы OpenRC из [`install/universal/`](install/universal/). Команды выполняются из клона репозитория; `VERSION` — номер выпуска без ведущей `v`; пример для x64:
 
 ```sh
-sudo install -m755 "v2raya_linux_x64_${VERSION}" /usr/bin/v2raya
-sudo install -m755 "v2raya_core_linux_x64_${VERSION}" /usr/bin/v2raya_core
+mkdir -p /tmp/v2raya
+tar -xzf "v2raya_linux_x64_${VERSION}.tar.gz" -C /tmp/v2raya
+sudo install -m755 /tmp/v2raya/v2raya /usr/bin/v2raya
+sudo install -m755 /tmp/v2raya/v2raya_core /usr/bin/v2raya_core
 sudo install -m755 install/universal/v2raya.initd /etc/init.d/v2raya
 sudo install -m644 install/universal/v2raya.confd /etc/conf.d/v2raya
 sudo rc-update add v2raya default
@@ -167,14 +182,21 @@ docker run -d --restart=always --network=host \
   v2raya-local
 ```
 
-При сети bridge опубликуйте порт 2017 и используемые входящие порты и включите общий доступ к портам в настройках, иначе входящие подключения принимаются только на loopback контейнера. Прозрачный прокси в такой схеме недоступен.
+При сети bridge опубликуйте порт 2017 и используемые входящие порты, включите общий доступ к портам в настройках и задайте имя пользователя и пароль для общего доступа; без обоих входящие остаются на loopback контейнера, а опубликованные порты отказывают в соединении. Прозрачный прокси в такой схеме недоступен.
+
+В [`install/docker/docker-compose.yml`](install/docker/docker-compose.yml) обе схемы оформлены как профили Compose; в файле описаны первый запуск и общий доступ к портам:
+
+```sh
+docker compose -f install/docker/docker-compose.yml --profile transparent up -d  # сеть хоста
+docker compose -f install/docker/docker-compose.yml --profile socks up -d        # bridge, опубликованный SOCKS5
+```
 
 </details>
 
 <details>
 <summary><strong>Windows</strong></summary>
 
-`installer_windows_inno_x64_<version>.exe` (или `arm64`) со [страницы выпусков](https://github.com/AnotherNot/v2rayA/releases) устанавливает оба бинарных файла и регистрирует службу. Тот же установщик стоит за `winget install --id AnotherNot.v2rayA` и за scoop-бакетом форка (`scoop bucket add v2raya https://github.com/AnotherNot/scoop-v2raya && scoop install v2raya`)).
+`installer_windows_inno_x64_<version>.exe` (или `arm64`) со [страницы выпусков](https://github.com/AnotherNot/v2rayA/releases) устанавливает оба бинарных файла и регистрирует службу. В том же выпуске есть `v2raya_windows_x64_<version>.zip` (или `arm64`) для машины без установщика. Установщик стоит за `winget install --id AnotherNot.v2rayA` и за scoop-бакетом форка (`scoop bucket add v2raya https://github.com/AnotherNot/scoop-v2raya && scoop install v2raya`).
 
 </details>
 
@@ -197,14 +219,22 @@ brew services start v2raya        # вы: системный прокси
 <details>
 <summary><strong>OpenWrt</strong></summary>
 
-Репозиторий [v2raya-openwrt](https://github.com/v2rayA/v2raya-openwrt) и официальный репозиторий packages сейчас содержат 2.2.7.x с отдельным `xray-core`, а не описанный здесь выпуск. Пока они не обновлены, установите бинарные файлы выпуска для `mips32`, `mips32le`, `arm64` или `x64` вручную, как в следующем разделе, с собственным init-скриптом.
+Репозиторий [v2raya-openwrt](https://github.com/v2rayA/v2raya-openwrt) и официальный репозиторий packages сейчас содержат 2.2.7.x с отдельным `xray-core`, а не описанный здесь выпуск. Пока они не обновлены, установите бинарные файлы выпуска для `arm64` или `x64` вручную, как в следующем разделе, с собственным init-скриптом.
 
 </details>
 
 <details>
 <summary><strong>Другой Linux, без пакета</strong></summary>
 
-Скачайте `v2raya_linux_<arch>_<version>` и `v2raya_core_linux_<arch>_<version>` со [страницы выпусков](https://github.com/AnotherNot/v2rayA/releases) (`x86`, `x64`, `arm64`, `armv7`, `riscv64`, `loongarch64`, `mips32`, `mips32le`, `mips64`, `mips64le`), сверьте их с соседним `.sha256.txt` и установите оба в `/usr/bin`. Для systemd:
+Скачайте `v2raya_linux_x64_<version>.tar.gz` (или `arm64`) и `SHA256SUMS` из [выпуска](https://github.com/AnotherNot/v2rayA/releases), сверьте архив, распакуйте его и установите оба бинарных файла в `/usr/bin`:
+
+```sh
+grep " v2raya_linux_x64_${VERSION}.tar.gz\$" SHA256SUMS | sha256sum -c -
+tar -xzf "v2raya_linux_x64_${VERSION}.tar.gz"
+sudo install -m755 v2raya v2raya_core /usr/bin/
+```
+
+Для systemd:
 
 ```sh
 sudo install -m644 install/universal/v2raya.service /etc/systemd/system/v2raya.service

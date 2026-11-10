@@ -1,5 +1,0 @@
-FROM busybox:latest@sha256:a46257e06c82ad85242d0d38077d0a52d9896389ca60a1a59d3463db586e5fa4 AS builder
-WORKDIR /
-COPY ./web /usr/share/v2raya-web
-ENTRYPOINT ["/bin/httpd", "-f", "-h", "/usr/share/v2raya-web", "-p", "80"]
-EXPOSE 80
