@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import QRCode from "qrcode";
 
 // A REALITY link carrying both fields this fork and upstream added: the
 // REALITY ML-DSA-65 verify key (pqv) and the VLESS encryption parameter.
@@ -61,6 +62,28 @@ test("imports a VLESS link and keeps encryption and pqv", async ({ page }) => {
   await page.reload();
   await openDestination(page, "Proxies");
   await expect(nodeCard(page, "e2e-node")).toBeVisible();
+});
+
+test("imports a server from a QR code image", async ({ page }) => {
+  const link =
+    "vless://b831381d-6324-4d53-ad4f-8cda48b30812@127.0.0.1:2" +
+    "?type=tcp#e2e-qr-node";
+  const dataUrl = await QRCode.toDataURL(link, { margin: 1, width: 320 });
+  const buffer = Buffer.from(dataUrl.slice(dataUrl.indexOf(",") + 1), "base64");
+
+  await page.goto("/");
+  await openDestination(page, "Proxies");
+  await page.getByRole("button", { name: "Import" }).first().click();
+  const importDialog = page.locator(".v-dialog");
+  await expect(importDialog).toBeVisible();
+  await importDialog.locator('input[type="file"]').setInputFiles({
+    name: "e2e-qr-node.png",
+    mimeType: "image/png",
+    buffer,
+  });
+
+  // The dialog decodes the image and imports it without a second click.
+  await expect(nodeCard(page, "e2e-qr-node")).toBeVisible();
 });
 
 test("every destination renders", async ({ page }) => {
