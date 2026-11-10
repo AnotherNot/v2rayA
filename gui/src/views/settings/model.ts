@@ -22,6 +22,8 @@ export const defaultForm = () => ({
   transparentType: "tproxy",
   ipforward: false,
   portSharing: false,
+  portSharingUsername: "",
+  portSharingPassword: "",
   tproxyExcludedInterfaces: "",
   tunAutoRoute: true,
   tunRouteShellType: "",

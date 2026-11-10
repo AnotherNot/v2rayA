@@ -180,12 +180,27 @@ func (t *Template) setInbound(setting *configure.Setting) error {
 		t.Inbounds[1].Port = p.Http
 		t.Inbounds[2].Port = p.Socks5WithPac
 		t.Inbounds[3].Port = p.HttpWithPac
+		// Port sharing puts the built-in proxy inbounds on every interface.
+		// SOCKS and HTTP carry no authentication by themselves, so that step
+		// requires the credentials from Settings; without them the ports stay
+		// on loopback instead of becoming an open proxy for the LAN.
 		listenAddr := "127.0.0.1"
-		if t.Setting.PortSharing {
+		share := setting.PortSharing && setting.PortSharingUsername != "" && setting.PortSharingPassword != ""
+		if setting.PortSharing && !share {
+			log.Warn("port sharing is enabled without a port-sharing username and password: the built-in SOCKS/HTTP inbounds stay on 127.0.0.1")
+		}
+		if share {
 			listenAddr = "0.0.0.0"
 		}
 		for i := 0; i < 5 && i < len(t.Inbounds); i++ {
 			t.Inbounds[i].Listen = listenAddr
+			if share && i < 4 {
+				if t.Inbounds[i].Settings == nil {
+					t.Inbounds[i].Settings = &coreObj.InboundSettings{}
+				}
+				t.Inbounds[i].Settings.Auth = "password"
+				t.Inbounds[i].Settings.Accounts = []coreObj.Account{{User: setting.PortSharingUsername, Pass: setting.PortSharingPassword}}
+			}
 		}
 		vmess := &t.Inbounds[4]
 		vmess.Port = p.Vmess
@@ -202,18 +217,20 @@ func (t *Template) setInbound(setting *configure.Setting) error {
 		}
 	}
 	// Append user-defined custom inbounds (SOCKS / HTTP only)
-	listenAddrForCustom := "127.0.0.1"
-	if t.Setting != nil && t.Setting.PortSharing {
-		listenAddrForCustom = "0.0.0.0"
-	}
 	for _, ci := range configure.GetCustomInbounds() {
 		if ci.Port <= 0 || (ci.Protocol != "socks" && ci.Protocol != "http") {
 			continue
 		}
+		// A custom inbound without credentials is just as open as the built-in
+		// ones; it leaves loopback only when it has both a user and a password.
+		listenAddr := "127.0.0.1"
+		if setting.PortSharing && ci.Username != "" && ci.Password != "" {
+			listenAddr = "0.0.0.0"
+		}
 		ib := coreObj.Inbound{
 			Port:     ci.Port,
 			Protocol: ci.Protocol,
-			Listen:   listenAddrForCustom,
+			Listen:   listenAddr,
 			Tag:      ci.Tag,
 		}
 		if ci.Protocol == "socks" {

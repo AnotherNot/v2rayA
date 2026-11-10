@@ -63,3 +63,11 @@ plans
 gui/package-lock.json
 
 external_repos
+# Private keys and deployment credentials (SEC-16)
+deploy_key
+private-key.asc
+ssh-add_expect
+id_rsa
+id_ed25519
+*.pem
+*.key

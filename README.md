@@ -141,7 +141,10 @@ sudo rc-service v2raya start
 The fork publishes an image on GitHub Container Registry for `linux/amd64` and `linux/arm64`. `latest` is moved by every release that is not a pre-release; a release also carries its version as a tag (`2.5.14` and `v2.5.14`). No login is needed:
 
 ```sh
-docker run -d --restart=always --privileged --network=host --name v2raya \
+docker run -d --restart=always --network=host \
+  --cap-drop ALL --cap-add NET_ADMIN --cap-add NET_RAW \
+  --device /dev/net/tun --security-opt no-new-privileges \
+  --name v2raya \
   -e V2RAYA_LOG_FILE=/tmp/v2raya.log \
   -v /lib/modules:/lib/modules:ro \
   -v /etc/resolv.conf:/etc/resolv.conf \
@@ -149,11 +152,14 @@ docker run -d --restart=always --privileged --network=host --name v2raya \
   ghcr.io/anothernot/v2raya:latest
 ```
 
-This example is for a Linux host and gives the container the host network and privileges, which transparent proxy needs. To build the image from source instead, which needs only Docker:
+This example is for a Linux host and gives the container the host network and only the two capabilities and the TUN device the transparent proxy needs; `--privileged` is not required. Add `--read-only --tmpfs /tmp --tmpfs /run` when the root filesystem should stay immutable. To build the image from source instead, which needs only Docker:
 
 ```sh
 docker build -f install/docker/Dockerfile -t v2raya-local .
-docker run -d --restart=always --privileged --network=host --name v2raya \
+docker run -d --restart=always --network=host \
+  --cap-drop ALL --cap-add NET_ADMIN --cap-add NET_RAW \
+  --device /dev/net/tun --security-opt no-new-privileges \
+  --name v2raya \
   -e V2RAYA_LOG_FILE=/tmp/v2raya.log \
   -v /lib/modules:/lib/modules:ro \
   -v /etc/resolv.conf:/etc/resolv.conf \

@@ -145,3 +145,32 @@ func TestTrafficProducerPublishesStats(t *testing.T) {
 		t.Fatal("no traffic frame received")
 	}
 }
+
+func TestAPITemplateIgnoresUserSuppliedServices(t *testing.T) {
+	previous := *configure.GetPortsNotNil()
+	t.Cleanup(func() { _ = configure.SetPorts(&previous) })
+	ports := previous
+	ports.Api.Services = []string{"HandlerService", "ObservatoryService"}
+	if err := configure.SetPorts(&ports); err != nil {
+		t.Fatal(err)
+	}
+	tmpl := baseTemplate(t, configure.NewSetting())
+	if _, err := tmpl.SetAPI(nil); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = tmpl.Close() })
+	var config struct {
+		API struct {
+			Services []string `json:"services"`
+		} `json:"api"`
+	}
+	if err := json.Unmarshal(tmpl.ToConfigBytes(), &config); err != nil {
+		t.Fatal(err)
+	}
+	if contains(config.API.Services, "HandlerService") {
+		t.Fatalf("HandlerService was exposed: %v", config.API.Services)
+	}
+	if !contains(config.API.Services, "LoggerService") || !contains(config.API.Services, "StatsService") {
+		t.Fatalf("API services = %v, want LoggerService and StatsService", config.API.Services)
+	}
+}
