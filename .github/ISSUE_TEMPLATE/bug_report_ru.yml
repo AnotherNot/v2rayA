@@ -1,0 +1,78 @@
+name: Сообщение об ошибке (Русский)
+description: v2rayA ведёт себя неправильно.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: ИИ может помочь с текстом, но непроверенное содержимое отправлять нельзя.
+  - type: input
+    id: version
+    attributes:
+      label: Версия v2rayA
+      description: Исправления выходят только в текущем выпуске. Если у вас не последняя версия, объясните, почему вы не можете обновиться.
+      placeholder: "2.5.6"
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Система и способ установки
+      placeholder: "Debian 13, пакет deb / OpenWrt 24.10, feed / Docker на Ubuntu 24.04"
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Режим прозрачного прокси
+      options: [Выключено, tun, redirect, tproxy, Системный прокси]
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: Что происходит
+      description: Опишите, что вы сделали, что ожидали и что получилось. Для проблемы с интерфейсом назовите браузер.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Шаги для воспроизведения
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Логи
+      description: "Вставьте несколько десятков строк вокруг сбоя: вывод `journalctl -u v2raya` или `docker logs v2raya`, файл `/var/log/v2raya/v2raya.log` либо выгрузку со страницы логов."
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Скриншоты
+  - type: input
+    id: owner
+    attributes:
+      label: Человек, отвечающий за это сообщение
+      description: "Укажите свой логин на GitHub, чтобы подтвердить, что вы проверили содержимое и ответите на уточняющие вопросы. ИИ не может ответить за вас."
+      placeholder: "@your-name"
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Подтверждение
+      description: Отметьте каждый применимый пункт; ложное утверждение приведёт к закрытию issue.
+      options:
+        - label: Я искал существующие issues и pull requests и не нашёл такого сообщения.
+          required: true
+        - label: Я отметил пункты выше, не читая их.
+        - label: Это сообщение описывает то, что я наблюдал.
+          required: true
+        - label: Я — ИИ-агент, и это содержимое отправлено без проверки человеком.
