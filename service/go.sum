@@ -140,8 +140,8 @@ github.com/modern-go/reflect2 v1.0.2 h1:xBagoLtFs94CBntxluKeaWgTMpvLxC4ur3nMaC9G
 github.com/modern-go/reflect2 v1.0.2/go.mod h1:yWuevngMOJpCy52FWWMvUC8ws7m/LJsjYzDa0/r8luk=
 github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 h1:RWengNIwukTxcDr9M+97sNutRR1RKhG96O6jWumTTnw=
 github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826/go.mod h1:TaXosZuwdSHYgviHp1DAtfrULt5eUgsSMsZf+YrPgl8=
-github.com/muhammadmuzzammil1998/jsonc v0.0.0-20201229145248-615b0916ca38 h1:0FrBxrkJ0hVembTb/e4EU5Ml6vLcOusAqymmYISg5Uo=
-github.com/muhammadmuzzammil1998/jsonc v0.0.0-20201229145248-615b0916ca38/go.mod h1:saF2fIVw4banK0H4+/EuqfFLpRnoy5S+ECwTOCcRcSU=
+github.com/muhammadmuzzammil1998/jsonc v1.0.0 h1:8o5gBQn4ZA3NBA9DlTujCj2a4w0tqWrPVjDwhzkgTIs=
+github.com/muhammadmuzzammil1998/jsonc v1.0.0/go.mod h1:saF2fIVw4banK0H4+/EuqfFLpRnoy5S+ECwTOCcRcSU=
 github.com/mustafaturan/bus v1.0.2 h1:2x3ErwZ0uUPwwZ5ZZoknEQprdaxr68Yl3mY8jDye1Ws=
 github.com/mustafaturan/bus v1.0.2/go.mod h1:h7gfehm8TThv4Dcaa+wDQG7r7j6p74v+7ftr0Rq9i1Q=
 github.com/mustafaturan/monoton v1.0.0 h1:8SCej+JiNn0lyps7V+Jzc1CRAkDR4EZPWrTupQ61YCQ=
