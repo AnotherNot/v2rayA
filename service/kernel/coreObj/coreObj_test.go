@@ -156,7 +156,16 @@ func TestXHTTPRangeConfigUnmarshalJSON(t *testing.T) {
 }
 
 func TestXHTTPRangeConfigUnmarshalJSONInvalid(t *testing.T) {
-	for _, in := range []string{`"abc"`, `{"from":1,"to":2}`, "true"} {
+	for _, in := range []string{
+		`"abc"`,
+		`{"from":1,"to":2}`,
+		"true",
+		// The endpoints live in an int32; a value that does not fit would wrap
+		// to the opposite sign and change the setting silently.
+		`"3000000000"`,
+		`"-3000000000"`,
+		`"1-2147483648"`,
+	} {
 		var got XHTTPRangeConfig
 		if err := json.Unmarshal([]byte(in), &got); err == nil {
 			t.Errorf("%s: expected error, got %+v", in, got)
