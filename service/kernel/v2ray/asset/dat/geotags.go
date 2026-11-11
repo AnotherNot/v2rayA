@@ -86,9 +86,16 @@ var tagCache sync.Map // asset path -> map[UPPER_TAG]bool
 // case-insensitively like the core does. A file that cannot be read is not
 // reported: the core restart stays the judge for unreadable assets, this
 // check only names tags a readable file does not hold.
-func Missing(refs []TagRef) []TagRef {
+//
+// A ref naming a file outside the asset directory is an error: the core cannot
+// load it, and quietly dropping the ref would also let the name reach the
+// asset lookup instead of failing the rule that carries it.
+func Missing(refs []TagRef) ([]TagRef, error) {
 	byFile := make(map[string][]TagRef)
 	for _, r := range refs {
+		if !asset.IsAssetName(r.File) {
+			return nil, fmt.Errorf("geo file %q must be a name inside the asset directory", r.File)
+		}
 		byFile[r.File] = append(byFile[r.File], r)
 	}
 	var missing []TagRef
@@ -104,7 +111,7 @@ func Missing(refs []TagRef) []TagRef {
 		}
 	}
 	sort.Slice(missing, func(i, j int) bool { return missing[i].String() < missing[j].String() })
-	return missing
+	return missing, nil
 }
 
 func loadTags(file string) (map[string]bool, error) {

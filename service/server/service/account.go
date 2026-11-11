@@ -7,7 +7,6 @@ import (
 	"github.com/v2rayA/v2rayA/common"
 	"github.com/v2rayA/v2rayA/db/configure"
 	"github.com/v2rayA/v2rayA/pkg/server/jwt"
-	"github.com/v2rayA/v2rayA/pkg/util/log"
 )
 
 func Login(username, password string) (token, refreshToken string, err error) {
@@ -15,19 +14,14 @@ func Login(username, password string) (token, refreshToken string, err error) {
 	if hashErr != nil {
 		return "", "", common.Coded("WRONG_CREDENTIALS", fmt.Errorf("wrong username or password"), nil)
 	}
-	ok, needsRehash := common.CheckPasswordAndRehash(password, hash)
-	if !ok {
-		return "", "", common.Coded("WRONG_CREDENTIALS", fmt.Errorf("wrong username or password"), nil)
+	// The MD5-derived scheme older releases stored is not verified at all. The
+	// message names the way out, and the account still counts as existing, so
+	// an upgrade does not fall back to the first-run registration.
+	if configure.IsLegacyAccountHash(hash) {
+		return "", "", common.Coded("LEGACY_PASSWORD_HASH", fmt.Errorf("this account's password was stored with a scheme that is no longer accepted; stop the service and run v2raya --reset-password"), nil)
 	}
-	if needsRehash {
-		// An old installation still carries the MD5-derived hash. A
-		// successful login is the only moment the plaintext is available,
-		// so migrate it now; a failure here must not cost the session.
-		if upgraded, hashErr := common.CryptoPwd(password); hashErr == nil {
-			if err := configure.SetAccount(username, upgraded); err != nil {
-				log.Warn("account: cannot upgrade the password hash for %q: %v", username, err)
-			}
-		}
+	if !common.CheckPassword(password, hash) {
+		return "", "", common.Coded("WRONG_CREDENTIALS", fmt.Errorf("wrong username or password"), nil)
 	}
 	sessionID, refreshToken, err := jwt.CreateSession(username)
 	if err != nil {

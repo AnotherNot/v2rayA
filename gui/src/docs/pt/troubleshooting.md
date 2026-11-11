@@ -24,7 +24,7 @@ Ao iniciar, depois de localizar o núcleo, o v2rayA baixa do GitHub o arquivo `g
 
 ## Após uma atualização
 
-Um banco de dados BoltDB de uma versão anterior é migrado na primeira inicialização; o arquivo antigo permanece como `bolt.db.bak` (`bolt.db.bak.1` e seguintes quando esse nome já está em uso), e as contas precisam ser registradas novamente. Pare o serviço e copie o diretório de configuração antes de atualizar; assim, a migração poderá ser repetida a partir dessa cópia.
+Um banco de dados BoltDB de uma versão anterior é migrado na primeira inicialização; o arquivo antigo permanece como `bolt.db.bak` (`bolt.db.bak.1` e seguintes quando esse nome já está em uso), e as contas precisam ser registradas novamente. Pare o serviço e copie o diretório de configuração antes de atualizar; assim, a migração poderá ser repetida a partir dessa cópia. Uma conta cuja senha foi armazenada por uma versão que usava MD5 não é mais aceita; use a seção Redefinir a senha abaixo para definir uma nova.
 
 ## Redefinir a senha
 

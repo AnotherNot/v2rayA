@@ -233,6 +233,21 @@ func TestImportRoutingSourceFailures(t *testing.T) {
 	if before != after {
 		t.Errorf("a rejected import changed the stored rules:\nbefore %q\nafter  %q", before, after)
 	}
+
+	// An ext tag names a file inside the asset directory. A set that points out
+	// of it must be refused rather than resolved: the asset lookup replaces the
+	// link at the path the name produces.
+	escapingGeo := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"version":"X","routingItems":[{"remarks":"e","ruleSet":"[{\"outboundTag\":\"proxy\",\"domain\":[\"ext:\\\"../victim:x\\\"\"]}]"}]}`))
+	}))
+	t.Cleanup(escapingGeo.Close)
+	if _, err := ImportRoutingSource(escapingGeo.URL, ""); err == nil {
+		t.Error("a rule set naming a file outside the asset directory was accepted")
+	}
+	configure.GetRoutingARaw(&after)
+	if before != after {
+		t.Errorf("a rejected import changed the stored rules:\nbefore %q\nafter  %q", before, after)
+	}
 }
 
 // Sync is what the daily tick calls. It must re-import when the source's

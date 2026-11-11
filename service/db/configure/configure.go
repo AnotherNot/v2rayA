@@ -609,12 +609,23 @@ func HasAnyAccounts() bool {
 	return err == nil && len(accounts) > 0
 }
 
-func isAccountPasswordHash(passwordHash string) bool {
-	if len(passwordHash) == 32 {
-		_, err := hex.DecodeString(passwordHash)
-		return err == nil
+// IsLegacyAccountHash reports the unsalted MD5-derived hash older releases
+// stored. Sign-in no longer accepts it; the format stays recognised on purpose.
+// An upgraded installation must keep counting the account as existing: an
+// account reported as absent would reopen the first-run registration, and the
+// VMess UUID derived from the accounts would change. The owner resets it with
+// --reset-password.
+func IsLegacyAccountHash(passwordHash string) bool {
+	if len(passwordHash) != 32 {
+		return false
 	}
-	return strings.HasPrefix(passwordHash, "$2a$") ||
+	_, err := hex.DecodeString(passwordHash)
+	return err == nil
+}
+
+func isAccountPasswordHash(passwordHash string) bool {
+	return IsLegacyAccountHash(passwordHash) ||
+		strings.HasPrefix(passwordHash, "$2a$") ||
 		strings.HasPrefix(passwordHash, "$2b$") ||
 		strings.HasPrefix(passwordHash, "$2y$")
 }

@@ -49,7 +49,14 @@ func PutRoutingA(ctx *gin.Context) {
 	// Name the geo tags the files on this machine do not hold before the
 	// core gets its turn: a restart with an unknown tag fails and rolls the
 	// setting back, and the core's log line is all the user would get.
-	if missing := dat.Missing(dat.RoutingATags(strings.Join(lines, "\n"))); len(missing) > 0 {
+	missing, err := dat.Missing(dat.RoutingATags(strings.Join(lines, "\n")))
+	if err != nil {
+		common.ResponseError(ctx, common.Coded("INVALID_GEO_FILE", logError(err), map[string]interface{}{
+			"detail": err.Error(),
+		}))
+		return
+	}
+	if len(missing) > 0 {
 		names := make([]string, len(missing))
 		for i, r := range missing {
 			names[i] = r.String()

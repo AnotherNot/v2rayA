@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -407,6 +408,11 @@ func (r *XHTTPRangeConfig) UnmarshalJSON(data []byte) error {
 		from, to, err := ParseRangeString(str)
 		if err != nil {
 			return err
+		}
+		// The core keeps both endpoints in an int32. A value outside that range
+		// would wrap to the opposite sign and change the setting silently.
+		if from < math.MinInt32 || from > math.MaxInt32 || to < math.MinInt32 || to > math.MaxInt32 {
+			return fmt.Errorf("invalid integer range %s: an endpoint does not fit in 32 bits", data)
 		}
 		r.From, r.To = int32(from), int32(to)
 		return nil

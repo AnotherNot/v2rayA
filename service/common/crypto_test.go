@@ -1,18 +1,9 @@
 package common
 
 import (
-	"crypto/md5"
-	"crypto/sha512"
-	"fmt"
 	"strings"
 	"testing"
 )
-
-func legacyHash(password string) string {
-	sum := sha512.Sum512_256([]byte(password))
-	hash := md5.Sum(sum[:])
-	return fmt.Sprintf("%x", hash)
-}
 
 func TestCryptoPwdUsesBcrypt(t *testing.T) {
 	hash, err := CryptoPwd("correct horse battery staple")
@@ -22,11 +13,10 @@ func TestCryptoPwdUsesBcrypt(t *testing.T) {
 	if !isBcryptHash(hash) {
 		t.Fatalf("hash %q is not bcrypt", hash)
 	}
-	ok, rehash := CheckPasswordAndRehash("correct horse battery staple", hash)
-	if !ok || rehash {
-		t.Fatalf("bcrypt check = %v, rehash = %v", ok, rehash)
+	if !CheckPassword("correct horse battery staple", hash) {
+		t.Fatal("the right password was refused")
 	}
-	if ok, _ := CheckPasswordAndRehash("wrong password", hash); ok {
+	if CheckPassword("wrong password", hash) {
 		t.Fatal("a wrong password was accepted")
 	}
 }
@@ -37,16 +27,14 @@ func TestCryptoPwdRejectsOverlongPassword(t *testing.T) {
 	}
 }
 
-func TestLegacyHashIsAcceptedAndMarkedForRehash(t *testing.T) {
-	hash := legacyHash("old-password")
-	ok, rehash := CheckPasswordAndRehash("old-password", hash)
-	if !ok || !rehash {
-		t.Fatalf("legacy check = %v, rehash = %v", ok, rehash)
+// The unsalted MD5-derived format older releases stored is not verified: it is
+// fast enough to search offline, and the account is reset instead.
+func TestCheckPasswordRefusesTheLegacyFormat(t *testing.T) {
+	const legacy = "5f4dcc3b5aa765d61d8327deb882cf99"
+	if CheckPassword("password", legacy) {
+		t.Fatal("a legacy hash was accepted")
 	}
-	if ok, _ := CheckPasswordAndRehash("wrong", hash); ok {
-		t.Fatal("a wrong password was accepted against a legacy hash")
-	}
-	if ok, rehash := CheckPasswordAndRehash("x", "not-a-hash"); ok || rehash {
+	if CheckPassword("password", "not-a-hash") {
 		t.Fatal("a malformed hash was accepted")
 	}
 }
