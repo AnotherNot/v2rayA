@@ -5,32 +5,33 @@ on:
     inputs:
       tag:
         type: string
+        description: "The tag to publish to AUR"
         required: true
     secrets:
       AUR_SSH_PRIVATE_KEY:
         required: true
 
+permissions:
+  contents: read
+
 jobs:
   Release_to_AUR:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment: aur
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
       - name: Check Version
-        id: prep
         shell: bash
         env:
           TAG: ${{ inputs.tag }}
         run: |
           tag="$TAG"
           version="${tag#v}"
-          echo "VERSION=$version" >> "$GITHUB_OUTPUT"
           echo "VERSION=$version" >> "$GITHUB_ENV"
       - name: Clone & Update AUR Repository
-        env:
-          VERSION: ${{ steps.prep.outputs.VERSION }}
         run: |
           mkdir -p aur
           git clone https://aur.archlinux.org/v2raya.git aur/v2raya
@@ -49,8 +50,6 @@ jobs:
           podman exec --user root:root archContainer pacman -Syu base-devel pacman-contrib --noconfirm
           podman exec --user root:root archContainer chown -R "$(id --user):$(id --user)" /aur
       - name: Render the package checksums
-        env:
-          VERSION: ${{ steps.prep.outputs.VERSION }}
         run: |
           version="$VERSION"
           base="https://github.com/AnotherNot/v2rayA/releases/download/v$version"
@@ -90,8 +89,6 @@ jobs:
             UserKnownHostsFile ~/.ssh/known_hosts
           EOL
       - name: Commit & Push to AUR
-        env:
-          VERSION: ${{ steps.prep.outputs.VERSION }}
         run: |
           Current_Dir=$(pwd)
           sudo chown -R "$(id -u):$(id -u)" aur/v2raya
