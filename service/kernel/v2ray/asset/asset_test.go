@@ -98,6 +98,68 @@ func TestDownloadWithNilClient(t *testing.T) {
 	}
 }
 
+// A filename is what the core's loader opens: a path inside the asset
+// directory. A name that can leave it must be refused before the join, because
+// the relinking step replaces whatever sits at the resulting path.
+func TestGetV2rayLocationAssetRefusesEscapingNames(t *testing.T) {
+	for _, name := range []string{"", ".", "..", "../x.dat", "../../etc/passwd", "/etc/passwd"} {
+		if got, err := GetV2rayLocationAsset(name); err == nil {
+			t.Errorf("GetV2rayLocationAsset(%q) = %q, want an error", name, got)
+		}
+	}
+}
+
+// The runtime directory holds links this package wrote. An operator may instead
+// have copied an asset there; that file is not ours to delete.
+func TestLinkRuntimeAssetKeepsARealFile(t *testing.T) {
+	dir := t.TempDir()
+	target := filepath.Join(dir, "geosite.dat")
+	if err := os.WriteFile(target, []byte("operator copy"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	source := filepath.Join(dir, "source.dat")
+	if err := os.WriteFile(source, []byte("source"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := linkRuntimeAsset(source, target); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(target)
+	if err != nil || string(b) != "operator copy" {
+		t.Fatalf("regular file was replaced: %v %q", err, b)
+	}
+}
+
+// Relinking is how a moved asset reaches the core: the old link is ours, so it
+// is replaced with one that points at the current file.
+func TestLinkRuntimeAssetReplacesItsOwnLink(t *testing.T) {
+	dir := t.TempDir()
+	oldSource := filepath.Join(dir, "old.dat")
+	newSource := filepath.Join(dir, "new.dat")
+	for path, content := range map[string]string{oldSource: "old", newSource: "new"} {
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	target := filepath.Join(dir, "link.dat")
+	if err := os.Symlink(oldSource, target); err != nil {
+		t.Fatal(err)
+	}
+	if err := linkRuntimeAsset(newSource, target); err != nil {
+		t.Fatal(err)
+	}
+	fi, err := os.Lstat(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fi.Mode()&os.ModeSymlink == 0 {
+		t.Fatal("the link was replaced with a regular file")
+	}
+	if b, err := os.ReadFile(target); err != nil || string(b) != "new" {
+		t.Fatalf("link target: %v %q", err, b)
+	}
+}
+
 func TestFindAssetOutsideDirSkipsItsOwnDirectory(t *testing.T) {
 	dir := "/usr/share/v2raya"
 	if _, err := os.Stat(filepath.Join(dir, "geosite.dat")); err != nil {

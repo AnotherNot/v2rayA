@@ -170,7 +170,14 @@ func ImportRoutingSource(url, remarks string) (RoutingSource, error) {
 			"detail": err.Error(),
 		})
 	}
-	if missing := dat.Missing(dat.RoutingATags(source)); len(missing) > 0 {
+	missing, err := dat.Missing(dat.RoutingATags(source))
+	if err != nil {
+		return out, common.Coded("ROUTING_RULES_INCOMPATIBLE", err, map[string]interface{}{
+			"set":    item.Remarks,
+			"detail": err.Error(),
+		})
+	}
+	if len(missing) > 0 {
 		names := make([]string, len(missing))
 		for i, r := range missing {
 			names[i] = r.String()

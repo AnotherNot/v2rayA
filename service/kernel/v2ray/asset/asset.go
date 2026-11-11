@@ -68,11 +68,25 @@ func runtimeAssetDir() string {
 	return conf.GetEnvironmentConfig().Config
 }
 
+// IsAssetName reports whether name is a file the core can load from the asset
+// directory: a relative path that stays inside it. The core applies the same
+// rule with filepath.IsLocal before it opens an asset, so a name accepted here
+// is one it will find.
+func IsAssetName(name string) bool {
+	return name != "." && filepath.IsLocal(name)
+}
+
 func GetV2rayLocationAsset(filename string) (string, error) {
 	// All variants use XRAY_LOCATION_ASSET; dat files are stored under
 	// v2raya's own XDG data subdirectory ("v2raya/"), not under "xray/".
 	const envKey = "XRAY_LOCATION_ASSET"
 	const folder = "v2raya"
+
+	// The name reaches filepath.Join and the relinking step below; a name that
+	// can leave the directory would let that step unlink a file elsewhere.
+	if !IsAssetName(filename) {
+		return "", fmt.Errorf("asset name %q must stay inside the asset directory", filename)
+	}
 
 	location := os.Getenv(envKey)
 	// check if XRAY_LOCATION_ASSET is set
@@ -111,16 +125,36 @@ func GetV2rayLocationAsset(filename string) (string, error) {
 				}
 			}
 			runtimepath := filepath.Join(runtimeAssetDir(), filename)
-			os.Remove(runtimepath)
-			err = os.Symlink(fullpath, runtimepath)
-			if err != nil {
+			if err := linkRuntimeAsset(fullpath, runtimepath); err != nil {
 				return "", err
 			}
-			return fullpath, err
+			return fullpath, nil
 		} else {
 			// fallback to the old behavior of using only config dir on windows
 			return filepath.Join(conf.GetEnvironmentConfig().Config, filename), nil
 		}
+	}
+}
+
+// linkRuntimeAsset points runtimepath at fullpath so the core, which reads only
+// its own asset directory, sees the file. Only a link this function wrote is
+// replaced: a regular file there is kept, because an operator who copied an
+// asset instead of linking it owns that file and it is already what the core
+// should read.
+func linkRuntimeAsset(fullpath, runtimepath string) error {
+	fi, err := os.Lstat(runtimepath)
+	switch {
+	case err == nil && fi.Mode()&os.ModeSymlink != 0:
+		if err := os.Remove(runtimepath); err != nil {
+			return err
+		}
+		return os.Symlink(fullpath, runtimepath)
+	case err == nil:
+		return nil
+	case errors.Is(err, fs.ErrNotExist):
+		return os.Symlink(fullpath, runtimepath)
+	default:
+		return err
 	}
 }
 

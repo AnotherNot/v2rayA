@@ -67,13 +67,16 @@ domain(ext:"LoyalsoldierSite.dat:gfw")->proxy
 
 func TestMissingNamesAbsentTags(t *testing.T) {
 	writeFixture(t, t.TempDir())
-	missing := Missing([]TagRef{
+	missing, err := Missing([]TagRef{
 		{File: "geosite.dat", Tag: "ru-blocked"},
 		{File: "geosite.dat", Tag: "ru"},         // absent, like the user's rule
 		{File: "geosite.dat", Tag: "Ru-Blocked"}, // case does not matter
 		{File: "geoip.dat", Tag: "ru"},
 		{File: "geoip.dat", Tag: "cn"}, // absent from this fixture
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	var got []string
 	for _, r := range missing {
 		got = append(got, r.String())
@@ -86,7 +89,10 @@ func TestMissingNamesAbsentTags(t *testing.T) {
 
 func TestMissingSkipsUnreadableFiles(t *testing.T) {
 	writeFixture(t, t.TempDir())
-	missing := Missing([]TagRef{{File: "nosuch.dat", Tag: "whatever"}})
+	missing, err := Missing([]TagRef{{File: "nosuch.dat", Tag: "whatever"}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(missing) != 0 {
 		t.Fatalf("missing = %v, want none: an unreadable file is the core's call", missing)
 	}
@@ -98,7 +104,33 @@ func TestMissingSkipsUnparseableFiles(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "geosite.dat"), []byte("not protobuf"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	if got := Missing([]TagRef{{File: "geosite.dat", Tag: "ru"}}); len(got) != 0 {
-		t.Fatalf("missing = %v, want none", got)
+	missing, err := Missing([]TagRef{{File: "geosite.dat", Tag: "ru"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(missing) != 0 {
+		t.Fatalf("missing = %v, want none", missing)
+	}
+}
+
+// An ext tag is a file name the core opens inside the asset directory. A rule
+// that points outside it must fail the rule, not resolve the file: the asset
+// lookup removes and recreates a link at that path.
+func TestMissingRejectsFileOutsideTheAssetDirectory(t *testing.T) {
+	dir := t.TempDir()
+	writeFixture(t, dir)
+	victim := filepath.Join(filepath.Dir(dir), "victim")
+	if err := os.WriteFile(victim, []byte("keep"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	refs := RoutingATags(`domain(ext:"../victim:x")->proxy`)
+	if len(refs) != 1 {
+		t.Fatalf("refs = %v, want the ext tag", refs)
+	}
+	if _, err := Missing(refs); err == nil {
+		t.Fatal("an ext file outside the asset directory was accepted")
+	}
+	if _, err := os.Stat(victim); err != nil {
+		t.Fatalf("a file outside the asset directory was touched: %v", err)
 	}
 }
