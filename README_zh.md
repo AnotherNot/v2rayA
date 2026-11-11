@@ -14,7 +14,7 @@
 
 v2rayA 以服务形式运行，通过浏览器操作，可部署在本机、路由器或 NAS 上。它导入 VMess、VLESS、Shadowsocks、Trojan、Hysteria2、TUIC、[Juicity](https://github.com/juicity)、AnyTLS、WireGuard、SOCKS5 与 HTTP(S) 的订阅和分享链接。节点编成组后，由实测延迟最低的成员或固定的成员出站，分流由 RoutingA 规则决定。不支持 ShadowsocksR。
 
-> **本仓库是 [v2rayA](https://github.com/v2rayA/v2rayA) 的一个分支。** 它保留上游的名称、结构与许可证，并带有自己的改动——见[关于本分支](#关于本分支)。Releases、winget 与 scoop 包从 [AnotherNot/v2rayA](https://github.com/AnotherNot/v2rayA) 发布；APT 与 DNF 软件源、AUR、Gentoo、brew、snap 及 OpenWrt 仍然提供上游原版。
+> **本仓库是 [v2rayA](https://github.com/v2rayA/v2rayA) 的一个分支。** 它保留上游的名称、结构与许可证，并带有自己的改动——见[关于本分支](#关于本分支)。Releases 从 [AnotherNot/v2rayA](https://github.com/AnotherNot/v2rayA) 发布；APT 与 DNF 软件源、AUR、Gentoo、brew、snap 及 OpenWrt 仍然提供上游原版。
 
 ## 运行环境
 
@@ -196,7 +196,7 @@ docker compose -f install/docker/docker-compose.yaml --profile socks up -d      
 <details>
 <summary><strong>Windows</strong></summary>
 
-[发布页](https://github.com/AnotherNot/v2rayA/releases)的 `installer_windows_inno_x64_<version>.exe`（或 `arm64`）安装两个二进制文件并注册服务。同一发布页也提供 `v2raya_windows_x64_<version>.zip`（或 `arm64`），供不使用安装程序的机器。`winget install --id AnotherNot.v2rayA` 与本分支的 scoop bucket（`scoop bucket add v2raya https://github.com/AnotherNot/scoop-v2raya && scoop install v2raya`）使用同一个安装程序。
+[发布页](https://github.com/AnotherNot/v2rayA/releases)的 `installer_windows_inno_x64_<version>.exe`（或 `arm64`）安装两个二进制文件并注册服务。同一发布页也提供 `v2raya_windows_x64_<version>.zip`（或 `arm64`），供不使用安装程序的机器。winget 包与 scoop bucket 尚未发布；请使用安装程序或压缩包。
 
 </details>
 
@@ -296,7 +296,7 @@ SQLite 数据库 `v2raya.db` 与生成的内核配置位于配置目录：Linux 
 
 本分支的所有改动都由编码智能体编写。站在它背后的人决定添加什么、去掉什么、结果应该是什么样，在运行中的安装上逐项验证，并为结果负责。这些改动所依据的工作规则写在 [AGENTS.md](AGENTS.md) 里。没有被实际看到可用之前，一项改动就不算完成。
 
-改动本身：路由模式按其作用命名，而不是绑定于某一个地区，存储在它们背后的值也已迁移到新名称；默认 DNS 解析器不绑定地区；blocklist 规则集的更新器从原先绑定的那一个集合泛化而来；随项目提供的规则预设在真实节点上验证过；分组增加了随机这一负载均衡类型；默认只启用一个带规则的 SOCKS5 入站；测得的节点速度会被保存，而不是每次打开页面都重新测量；项目可在容器中用一条命令构建；本分支发布自己的 releases、winget 包与 scoop bucket。
+改动本身：路由模式按其作用命名，而不是绑定于某一个地区，存储在它们背后的值也已迁移到新名称；默认 DNS 解析器不绑定地区；blocklist 规则集的更新器从原先绑定的那一个集合泛化而来；随项目提供的规则预设在真实节点上验证过；分组增加了随机这一负载均衡类型；默认只启用一个带规则的 SOCKS5 入站；测得的节点速度会被保存，而不是每次打开页面都重新测量；项目可在容器中用一条命令构建；本分支发布自己的 releases。
 
 凡有现成形状可循之处，都没有另起炉灶。[docs/README.md](docs/README.md#what-the-code-stands-on) 完整列出了代码所依托的东西；简而言之：分享链接方言与规则索引格式来自 [v2rayN](https://github.com/2dust/v2rayN)，路由模型与均衡器标签来自 [Xray-core](https://github.com/XTLS/Xray-core)——`v2raya_core` 本身即其分支，DNS 协议层处理来自 [miekg/dns](https://github.com/miekg/dns)，公开的俄罗斯规则集来自 [runetfreedom](https://github.com/runetfreedom/russia-v2ray-rules-dat)，geo 文件来自 [v2fly/domain-list-community](https://github.com/v2fly/domain-list-community) 与 [v2fly/geoip](https://github.com/v2fly/geoip)，规则语法来自 [RoutingA](https://github.com/v2rayA/RoutingA)。
 

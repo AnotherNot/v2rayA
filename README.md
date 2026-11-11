@@ -14,7 +14,7 @@ English · [简体中文](README_zh.md) · [Русский](README_ru.md)
 
 v2rayA runs as a service and is used from a browser, on the machine itself or on a router or NAS. It imports subscriptions and share links for VMess, VLESS, Shadowsocks, Trojan, Hysteria2, TUIC, [Juicity](https://github.com/juicity), AnyTLS, WireGuard, SOCKS5 and HTTP(S), groups nodes and selects the member with the lowest measured latency or a pinned one, and splits traffic with rules written in RoutingA. ShadowsocksR is not supported.
 
-> **This is a fork of [v2rayA](https://github.com/v2rayA/v2rayA).** It keeps the upstream name, layout and licence, and carries changes of its own — see [About this fork](#about-this-fork). Releases and the winget and scoop packages are published from [AnotherNot/v2rayA](https://github.com/AnotherNot/v2rayA); the APT and DNF repositories, AUR, Gentoo, brew, snap and OpenWrt still serve the upstream original.
+> **This is a fork of [v2rayA](https://github.com/v2rayA/v2rayA).** It keeps the upstream name, layout and licence, and carries changes of its own — see [About this fork](#about-this-fork). Releases are published from [AnotherNot/v2rayA](https://github.com/AnotherNot/v2rayA); the APT and DNF repositories, AUR, Gentoo, brew, snap and OpenWrt still serve the upstream original.
 
 ## Requirements
 
@@ -196,7 +196,7 @@ docker compose -f install/docker/docker-compose.yaml --profile socks up -d      
 <details>
 <summary><strong>Windows</strong></summary>
 
-`installer_windows_inno_x64_<version>.exe` (or `arm64`) from the [releases](https://github.com/AnotherNot/v2rayA/releases) installs both binaries and registers a service. The same release also carries `v2raya_windows_x64_<version>.zip` (or `arm64`) for a machine without the installer. The installer is behind `winget install --id AnotherNot.v2rayA` and the fork's scoop bucket (`scoop bucket add v2raya https://github.com/AnotherNot/scoop-v2raya && scoop install v2raya`).
+`installer_windows_inno_x64_<version>.exe` (or `arm64`) from the [releases](https://github.com/AnotherNot/v2rayA/releases) installs both binaries and registers a service. The same release also carries `v2raya_windows_x64_<version>.zip` (or `arm64`) for a machine without the installer. A winget package and a scoop bucket do not exist yet; use the installer or the archive.
 
 </details>
 
@@ -298,7 +298,7 @@ This is a maintained fork of [v2rayA](https://github.com/v2rayA/v2rayA), which i
 
 Every change in this fork was written by coding agents. The person behind it decided what to add, what to remove and what the result should look like, tested each change against a running installation, and answered for it. The working rules those changes were held to are in [AGENTS.md](AGENTS.md). A change is not finished until it has been observed working.
 
-The changes themselves: the routing modes are named for what they do rather than for one region, and the stored values behind them were migrated to match; the default DNS resolver is region-neutral; the updater for blocklist rule sets is generalised from the single set it used to be tied to; the rule presets that ship with the project were checked against real nodes; groups gained a random balancing type; a single SOCKS5 inbound with rules is the one enabled by default; a measured node speed is kept rather than recomputed on every page; the project builds in containers with one command; and the fork publishes its own releases, winget package and scoop bucket.
+The changes themselves: the routing modes are named for what they do rather than for one region, and the stored values behind them were migrated to match; the default DNS resolver is region-neutral; the updater for blocklist rule sets is generalised from the single set it used to be tied to; the rule presets that ship with the project were checked against real nodes; groups gained a random balancing type; a single SOCKS5 inbound with rules is the one enabled by default; a measured node speed is kept rather than recomputed on every page; the project builds in containers with one command; and the fork publishes its own releases.
 
 None of that was invented where an existing shape would do. [docs/README.md](docs/README.md#what-the-code-stands-on) lists what the code stands on in full; in short, the share-link dialect and the rule-index format come from [v2rayN](https://github.com/2dust/v2rayN), the routing model and the balancer tags from [Xray-core](https://github.com/XTLS/Xray-core) — which `v2raya_core` itself forks — the DNS wire handling from [miekg/dns](https://github.com/miekg/dns), the published Russian rule sets from [runetfreedom](https://github.com/runetfreedom/russia-v2ray-rules-dat), the geo files from [v2fly/domain-list-community](https://github.com/v2fly/domain-list-community) and [v2fly/geoip](https://github.com/v2fly/geoip), and the rule syntax from [RoutingA](https://github.com/v2rayA/RoutingA).
 
