@@ -17,7 +17,7 @@ require (
 	// Pseudo-version for Xray-core v26.10.31 (commit a4a3dff5). v26 tags are not
 	// resolvable via go mod because Xray's module path lacks the /v26 suffix.
 	github.com/xtls/xray-core v1.260327.1-0.20261031132019-a4a3dff5b20c
-	golang.org/x/sys v0.49.0
+	golang.org/x/sys v0.50.0
 	golang.zx2c4.com/wireguard v0.0.0-20250521234502-f333402bd9cb
 	golang.zx2c4.com/wireguard/windows v1.1.1
 	google.golang.org/grpc v1.85.0
