@@ -44,7 +44,7 @@ The run builds the interface, then `v2raya` and `v2raya_core` for Linux and Wind
 
 The packages and installers carry pinned copies of `geoip.dat` and `geosite.dat`. The service updates its own copy at runtime and verifies the download against the checksum published next to it, so a pinned release is not a frozen one.
 
-Publishing to winget and scoop needs the repository secret `RELEASE_PAT`; the separate **Release to AUR** workflow needs `AUR_SSH_PRIVATE_KEY`. The winget and scoop jobs are skipped for a pre-release, and a job whose secret is missing fails after the release is published rather than silently skipping its step.
+Publishing to winget and scoop is not part of the release yet: the bucket and the winget manifest do not exist, so no job pushes them. The separate **Release to AUR** workflow needs `AUR_SSH_PRIVATE_KEY`.
 
 ## AI-assisted contributions
 
