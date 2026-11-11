@@ -63,7 +63,7 @@ api -X PUT "repos/$repo/automated-security-fixes"
 api -X PUT "repos/$repo/private-vulnerability-reporting" || true
 
 # Immutable releases: a published asset cannot be swapped under the same tag.
-api -X PUT "repos/$repo/immutable-releases" || true
+api -X PUT "repos/$repo/immutable-releases"
 
 # Default code scanning (CodeQL) for the languages GitHub can configure
 # without a custom build. Do not add an advanced codeql.yml while default
