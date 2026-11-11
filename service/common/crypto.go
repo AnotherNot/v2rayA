@@ -2,11 +2,8 @@ package common
 
 import (
 	"crypto/hmac"
-	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
-	"crypto/sha512"
-	"crypto/subtle"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
@@ -36,37 +33,14 @@ func isBcryptHash(hash string) bool {
 	return len(hash) >= 4 && (hash[:4] == "$2a$" || hash[:4] == "$2b$" || hash[:4] == "$2y$")
 }
 
-// isLegacyMD5Hash 判断字符串是否为旧版 MD5 哈希（32位十六进制字符串）
-func isLegacyMD5Hash(hash string) bool {
-	if len(hash) != 32 {
+// CheckPassword verifies a password against a bcrypt hash. The MD5-derived
+// scheme older releases stored is not accepted: it is unsalted and fast enough
+// to search offline, and the account has to be reset with --reset-password.
+func CheckPassword(password, hash string) bool {
+	if !isBcryptHash(hash) {
 		return false
 	}
-	_, err := hex.DecodeString(hash)
-	return err == nil
-}
-
-// CheckPassword verifies a password. It keeps accepting the legacy MD5
-// hash so an installation created years ago can still sign in; the caller
-// that wants to migrate it uses CheckPasswordAndRehash.
-func CheckPassword(password, hash string) bool {
-	ok, _ := CheckPasswordAndRehash(password, hash)
-	return ok
-}
-
-// CheckPasswordAndRehash verifies a password and reports whether the stored
-// hash is the legacy MD5 form. A successful login with needsRehash=true must
-// store a bcrypt hash in its place.
-func CheckPasswordAndRehash(password, hash string) (ok bool, needsRehash bool) {
-	if isBcryptHash(hash) {
-		return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil, false
-	}
-	if isLegacyMD5Hash(hash) {
-		shaed := sha512.Sum512_256([]byte(password))
-		pwd := md5.Sum(shaed[:])
-		expected := fmt.Sprintf("%x", pwd)
-		return subtle.ConstantTimeCompare([]byte(expected), []byte(hash)) == 1, true
-	}
-	return false, false
+	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
 }
 
 // HMACSHA256

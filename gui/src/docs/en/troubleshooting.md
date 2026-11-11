@@ -44,7 +44,7 @@ Once the core is found, a start without `geoip.dat` or `geosite.dat` downloads t
 
 ## After an upgrade
 
-A BoltDB database from an older release is migrated on the first start; the old file stays as `bolt.db.bak` (`bolt.db.bak.1` and up when that name is taken), and the accounts have to be registered again. Stop the service and copy the configuration directory before upgrading, then the migration can be repeated from that copy.
+A BoltDB database from an older release is migrated on the first start; the old file stays as `bolt.db.bak` (`bolt.db.bak.1` and up when that name is taken), and the accounts have to be registered again. Stop the service and copy the configuration directory before upgrading, then the migration can be repeated from that copy. An account whose password was stored by a release that hashed it with MD5 is not accepted any more; use Reset the password below to set a new one.
 
 ## Reset the password
 
