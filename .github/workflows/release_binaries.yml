@@ -295,12 +295,18 @@ jobs:
         run: |
           args=()
           [ "$PRERELEASE" = "true" ] && args+=(--prerelease)
+          # Immutable releases lock their assets and tag as soon as they are
+          # published, so the release is drafted, filled, then published. An
+          # existing draft from a failed run is filled and published the same
+          # way; an already published release is left alone.
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+            gh release upload "$TAG" dist/* --repo "$GITHUB_REPOSITORY"
           else
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
               --target "$GITHUB_SHA" --title "$TAG" --generate-notes \
-              "${args[@]}" dist/*
+              "${args[@]}" --draft
+            gh release upload "$TAG" dist/* --repo "$GITHUB_REPOSITORY"
           fi
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" \
             --json url,assets --jq '.url, (.assets[].name)'
