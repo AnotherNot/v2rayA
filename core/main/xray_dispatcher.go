@@ -55,7 +55,9 @@ func (a *xrayDispatcherAdapter) Dispatch(ctx context.Context, network, addr, pro
 		host = addr
 		portStr = "53"
 	}
-	port, err := strconv.Atoi(portStr)
+	// The destination port is a uint16 in the core. Parsing at that width keeps
+	// a config value outside the range from wrapping into a different port.
+	port, err := strconv.ParseUint(portStr, 10, 16)
 	if err != nil {
 		port = 53
 	}

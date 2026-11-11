@@ -10,17 +10,20 @@ import (
 	"github.com/xtls/xray-core/transport"
 )
 
-// captureDispatcher records the context the adapter built and fails the
-// dial, so the tests observe the routing decision without any network.
+// captureDispatcher records the context the adapter built and the destination
+// it asked for, then fails the dial, so the tests observe the routing decision
+// without any network.
 type captureDispatcher struct {
-	ctx context.Context
+	ctx  context.Context
+	dest net.Destination
 }
 
 func (d *captureDispatcher) Type() interface{} { return (*captureDispatcher)(nil) }
 func (d *captureDispatcher) Start() error      { return nil }
 func (d *captureDispatcher) Close() error      { return nil }
-func (d *captureDispatcher) Dispatch(ctx context.Context, _ net.Destination) (*transport.Link, error) {
+func (d *captureDispatcher) Dispatch(ctx context.Context, dest net.Destination) (*transport.Link, error) {
 	d.ctx = ctx
+	d.dest = dest
 	return nil, errors.New("capture only")
 }
 func (d *captureDispatcher) DispatchLink(_ context.Context, _ net.Destination, _ *transport.Link) error {
@@ -59,6 +62,30 @@ func TestDispatchDirectForcesNothing(t *testing.T) {
 		}
 		if got := session.GetForcedOutboundTagFromContext(inner.ctx); got != "" {
 			t.Fatalf("tag %q: forced = %q, want none", tag, got)
+		}
+	}
+}
+
+// The core's destination port is a uint16. An upstream address outside that
+// range must fall back to the DNS port instead of wrapping into another port.
+func TestDispatchPortFitsUint16(t *testing.T) {
+	cases := []struct {
+		addr string
+		want net.Port
+	}{
+		{"1.0.0.1:70000", 53},
+		{"1.0.0.1:-1", 53},
+		{"1.0.0.1:853", 853},
+		{"1.0.0.1", 53},
+	}
+	for _, c := range cases {
+		inner := &captureDispatcher{}
+		a := &xrayDispatcherAdapter{dispatcher: inner}
+		if _, err := a.Dispatch(context.Background(), "tcp", c.addr, ""); err == nil {
+			t.Fatalf("%s: expected the capture error", c.addr)
+		}
+		if inner.dest.Port != c.want {
+			t.Errorf("%s: port = %d, want %d", c.addr, inner.dest.Port, c.want)
 		}
 	}
 }
