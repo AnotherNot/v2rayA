@@ -2,7 +2,7 @@
 在此行上方用几句话说明原有的缺陷或缺失的功能，以及本次改动如何解决；不要逐个文件罗列。
 -->
 
-<sub>English template: [here](?template=pull_request_template.md).</sub>
+<sub>[English](?template=pull_request_template.md) · [Русский](?template=pull_request_template_ru.md)</sub>
 
 Closes #
 

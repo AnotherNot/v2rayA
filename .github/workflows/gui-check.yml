@@ -16,6 +16,7 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: gui
@@ -36,6 +37,5 @@ jobs:
       - run: yarn i18n-check
       - run: yarn test
       - run: OUTPUT_DIR=dist yarn build
-      # Reported only until the old component library leaves the bundle;
-      # the gate value is set in the plan's last milestone.
+      # Reported only until the old component library leaves the bundle.
       - run: node scripts/size-gate.mjs dist

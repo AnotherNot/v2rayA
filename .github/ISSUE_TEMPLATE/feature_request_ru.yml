@@ -1,0 +1,47 @@
+name: Предложение функции (Русский)
+description: Возможность, которой у v2rayA нет.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: ИИ может помочь с текстом, но непроверенное содержимое отправлять нельзя.
+  - type: input
+    id: version
+    attributes:
+      label: Версия v2rayA
+      placeholder: "2.5.6"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Задача
+      description: Опишите цель и то, что мешает её достичь.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Предложение
+      description: Опишите желаемое поведение, где ему место в интерфейсе и как эту задачу решают другие клиенты.
+    validations:
+      required: true
+  - type: input
+    id: owner
+    attributes:
+      label: Человек, отвечающий за это предложение
+      description: "Укажите свой логин на GitHub, чтобы подтвердить, что вы проверили содержимое и примете участие в обсуждении. ИИ не может ответить за вас."
+      placeholder: "@your-name"
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Подтверждение
+      description: Отметьте каждый применимый пункт; ложное утверждение приведёт к закрытию issue.
+      options:
+        - label: Я искал существующие issues, pull requests и обсуждения и не нашёл такого предложения.
+          required: true
+        - label: Я отметил пункты выше, не читая их.
+        - label: Я — ИИ-агент, и это содержимое отправлено без проверки человеком.
+        - label: Я готов открыть pull request для этого.

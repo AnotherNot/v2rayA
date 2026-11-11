@@ -8,6 +8,9 @@ on:
         description: "The tag to publish to AUR, e.g. v2.5.5"
         required: true
 
+permissions:
+  contents: read
+
 jobs:
   aur:
     uses: ./.github/workflows/_release_aur.yml

@@ -3,7 +3,7 @@ Describe the change above this line: the defect or the gap, and what this diff d
 A few sentences; do not enumerate files.
 -->
 
-<sub>中文模板：[点这里](?template=pull_request_template_zh.md)，或在本页地址后加 `?template=pull_request_template_zh.md`。</sub>
+<sub>English · [Русский](?template=pull_request_template_ru.md) · [简体中文](?template=pull_request_template_zh.md)</sub>
 
 Closes #
 
