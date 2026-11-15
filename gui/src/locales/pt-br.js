@@ -167,7 +167,6 @@ export default {
     exportSaved: "{file} exportado",
     moreActions: "Mais ações",
     helpManual: "Ajuda e manual",
-    switchSite: "Mudar para o site alternativo",
     addOutbound: "Adicionar um grupo de proxy",
     add: "Adicionar",
     close: "Fechar",
@@ -215,7 +214,7 @@ export default {
     autoUpdateGfwlist: "Atualizar dados de blocklist automaticamente",
     preferModeWhenUpdate: "Modo ao atualizar assinaturas e dados de blocklist",
     tproxyExcludedInterfaces: "Prefixos de interfaces excluídos",
-    tproxyExcludedInterfacesPlaceholder: "docker*, veth*, wg*, ppp*, br-*",
+    tproxyExcludedInterfacesPlaceholder: "docker*, veth*, wg*, ppp*",
     tunAutoRoute: "Rota automática",
     ipForwardOn: "Encaminhamento de IP",
     portSharingOn: "Compartilhamento de portas",
@@ -274,7 +273,7 @@ export default {
       transparentType:
         "★tproxy: suporta UDP, mas não Docker. ★redirect: compatível com Docker, mas não suporta UDP; quando a interceptação de DNS está ativada, também precisa ocupar a porta local 53 para evitar a poluição do DNS. ★tun: o núcleo abre um dispositivo TUN e assume a rota padrão; funciona em Linux, Windows e macOS, suporta UDP, exclui o v2rayA e o núcleo automaticamente e permite excluir outros processos pelo nome. No Windows e no macOS, aplicativos que consultam diretamente um resolvedor da rede local ainda o ignoram.",
       tproxyExcludedInterfaces:
-        "Defina os prefixos das interfaces de rede que não devem passar pelo proxy transparente. O curinga * é aceito (convertido automaticamente em + no modo iptables). Por exemplo: docker*, veth*, wg*, ppp*, br-*. Separe vários prefixos com vírgulas.",
+        "Defina os prefixos das interfaces de rede que não devem passar pelo proxy transparente. O curinga * é aceito (convertido automaticamente em + no modo iptables). Por exemplo: docker*, veth*, wg*, ppp*. Separe vários prefixos com vírgulas. No OpenWrt, as pontes LAN passam pelo proxy por padrão; adicionar br-* aqui as exclui.",
       tunAutoRoute:
         "Quando ativado, o v2rayA instala as rotas por conta própria e altera as configurações de DNS do sistema quando a interceptação de DNS está ativada. Quando desativado, você deverá fornecer scripts de configuração e remoção que configurem o roteamento.",
       tunExcludeProcesses:
@@ -501,8 +500,8 @@ export default {
       noBackendFound:
         "Não foi possível encontrar o v2rayA em {url}. Verifique se o v2rayA está em execução nesse endereço.",
       cannotCommunicate: [
-        "Não foi possível comunicar. Se o serviço estiver em execução e as portas estiverem abertas corretamente, o navegador atual pode não permitir que sites HTTPS acessem recursos HTTP. Tente usar o Chrome ou mudar para o site HTTP alternativo.",
-        "Não foi possível comunicar. O Firefox não permite que sites HTTPS acessem recursos HTTP. Tente mudar para o site HTTP alternativo.",
+        "Não foi possível comunicar. Se o serviço estiver em execução e a porta estiver aberta, o navegador pode estar bloqueando o acesso desta página HTTPS a um endereço HTTP. Tente o Chrome ou abra a interface por HTTP no próprio endereço do serviço.",
+        "Não foi possível comunicar. O Firefox não permite que páginas HTTPS acessem endereços HTTP. Abra a interface por HTTP no próprio endereço do serviço, como http://localhost:2017.",
       ],
     },
   },

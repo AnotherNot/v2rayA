@@ -167,7 +167,6 @@ export default {
     exportSaved: "Exported {file}",
     moreActions: "More actions",
     helpManual: "Help & Manual",
-    switchSite: "Switch to alternate site",
     addOutbound: "Add a proxy group",
     add: "Add",
     close: "Close",
@@ -214,7 +213,7 @@ export default {
     autoUpdateGfwlist: "Automatically Update Blocklist Data",
     preferModeWhenUpdate: "Mode when Update Subscriptions and Blocklist Data",
     tproxyExcludedInterfaces: "Excluded Interface Prefixes",
-    tproxyExcludedInterfacesPlaceholder: "docker*, veth*, wg*, ppp*, br-*",
+    tproxyExcludedInterfacesPlaceholder: "docker*, veth*, wg*, ppp*",
     tunAutoRoute: "Auto Route",
     ipForwardOn: "IP Forward",
     portSharingOn: "Port Sharing",
@@ -269,7 +268,7 @@ export default {
       transparentType:
         "★tproxy: supports UDP, but not docker. ★redirect: friendly for docker, but does not support UDP; when DNS interception is on, it also uses local port 53 for DNS anti-pollution. ★tun: the core opens a TUN device and takes the default route; works on Linux, Windows and macOS, supports UDP, excludes v2rayA and the core by itself and lets you exclude other processes by name. On Windows and macOS, applications that query a LAN resolver directly still bypass it.",
       tproxyExcludedInterfaces:
-        "Set the network interface prefixes that should not pass through the transparent proxy. Wildcard * is supported (automatically converted to + in iptables mode). For example: docker*, veth*, wg*, ppp*, br-*. Use commas to separate multiple prefixes.",
+        "Set the network interface prefixes that should not pass through the transparent proxy. Wildcard * is supported (automatically converted to + in iptables mode). For example: docker*, veth*, wg*, ppp*. Use commas to separate multiple prefixes. On OpenWrt, LAN bridges are included by default; adding br-* here excludes them.",
       tunAutoRoute:
         "When enabled, v2rayA installs the routes itself and changes the system DNS settings when DNS interception is on. When disabled, you must provide setup/teardown scripts that configure routing yourself.",
       tunExcludeProcesses:
@@ -494,8 +493,8 @@ export default {
       noBackendFound:
         "Cannot find v2rayA at {url}. Make sure v2rayA is running at this address.",
       cannotCommunicate: [
-        "Cannot communicate. If your service is running and ports open correctly, the reason may be that current browser does not allow https sites to access http resources, you can try using Chrome or switching to alternate http site.",
-        "Cannot communicate. Firefox does not allow https sites to access http resources, you can try switching to alternate http sites.",
+        "Cannot communicate. If your service is running and its port is open, the browser may be blocking this https page from reaching an http address. Try Chrome, or open the GUI over http at the service's own address.",
+        "Cannot communicate. Firefox blocks https pages from reaching http addresses. Open the GUI over http at the service's own address, such as http://localhost:2017.",
       ],
     },
   },

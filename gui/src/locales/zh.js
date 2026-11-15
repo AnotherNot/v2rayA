@@ -162,7 +162,6 @@ export default {
     exportSaved: "已导出 {file}",
     moreActions: "更多操作",
     helpManual: "查看帮助",
-    switchSite: "切换至备用站点",
     addOutbound: "新增一个代理分组",
     add: "添加",
     close: "关闭",
@@ -210,7 +209,7 @@ export default {
     autoUpdateGfwlist: "自动更新 blocklist 数据",
     preferModeWhenUpdate: "解析订阅链接/更新时优先使用",
     tproxyExcludedInterfaces: "排除的网卡名前缀",
-    tproxyExcludedInterfacesPlaceholder: "docker*、veth*、wg*、ppp*、br-*",
+    tproxyExcludedInterfacesPlaceholder: "docker*、veth*、wg*、ppp*",
     tunAutoRoute: "自动路由",
     ipForwardOn: "开启 IP 转发",
     portSharingOn: "允许局域网的连接",
@@ -260,7 +259,7 @@ export default {
       transparentType:
         "★tproxy: 支持udp，不支持docker。★redirect: docker友好，不支持udp；开启 DNS 接管时，还需要占用本地53端口以应对dns污染。★tun: 由核心打开 TUN 设备并接管默认路由；支持 Linux、Windows、macOS 与 UDP，自动排除 v2rayA 与核心自身，并可按进程名排除其他进程。Windows 与 macOS 上直接查询局域网 DNS 的应用仍会绕过它。",
       tproxyExcludedInterfaces:
-        "设置不经过透明代理的网卡前缀。支持通配符 * (iptables模式下会自动转换为 +)。例如: docker*, veth*, wg*, ppp*, br-*。多个前缀用逗号隔开。",
+        "设置不经过透明代理的网卡前缀。支持通配符 * (iptables模式下会自动转换为 +)。例如: docker*, veth*, wg*, ppp*。多个前缀用逗号隔开。 OpenWrt 默认代理 LAN 网桥流量；在此添加 br-* 会排除这些网桥。",
       tunAutoRoute:
         "开启时，v2rayA 自行安装路由；开启 DNS 接管时还会设置系统 DNS。关闭时，需要提供自定义的启动/停止脚本手动配置路由。",
       tunExcludeProcesses:
@@ -478,8 +477,8 @@ export default {
       optimizeBackend: "是否修改 v2rayA 服务端地址？",
       noBackendFound: "未在 {url} 检测到v2rayA服务端，请确定v2rayA正常运行",
       cannotCommunicate: [
-        "无法通信。如果您的服务端已正常运行，且端口正常开放，原因可能是当前浏览器不允许https站点访问http资源，您可以尝试切换为http备用站点。",
-        "无法通信。火狐浏览器不允许https站点访问http资源，您可以换用Chrome浏览器或切换为http备用站点。",
+        "无法通信。如果服务端已正常运行且端口已开放，原因可能是当前浏览器不允许https页面访问http地址。可以换用Chrome，或直接用http打开服务端地址上的界面。",
+        "无法通信。火狐浏览器不允许https页面访问http地址，请直接用http打开服务端地址上的界面，例如http://localhost:2017。",
       ],
     },
   },

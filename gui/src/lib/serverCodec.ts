@@ -99,6 +99,7 @@ export function parseShareLink(url: string): ShareForm | null {
       // Dropping it builds a tunnel the server cannot read; "none" is what
       // links written before the format carry.
       encryption: u.params.encryption || "none",
+      echConfigList: u.params.ech || "",
       pinnedPeerCertSha256: u.params.pinnedPeerCertSha256 || "",
       verifyPeerCertByName: u.params.verifyPeerCertByName || "",
       key: u.params.key,
@@ -533,6 +534,8 @@ export function generateShareLink(srcObj: ShareForm): string | null {
       // cannot read. "none" is the default, so only a real value is written.
       if (srcObj.encryption && srcObj.encryption !== "none")
         query.encryption = srcObj.encryption;
+      if (srcObj.tls === "tls" && srcObj.echConfigList)
+        query.ech = srcObj.echConfigList;
       if (query.security == "reality") {
         query.pbk = srcObj.pbk;
         query.sid = srcObj.sid;

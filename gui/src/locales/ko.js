@@ -164,7 +164,6 @@ export default {
     exportSaved: "{file} 저장됨",
     moreActions: "추가 작업",
     helpManual: "도움말 및 설명서",
-    switchSite: "대체 사이트로 전환",
     addOutbound: "프록시 그룹 추가",
     add: "추가",
     close: "닫기",
@@ -211,7 +210,7 @@ export default {
     autoUpdateGfwlist: "blocklist 데이터 자동 업데이트",
     preferModeWhenUpdate: "구독 및 blocklist 데이터 업데이트 시 모드",
     tproxyExcludedInterfaces: "제외할 인터페이스 접두사",
-    tproxyExcludedInterfacesPlaceholder: "docker*, veth*, wg*, ppp*, br-*",
+    tproxyExcludedInterfacesPlaceholder: "docker*, veth*, wg*, ppp*",
     tunAutoRoute: "자동 라우트",
     ipForwardOn: "IP 포워딩",
     portSharingOn: "포트 공유",
@@ -266,7 +265,7 @@ export default {
       transparentType:
         "★tproxy: UDP를 지원하지만 Docker는 지원하지 않습니다. ★redirect: Docker에 적합하지만 UDP를 지원하지 않습니다. DNS 가로채기가 켜져 있을 때 DNS 오염 방지를 위해 로컬 포트 53을 사용합니다. ★tun: 코어가 TUN 장치를 열고 기본 라우트를 가져갑니다. Linux, Windows, macOS와 UDP를 지원하며 v2rayA와 코어를 자동으로 제외하고 다른 프로세스를 이름으로 제외할 수 있습니다. Windows와 macOS에서는 LAN DNS에 직접 질의하는 애플리케이션이 여전히 우회합니다.",
       tproxyExcludedInterfaces:
-        "투명 프록시를 거치지 않을 네트워크 인터페이스 접두사를 설정합니다. 와일드카드 *를 지원합니다(iptables 모드에서는 자동으로 +로 변환). 예: docker*, veth*, wg*, ppp*, br-*. 여러 접두사는 쉼표로 구분하세요.",
+        "투명 프록시를 거치지 않을 네트워크 인터페이스 접두사를 설정합니다. 와일드카드 *를 지원합니다(iptables 모드에서는 자동으로 +로 변환). 예: docker*, veth*, wg*, ppp*. 여러 접두사는 쉼표로 구분하세요. OpenWrt에서는 기본적으로 LAN 브리지 트래픽도 프록시를 거칩니다. 여기에 br-*를 추가하면 제외됩니다.",
       tunAutoRoute:
         "활성화하면 v2rayA가 라우트를 직접 설치하고 DNS 가로채기가 켜져 있을 때 시스템 DNS 설정을 변경합니다. 비활성화하면 라우팅을 직접 구성할 시작/종료 스크립트를 제공해야 합니다.",
       tunExcludeProcesses:
@@ -489,8 +488,8 @@ export default {
       noBackendFound:
         "{url}에서 v2rayA를 찾을 수 없습니다. 해당 주소에서 v2rayA가 실행 중인지 확인하세요.",
       cannotCommunicate: [
-        "통신할 수 없습니다. 서비스가 실행 중이고 포트가 올바르게 열려 있다면 현재 브라우저가 HTTPS 사이트의 HTTP 리소스 접근을 허용하지 않기 때문일 수 있습니다. Chrome을 사용하거나 대체 HTTP 사이트로 전환해 보세요.",
-        "통신할 수 없습니다. Firefox는 HTTPS 사이트의 HTTP 리소스 접근을 허용하지 않습니다. 대체 HTTP 사이트로 전환해 보세요.",
+        "통신할 수 없습니다. 서비스가 실행 중이고 포트가 열려 있다면 브라우저가 HTTPS 페이지의 HTTP 주소 접근을 막고 있을 수 있습니다. Chrome을 사용하거나 서비스 주소에서 HTTP로 GUI를 여세요.",
+        "통신할 수 없습니다. Firefox는 HTTPS 페이지의 HTTP 주소 접근을 허용하지 않습니다. 서비스 주소에서 HTTP로 GUI를 여세요(예: http://localhost:2017).",
       ],
     },
   },

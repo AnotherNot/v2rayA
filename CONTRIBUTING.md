@@ -17,7 +17,7 @@ Before you open an issue or a pull request, check the [latest release](https://g
 
 ## Before a pull request
 
-Run the checks CI runs, from the repository root:
+Run these checks from the repository root. CI runs the `gui` line and builds the binaries; it does not run `go vet` or `go test`, so a pull request that skips them locally is untested.
 
 ```sh
 (cd gui     && yarn lint && yarn typecheck && yarn i18n-check && yarn test && yarn build)
@@ -29,7 +29,9 @@ Then exercise the change in the running program: a service change by starting `v
 
 The browser tests drive the built service rather than a mock: `./build-all.sh`, then `yarn --cwd gui playwright install chromium` once, then `yarn --cwd gui test:e2e`. The run starts `./v2raya` on `127.0.0.1:21117` with a scratch configuration directory, registers the first account and imports a node with both VLESS encryption and the REALITY ML-DSA-65 verify key.
 
-- One change per pull request, and each commit a coherent step of it: no mixed-up commits, no reformatting of untouched code, no lockfile churn.
+- One change per pull request, and each commit a coherent step of it: no mixed-up commits, no reformatting of untouched code, no lockfile churn. A commit that undoes part of an earlier one in the same pull request is squashed into it before you push.
+- A bug fix adds a test that fails without the fix. Where no test can (packaging, CI, documentation), the Verification section gives the command that showed the failure and then the fix.
+- Before you submit, read the title, the description and every commit message against `git diff main...`, and remove anything they describe that the diff does not contain.
 - Visible text lives in `gui/src/locales/`: update all six locales together. `yarn i18n-check` compares key sets, not whether a translation followed a wording change. The in-app documentation under `gui/src/docs/` has the same six.
 - Do not add a model `Co-Authored-By` trailer, an AI signature or a generated-by marker to a commit, pull request text or a comment.
 - One topic per commit, imperative subject saying what changes, `fix:` / `feat:` / `docs:` / `ci:` as the history uses.
@@ -56,5 +58,6 @@ An assistant may write and test the code, and you verify it before you submit it
 - Keep the diff to the change; do not let the assistant tidy unrelated code or regenerate lockfiles.
 - Between review rounds, be able to say in one sentence what changed and why.
 - Say which part it wrote. That is not held against you; hiding it is.
+- The "Submitted and answered for by" line and the boxes about what you did are yours. An assistant leaves them as the template has them.
 
 Maintainers close an issue or a pull request submitted without human verification, or with a checklist checked without reading. Each checklist carries two statements that are false for an honest submitter; checking either one is the admission.

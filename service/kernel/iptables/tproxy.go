@@ -10,10 +10,6 @@ import (
 	"github.com/v2rayA/v2rayA/pkg/util/log"
 )
 
-var (
-	TproxyNotSkipBr string
-)
-
 type tproxy interface {
 	AddIPWhitelist(cidr string)
 	RemoveIPWhitelist(cidr string)
@@ -44,9 +40,6 @@ func (t *legacyTproxy) AddIPWhitelist(cidr string) {
 	// avoid duplication
 	t.RemoveIPWhitelist(cidr)
 	pos := 7
-	if notSkip, _ := strconv.ParseBool(TproxyNotSkipBr); notSkip {
-		pos--
-	}
 	runIPWhitelist(strings.Contains(cidr, ":"), []string{
 		"-w", "2", "-t", "mangle", "-I", "TP_RULE", strconv.Itoa(pos), "-d", cidr, "-j", "RETURN",
 	})

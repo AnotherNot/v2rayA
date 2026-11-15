@@ -56,16 +56,29 @@ func GetV2rayLocationAssetOverride() string {
 }
 
 // runtimeAssetDir is where the core's asset links go when nothing names a
-// directory: v2raya's subdirectory of the XDG runtime directory. A service
-// user has no session, so /run/user/<uid> does not exist and cannot be
-// created by it; then the configuration directory, which the process owns,
-// holds the links instead of the start failing on the lookup.
+// directory: v2raya's subdirectory of the XDG runtime directory.
 func runtimeAssetDir() string {
-	dir := filepath.Join(xdg.RuntimeDir, "v2raya")
-	if err := os.MkdirAll(dir, 0700); err == nil {
-		return dir
+	return runtimeAssetDirIn(xdg.RuntimeDir, conf.GetEnvironmentConfig().Config)
+}
+
+// runtimeAssetDirIn uses runtimeDir only when it already exists. The runtime
+// directory belongs to the login manager: a service user has no session, so
+// /run/user/<uid> is missing, and a service running as root must not create
+// it either, because creating /run/user with mode 0700 locks every other
+// user out of their XDG runtime directory. Without it, the configuration
+// directory, which the process owns, holds the links.
+func runtimeAssetDirIn(runtimeDir, fallback string) string {
+	if fi, err := os.Stat(runtimeDir); err != nil || !fi.IsDir() {
+		return fallback
 	}
-	return conf.GetEnvironmentConfig().Config
+	dir := filepath.Join(runtimeDir, "v2raya")
+	if err := os.Mkdir(dir, 0700); err != nil && !errors.Is(err, fs.ErrExist) {
+		return fallback
+	}
+	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
+		return fallback
+	}
+	return dir
 }
 
 // IsAssetName reports whether name is a file the core can load from the asset
@@ -124,11 +137,7 @@ func GetV2rayLocationAsset(filename string) (string, error) {
 					return "", err
 				}
 			}
-			runtimepath := filepath.Join(runtimeAssetDir(), filename)
-			if err := linkRuntimeAsset(fullpath, runtimepath); err != nil {
-				return "", err
-			}
-			return fullpath, nil
+			return linkAsset(fullpath, filepath.Join(runtimeAssetDir(), filename))
 		} else {
 			// fallback to the old behavior of using only config dir on windows
 			return filepath.Join(conf.GetEnvironmentConfig().Config, filename), nil
@@ -136,26 +145,18 @@ func GetV2rayLocationAsset(filename string) (string, error) {
 	}
 }
 
-// linkRuntimeAsset points runtimepath at fullpath so the core, which reads only
-// its own asset directory, sees the file. Only a link this function wrote is
-// replaced: a regular file there is kept, because an operator who copied an
-// asset instead of linking it owns that file and it is already what the core
-// should read.
-func linkRuntimeAsset(fullpath, runtimepath string) error {
-	fi, err := os.Lstat(runtimepath)
-	switch {
-	case err == nil && fi.Mode()&os.ModeSymlink != 0:
-		if err := os.Remove(runtimepath); err != nil {
-			return err
-		}
-		return os.Symlink(fullpath, runtimepath)
-	case err == nil:
-		return nil
-	case errors.Is(err, fs.ErrNotExist):
-		return os.Symlink(fullpath, runtimepath)
-	default:
-		return err
+// linkAsset points link at source and returns the file to read. The asset
+// directory can be the configuration directory, where a regular file is one
+// the user put there: it is used as it is instead of being replaced.
+func linkAsset(source, link string) (string, error) {
+	if fi, err := os.Lstat(link); err == nil && fi.Mode().IsRegular() {
+		return link, nil
 	}
+	os.Remove(link)
+	if err := os.Symlink(source, link); err != nil {
+		return "", err
+	}
+	return source, nil
 }
 
 // BlocklistAsset is the geosite database the blocklist mode matches against.
@@ -164,7 +165,6 @@ func linkRuntimeAsset(fullpath, runtimepath string) error {
 // it (v2rayA/dist-v2ray-rules-dat). Any geosite database can be supplied
 // under this name through a custom download link.
 const BlocklistAsset = "LoyalsoldierSite.dat"
-
 // coreAssets are the files v2raya_core itself loads by name; it is given
 // XRAY_LOCATION_ASSET and looks nowhere else.
 var coreAssets = []string{"geoip.dat", "geosite.dat", BlocklistAsset, "geoip-only-cn-private.dat"}
