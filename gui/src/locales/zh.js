@@ -415,6 +415,7 @@ export default {
     realitySpiderX: "Spider X（spx）",
     realityMldsa65Verify: "ML-DSA-65 验证公钥（pqv）",
     vlessEncryption: "加密（encryption）",
+    echConfigList: "ECH 配置列表（echConfigList）",
     method: "方法",
     plugin: "插件",
     pluginImpl: "实现",

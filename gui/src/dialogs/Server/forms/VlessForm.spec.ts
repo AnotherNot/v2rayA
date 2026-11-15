@@ -67,15 +67,31 @@ describe("the vless form", () => {
     expect(labels(w)).toContain("Flow");
     expect(labels(w)).toContain("Public Key (pbk)");
     expect(labels(w)).not.toContain("ALPN");
+    expect(labels(w)).not.toContain("ECH Config List (echConfigList)");
     model.tls = "tls";
     await nextTick();
     expect(labels(w)).not.toContain("Public Key (pbk)");
     expect(labels(w)).toContain("ALPN");
+    expect(labels(w)).toContain("ECH Config List (echConfigList)");
     expect(labels(w)).toContain("Flow");
     model.tls = "none";
     await nextTick();
     expect(labels(w)).not.toContain("Flow");
     expect(labels(w)).not.toContain("SNI");
+    w.unmount();
+  });
+
+  test("edits the ECH config list for vless with tls", async () => {
+    const model = reactive({ ...v2rayModel(), protocol: "vless" });
+    model.tls = "tls";
+    const w = mountWithApp(VlessForm, { props: { modelValue: model } });
+    await nextTick();
+    const field = w
+      .findAllComponents(VTextField)
+      .find((c) => c.props("label") === "ECH Config List (echConfigList)");
+    expect(field).toBeTruthy();
+    await field!.get("input").setValue("AAH+/w==");
+    expect(model.echConfigList).toBe("AAH+/w==");
     w.unmount();
   });
 

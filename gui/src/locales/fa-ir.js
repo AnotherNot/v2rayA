@@ -425,6 +425,7 @@ export default {
     realitySpiderX: "Spider X (spx)",
     realityMldsa65Verify: "کلید تأیید ML-DSA-65 (pqv)",
     vlessEncryption: "رمزنگاری (encryption)",
+    echConfigList: "فهرست پیکربندی ECH (echConfigList)",
     method: "روش",
     plugin: "افزونه",
     pluginImpl: "پیاده‌سازی",

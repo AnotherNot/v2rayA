@@ -428,6 +428,7 @@ export default {
     realitySpiderX: "Spider X (spx)",
     realityMldsa65Verify: "ML-DSA-65 Verify Key (pqv)",
     vlessEncryption: "Encryption (encryption)",
+    echConfigList: "ECH Config List (echConfigList)",
     method: "Method",
     plugin: "Plugin",
     pluginImpl: "Implementation",

@@ -91,6 +91,14 @@ const secured = computed(
         dir="ltr"
       />
     </v-col>
+    <v-col v-if="vless && model.tls === 'tls'" cols="12" sm="6">
+      <v-text-field
+        v-model="model.echConfigList"
+        :label="t('configureServer.echConfigList')"
+        :readonly="readonly"
+        dir="ltr"
+      />
+    </v-col>
     <template v-if="vless && model.tls === 'reality'">
       <v-col cols="12" sm="6">
         <v-text-field
