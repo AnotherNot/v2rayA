@@ -26,6 +26,11 @@ const (
 	TransparentRedirect    = TransparentType("redirect")
 	TransparentSystemProxy = TransparentType("system_proxy")
 	TransparentTun         = TransparentType("tun")
+	// TransparentAppRouter routes by the application that opened the socket:
+	// a cgroup eBPF program decides, and a relay hands each flow to a local
+	// inbound of the core. Linux only, and never together with the firewall
+	// modes above.
+	TransparentAppRouter = TransparentType("app_router")
 
 	Default = DefaultYesNo("default")
 	Yes     = DefaultYesNo("yes")

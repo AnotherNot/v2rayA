@@ -121,6 +121,12 @@ func PutSetting(ctx *gin.Context) {
 		common.ResponseError(ctx, badRequest("dnsMode", err))
 		return
 	}
+	if err = configure.ValidateTransparentType(data.TransparentType); err != nil {
+		common.ResponseError(ctx, common.Coded("TRANSPARENT_TYPE_INVALID", logError(err), map[string]interface{}{
+			"value": string(data.TransparentType),
+		}))
+		return
+	}
 	// 对 DNS 配置字段执行迁移，确保旧格式请求中的缺失字段被填充默认值
 	configure.MigrateSetting(&data)
 	if err = configure.ValidateTunSettings(&data); err != nil {

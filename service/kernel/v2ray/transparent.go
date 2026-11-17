@@ -14,6 +14,7 @@ import (
 	"github.com/v2rayA/v2rayA/common"
 	"github.com/v2rayA/v2rayA/conf"
 	"github.com/v2rayA/v2rayA/db/configure"
+	"github.com/v2rayA/v2rayA/kernel/approuter"
 	"github.com/v2rayA/v2rayA/kernel/bounddevice"
 	"github.com/v2rayA/v2rayA/kernel/iptables"
 	"github.com/v2rayA/v2rayA/pkg/util/log"
@@ -84,6 +85,65 @@ func startBoundDeviceGuard() error {
 		return err
 	}
 	boundDeviceGuard.guard = guard
+	return nil
+}
+
+var appRouterEngine struct {
+	sync.Mutex
+	router *approuter.Router
+}
+
+func stopAppRouter() {
+	appRouterEngine.Lock()
+	defer appRouterEngine.Unlock()
+	if appRouterEngine.router == nil {
+		return
+	}
+	if err := appRouterEngine.router.Close(); err != nil {
+		log.Warn("stop the app router: %v", err)
+	}
+	appRouterEngine.router = nil
+}
+
+// startAppRouter attaches the engine and its relay. The applications come from
+// the command line for now; the RoutingA rules will replace that list, and the
+// class inbounds stay what they are.
+func startAppRouter(tmpl *Template) error {
+	appRouterEngine.Lock()
+	defer appRouterEngine.Unlock()
+	if appRouterEngine.router != nil {
+		return nil
+	}
+	var apps []string
+	for _, name := range strings.Split(conf.GetEnvironmentConfig().AppRouterApps, ",") {
+		if name = strings.TrimSpace(name); name != "" {
+			apps = append(apps, name)
+		}
+	}
+	if len(apps) == 0 {
+		// The mode is on but selects nothing: attaching a program that routes
+		// nothing would hide the misconfiguration behind normal traffic.
+		log.Warn("app router: no applications are selected, so no traffic is routed; pass --app-router-apps")
+		return nil
+	}
+	classPorts := make(map[int]int)
+	for _, ib := range tmpl.Inbounds {
+		if class, ok := appRouterClassOf(ib.Tag); ok && ib.Port > 0 {
+			classPorts[class] = ib.Port
+		}
+	}
+	if len(classPorts) == 0 {
+		return fmt.Errorf("the app router needs a class inbound, and the generated config has none")
+	}
+	router, err := approuter.Start(approuter.Options{
+		Cgroup:     "/sys/fs/cgroup",
+		Apps:       apps,
+		ClassPorts: classPorts,
+	})
+	if err != nil {
+		return fmt.Errorf("could not set up the app router: %w", err)
+	}
+	appRouterEngine.router = router
 	return nil
 }
 
@@ -221,6 +281,7 @@ ip6tables -w 2 -t nat -D PREROUTING -m mark --mark 0x80/0x80 -j RETURN 2>/dev/nu
 
 func deleteTransparentProxyRulesKeepSystemProxy() {
 	stopTunCore()
+	stopAppRouter()
 	iptables.CloseWatcher()
 	if !conf.GetEnvironmentConfig().Lite {
 		removeResolvHijacker()
@@ -280,6 +341,10 @@ func dnsRedirectPolicy(goos string, setting *configure.Setting) (install, requir
 	case configure.TransparentTun:
 		return setting.TunAutoRoute, false
 	case configure.TransparentSystemProxy:
+		return true, false
+	case configure.TransparentAppRouter:
+		// The app router's own rules do not need DNS yet, and a system-wide
+		// redirect is the same one the user asked for by choosing hijack.
 		return true, false
 	default:
 		return false, false
@@ -347,8 +412,15 @@ func writeTransparentProxyRules(tmpl *Template) (err error) {
 		if err = iptables.SystemProxy.GetSetupCommands().Run(true); err != nil {
 			return fmt.Errorf("could not set up transparent proxy in system proxy mode: %w", err)
 		}
+	case configure.TransparentAppRouter:
+		// No firewall rules: the cgroup program sees the socket's own connect,
+		// so nothing on the host is rewritten for traffic the rules did not
+		// select. DNS keeps its own interception below.
+		if err = startAppRouter(tmpl); err != nil {
+			return err
+		}
 	default:
-		return fmt.Errorf("unknown transparent proxy mode %q; expected tproxy, redirect, system_proxy, or tun", setting.TransparentType)
+		return fmt.Errorf("unknown transparent proxy mode %q; expected tproxy, redirect, system_proxy, tun, or app_router", setting.TransparentType)
 	}
 
 	// Linux 上用 nat REDIRECT 将本地 DNS 流量送到 DNS 模块。legacy iptables 还拦截
@@ -415,7 +487,8 @@ func IsTransparentOn(setting *configure.Setting) bool {
 	}
 	if conf.GetEnvironmentConfig().Lite &&
 		(setting.TransparentType == configure.TransparentTproxy ||
-			setting.TransparentType == configure.TransparentRedirect) {
+			setting.TransparentType == configure.TransparentRedirect ||
+			setting.TransparentType == configure.TransparentAppRouter) {
 		return false
 	}
 	return true

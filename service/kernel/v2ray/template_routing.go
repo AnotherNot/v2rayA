@@ -509,6 +509,23 @@ func parseRoutingARules(rulesText string, inboundTag string) (rules []coreObj.Ro
 }
 
 func (t *Template) setTransparentRouting() (err error) {
+	// The app router decides per application and has already named the class
+	// when the flow reaches an inbound, so the transparent policy has nothing
+	// to add: a class goes to the outbound it stands for.
+	if t.Setting.TransparentType == configure.TransparentAppRouter {
+		defaultOutbound, _ := t.FirstProxyOutboundName(nil)
+		for _, ib := range t.Inbounds {
+			if _, ok := appRouterClassOf(ib.Tag); !ok {
+				continue
+			}
+			t.Routing.Rules = append(t.Routing.Rules, coreObj.RoutingRule{
+				Type:        "field",
+				InboundTag:  []string{ib.Tag},
+				OutboundTag: defaultOutbound,
+			})
+		}
+		return nil
+	}
 	// With DNS interception off in tun mode the core no longer relays port
 	// 53, so a query that still reaches the device must leave the host
 	// directly instead of joining the transparent proxy chain, which would
