@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/v2rayA/RoutingA"
 	"github.com/v2rayA/v2rayA/common"
 	"github.com/v2rayA/v2rayA/db/configure"
+	"github.com/v2rayA/v2rayA/kernel/v2ray"
 	"github.com/v2rayA/v2rayA/kernel/v2ray/asset/dat"
 	"github.com/v2rayA/v2rayA/server/service"
 )
@@ -41,8 +41,7 @@ func PutRoutingA(ctx *gin.Context) {
 			lines[i] = strings.Replace(lines[i], hardcode, "", 1)
 		}
 	}
-	_, err = RoutingA.Parse(strings.Join(lines, "\n"))
-	if err != nil {
+	if err := v2ray.ValidateRoutingA(strings.Join(lines, "\n")); err != nil {
 		common.ResponseError(ctx, logError(fmt.Errorf("invalid RoutingA rules: %w", err)))
 		return
 	}

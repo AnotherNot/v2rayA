@@ -176,6 +176,35 @@ func (t *Template) setRulePortRouting() error {
 	// because "The Same as the Rule Port" may need them
 	return t.AppendRoutingRuleByMode(t.Setting.RulePortMode, []string{"rule-http", "rule-socks"})
 }
+// ValidateRoutingA parses RoutingA source and reports conditions this build
+// cannot enforce, before the text is stored or handed to the core.
+func ValidateRoutingA(text string) error {
+	rules, err := RoutingA.Parse(text)
+	if err != nil {
+		return err
+	}
+	for _, rule := range rules {
+		if r, ok := rule.(RoutingA.Routing); ok {
+			if err := checkRoutingAConditions(r); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// checkRoutingAConditions refuses a condition the core's router has no matcher
+// for. Dropping one is not harmless: the rule keeps its other conditions and
+// then matches more traffic than its author wrote.
+func checkRoutingAConditions(r RoutingA.Routing) error {
+	for _, f := range r.And {
+		if f.Name == "process" {
+			return fmt.Errorf("RoutingA: the rule for %q selects on process(...), which the core's router cannot enforce; without it the rule would match every process, so it is refused", r.Out)
+		}
+	}
+	return nil
+}
+
 func parseRoutingA(t *Template, routingInboundTags []string) error {
 	// A rule source names the domain strategy its set was written for. It is
 	// applied before the default is filled in, so a set asking for AsIs gets it
@@ -304,6 +333,9 @@ func parseRoutingA(t *Template, routingInboundTags []string) error {
 				}
 			}
 		case RoutingA.Routing:
+			if err := checkRoutingAConditions(rule); err != nil {
+				return err
+			}
 			rr := deepcopy.Copy(coreObj.RoutingRule{
 				Type:        "field",
 				OutboundTag: rule.Out,
@@ -406,6 +438,9 @@ func parseRoutingARules(rulesText string, inboundTag string) (rules []coreObj.Ro
 	for _, rule := range parsedRules {
 		switch rule := rule.(type) {
 		case RoutingA.Routing:
+			if err := checkRoutingAConditions(rule); err != nil {
+				return nil, err
+			}
 			rr := deepcopy.Copy(coreObj.RoutingRule{
 				Type:        "field",
 				OutboundTag: rule.Out,
