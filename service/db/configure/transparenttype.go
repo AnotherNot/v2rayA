@@ -20,3 +20,26 @@ func ValidateTransparentType(mode TransparentType) error {
 	}
 	return fmt.Errorf("unknown transparentType %q; use tproxy, redirect, system_proxy, tun or app_router", string(mode))
 }
+
+// AppRouterUnknownOwner is the policy for a connection whose program cannot be
+// identified: the process exited before the lookup, or /proc does not show it.
+type AppRouterUnknownOwner string
+
+const (
+	// AppRouterOwnerDirect leaves such a connection alone.
+	AppRouterOwnerDirect = AppRouterUnknownOwner("direct")
+	// AppRouterOwnerBlock refuses it. A rule that blocks should not fail open
+	// because the process was gone a moment too soon.
+	AppRouterOwnerBlock = AppRouterUnknownOwner("block")
+)
+
+// ValidateAppRouterUnknownOwner rejects a policy this build cannot honour. An
+// empty value means the default, so a setting written before the field existed
+// keeps working.
+func ValidateAppRouterUnknownOwner(policy AppRouterUnknownOwner) error {
+	switch policy {
+	case "", AppRouterOwnerDirect, AppRouterOwnerBlock:
+		return nil
+	}
+	return fmt.Errorf("unknown appRouterUnknownOwner %q; use direct or block", string(policy))
+}

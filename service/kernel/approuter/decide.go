@@ -166,13 +166,20 @@ type ruleCache interface {
 type planner struct {
 	compiled   *compiled
 	cache      ruleCache
+	unknown    Action
 	mu         sync.Mutex
 	nextSlot   uint32
 	remembered map[exeKey][]int
 }
 
-func newPlanner(c *compiled, cache ruleCache) *planner {
-	return &planner{compiled: c, cache: cache, nextSlot: firstSlot, remembered: map[exeKey][]int{}}
+func newPlanner(c *compiled, cache ruleCache, unknown Action) *planner {
+	if unknown != ActionBlock {
+		unknown = ActionDirect
+	}
+	return &planner{
+		compiled: c, cache: cache, unknown: unknown,
+		nextSlot: firstSlot, remembered: map[exeKey][]int{},
+	}
 }
 
 // decide handles one flow. The executable's rule list is cached in the kernel
@@ -183,12 +190,12 @@ func (p *planner) decide(o orig) (Action, int) {
 	ip := ipOf(o)
 	name, path, err := executableOf(o.Pid)
 	if err != nil {
-		// The process that opened this socket is not identifiable (it exited,
-		// or /proc does not show it). Applying a rule would be a guess, so the
-		// flow is left alone and the log says so. Phase 3 turns that policy
-		// into a setting.
-		log.Warn("app router: cannot identify the process behind pid %d (%v); leaving the flow alone", o.Pid, err)
-		return ActionDirect, 0
+		// The process that opened this socket is not identifiable: it exited
+		// before the lookup, or /proc does not show it. Applying a rule would
+		// be a guess, so the configured policy answers instead.
+		log.Warn("app router: cannot identify the process behind pid %d (%v); %s the flow",
+			o.Pid, err, policyName(p.unknown))
+		return p.unknown, 0
 	}
 	indexes := p.rulesFor(name, path)
 	p.remember(o, name, path, indexes)
@@ -253,8 +260,16 @@ func (p *planner) remember(o orig, name, path string, indexes []int) {
 	}
 	// One line per executable, not per flow: this is the point where the
 	// kernel takes over, and a reader needs to see which program it took over
-	// for and how much of its rule list fit.
-	log.Info("app router: %s (%s) matched %d rule(s); slot %d", name, path, len(indexes), slot)
+	// for, how much of its rule list fit, and what happens to the rest.
+	switch slot {
+	case slotEmptyRules:
+		log.Info("app router: %s (%s) matches no rule; its connections are left alone", name, path)
+	case slotDecide:
+		log.Info("app router: %s (%s) matched %d rule(s) that do not fit the kernel; every connection of it is decided here",
+			name, path, len(indexes))
+	default:
+		log.Info("app router: %s (%s) matched %d rule(s); the kernel decides from slot %d", name, path, len(indexes), slot)
+	}
 	p.mu.Lock()
 	if len(p.remembered) > 4096 {
 		p.remembered = map[exeKey][]int{}
@@ -270,4 +285,12 @@ func (p *planner) fitsKernel(indexes []int) bool {
 		}
 	}
 	return true
+}
+
+// policyName is how the policy reads in the log.
+func policyName(a Action) string {
+	if a == ActionBlock {
+		return "refusing"
+	}
+	return "leaving alone"
 }

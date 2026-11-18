@@ -43,6 +43,8 @@ The mode needs root, kernel 5.14 or later and cgroup v2 at `/sys/fs/cgroup`. It 
 
 The first connection of a program is judged by the service, which then caches the answer in the kernel; a blocked program is refused outright from its second connection on. A program whose rules the kernel cannot hold is judged by the service on every connection instead, and the log names it.
 
+A connection whose program cannot be identified — the process was gone before the lookup, or the service cannot see it — follows **Unknown owner**: by default it is left alone, and it can be set to be refused instead, so a blocking rule does not fail open.
+
 ## TUN
 
 The core creates the TUN device and assigns its address. With **Auto Route** on, v2rayA installs the routes and, in the *service and interception* mode, points the system resolver at the core; with it off, the setup and teardown scripts under **Configure Route Script** do.

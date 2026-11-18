@@ -32,6 +32,7 @@ export const defaultForm = () => ({
   tunTeardownScript: "",
   tunScriptAcknowledged: false,
   tunExcludeProcesses: "",
+  appRouterUnknownOwner: "direct",
   pacMode: "allowlist",
   pacAutoUpdateMode: "none",
   pacAutoUpdateIntervalHour: 0,

@@ -59,8 +59,8 @@ struct router_cfg {
 	__u32 enabled;
 	__u32 relay_port; // host order
 	__u32 self_tgid;
-	__u32 pad;
-	__u64 netns; // netns cookie of the relay; 0 = every namespace
+	__u32 core_tgid; // the core's own sockets are never routed either
+	__u64 netns;     // netns cookie of the relay; 0 = every namespace
 };
 
 // The identity of an executable: its file, not its name. Two binaries called
@@ -300,7 +300,8 @@ int router_connect4(struct bpf_sock_addr *ctx)
 		count(STAT_FOREIGN_NETNS);
 		return 1;
 	}
-	if ((bpf_get_current_pid_tgid() >> 32) == c->self_tgid) {
+	__u32 tgid = bpf_get_current_pid_tgid() >> 32;
+	if (tgid == c->self_tgid || (c->core_tgid && tgid == c->core_tgid)) {
 		count(STAT_SELF);
 		return 1;
 	}
@@ -316,7 +317,7 @@ int router_connect4(struct bpf_sock_addr *ctx)
 	o.family = AF_INET;
 	o.proto = IPPROTO_TCP;
 	o.port = port;
-	o.pid = bpf_get_current_pid_tgid() >> 32;
+	o.pid = tgid;
 	__builtin_memcpy(o.addr + 12, &ctx->user_ip4, 4);
 
 	struct router_exe_key key = {};

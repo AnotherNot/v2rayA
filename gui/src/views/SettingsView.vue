@@ -28,6 +28,7 @@ import {
   pacModes as pacModeItems,
   transparentModes as transparentModeItems,
   transparentTypes as transparentTypeItems,
+  appRouterOwnerModes as appRouterOwnerModeItems,
 } from "./settings/options";
 import AboutDialog from "./settings/AboutDialog.vue";
 import SettingChoice from "./settings/SettingChoice.vue";
@@ -73,6 +74,7 @@ const isRoot = computed(() => store.version?.isRoot ?? false);
 const tunSupported = computed(() => store.version?.tunSupported ?? false);
 const transparentModes = computed(() => transparentModeItems(t));
 const pacModes = computed(() => pacModeItems(t));
+const appRouterOwnerItems = computed(() => appRouterOwnerModeItems(t));
 const transparentTypes = computed(() =>
   transparentTypeItems(t, {
     lite: store.lite,
@@ -240,6 +242,15 @@ defineExpose({ sync: () => settings.load() });
                 : undefined
             "
             :items="transparentTypes"
+          />
+        </v-expand-transition>
+        <v-expand-transition>
+          <SettingChoice
+            v-if="transparentOn && form.transparentType === 'app_router'"
+            v-model="form.appRouterUnknownOwner"
+            :title="t('setting.appRouterUnknownOwner')"
+            :hint="t('setting.messages.appRouterUnknownOwner')"
+            :items="appRouterOwnerItems"
           />
         </v-expand-transition>
         <v-expand-transition>

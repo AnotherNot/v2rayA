@@ -394,60 +394,8 @@ func parseRoutingA(t *Template, routingInboundTags []string) error {
 				OutboundTag: rule.Out,
 				InboundTag:  routingInboundTags,
 			}).(coreObj.RoutingRule)
-			for _, f := range rule.And {
-				switch f.Name {
-				case "domain", "domains":
-					for k, vv := range f.NamedParams {
-						for _, v := range vv {
-							if k == "contains" {
-								rr.Domain = append(rr.Domain, v)
-								continue
-							}
-							if k == "ext" {
-								datFilenameAndTag := strings.SplitN(v, ":", 2)
-								if len(datFilenameAndTag) < 2 {
-									return fmt.Errorf("RoutingA ext value %q is missing its tag; expected ext:\"file.dat:tag\"", v)
-								}
-								if !asset.DoesV2rayAssetExist(datFilenameAndTag[0]) {
-									return fmt.Errorf("RoutingA ext file %q is not in the asset directory", datFilenameAndTag[0])
-								}
-							}
-							rr.Domain = append(rr.Domain, fmt.Sprintf("%v:%v", k, v))
-						}
-					}
-					// unnamed param is not recommended
-					rr.Domain = append(rr.Domain, f.Params...)
-				case "ip":
-					for k, vv := range f.NamedParams {
-						for _, v := range vv {
-							if k == "ext" {
-								datFilenameAndTag := strings.SplitN(v, ":", 2)
-								if len(datFilenameAndTag) < 2 {
-									return fmt.Errorf("RoutingA ext value %q is missing its tag; expected ext:\"file.dat:tag\"", v)
-								}
-								if !asset.DoesV2rayAssetExist(datFilenameAndTag[0]) {
-									return fmt.Errorf("RoutingA ext file %q is not in the asset directory", datFilenameAndTag[0])
-								}
-							}
-							rr.IP = append(rr.IP, fmt.Sprintf("%v:%v", k, v))
-						}
-					}
-					rr.IP = append(rr.IP, f.Params...)
-				case "network":
-					rr.Network = strings.Join(f.Params, ",")
-				case "port":
-					rr.Port = strings.Join(f.Params, ",")
-				case "sourcePort":
-					rr.SourcePort = strings.Join(f.Params, ",")
-				case "protocol":
-					rr.Protocol = f.Params
-				case "source":
-					rr.Source = f.Params
-				case "user":
-					rr.User = f.Params
-				case "inboundTag":
-					rr.InboundTag = f.Params
-				}
+			if err := applyConditions(&rr, rule); err != nil {
+				return err
 			}
 			if rr.OutboundTag != "" {
 				if _, ok := outboundTags[rr.OutboundTag]; !ok {
@@ -499,59 +447,8 @@ func parseRoutingARules(rulesText string, inboundTag string) (rules []coreObj.Ro
 				OutboundTag: rule.Out,
 				InboundTag:  []string{inboundTag},
 			}).(coreObj.RoutingRule)
-			for _, f := range rule.And {
-				switch f.Name {
-				case "domain", "domains":
-					for k, vv := range f.NamedParams {
-						for _, v := range vv {
-							if k == "contains" {
-								rr.Domain = append(rr.Domain, v)
-								continue
-							}
-							if k == "ext" {
-								datFilenameAndTag := strings.SplitN(v, ":", 2)
-								if len(datFilenameAndTag) < 2 {
-									return nil, fmt.Errorf("RoutingA ext value %q is missing its tag; expected ext:\"file.dat:tag\"", v)
-								}
-								if !asset.DoesV2rayAssetExist(datFilenameAndTag[0]) {
-									return nil, fmt.Errorf("RoutingA ext file %q is not in the asset directory", datFilenameAndTag[0])
-								}
-							}
-							rr.Domain = append(rr.Domain, fmt.Sprintf("%v:%v", k, v))
-						}
-					}
-					rr.Domain = append(rr.Domain, f.Params...)
-				case "ip":
-					for k, vv := range f.NamedParams {
-						for _, v := range vv {
-							if k == "ext" {
-								datFilenameAndTag := strings.SplitN(v, ":", 2)
-								if len(datFilenameAndTag) < 2 {
-									return nil, fmt.Errorf("RoutingA ext value %q is missing its tag; expected ext:\"file.dat:tag\"", v)
-								}
-								if !asset.DoesV2rayAssetExist(datFilenameAndTag[0]) {
-									return nil, fmt.Errorf("RoutingA ext file %q is not in the asset directory", datFilenameAndTag[0])
-								}
-							}
-							rr.IP = append(rr.IP, fmt.Sprintf("%v:%v", k, v))
-						}
-					}
-					rr.IP = append(rr.IP, f.Params...)
-				case "network":
-					rr.Network = strings.Join(f.Params, ",")
-				case "port":
-					rr.Port = strings.Join(f.Params, ",")
-				case "sourcePort":
-					rr.SourcePort = strings.Join(f.Params, ",")
-				case "protocol":
-					rr.Protocol = f.Params
-				case "source":
-					rr.Source = f.Params
-				case "user":
-					rr.User = f.Params
-				case "inboundTag":
-					rr.InboundTag = f.Params
-				}
+			if err := applyConditions(&rr, rule); err != nil {
+				return nil, err
 			}
 			if rr.OutboundTag != "" {
 				rules = append(rules, rr)

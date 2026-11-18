@@ -41,6 +41,7 @@ const loaded: Setting = {
   tunTeardownScript: "ip route del default dev tun0",
   tunScriptAcknowledged: false,
   tunExcludeProcesses: "firefox,chrome",
+  appRouterUnknownOwner: "direct",
   pacMode: "blocklist",
   pacAutoUpdateMode: "auto_update_at_intervals",
   pacAutoUpdateIntervalHour: 24,

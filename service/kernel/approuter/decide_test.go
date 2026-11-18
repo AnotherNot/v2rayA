@@ -152,7 +152,7 @@ func plannerFor(t *testing.T, rules []Rule) (*planner, *fakeCache, exeKey) {
 	cache := newFakeCache()
 	// The identity the kernel would report is not what stat() says on some
 	// filesystems, so the test supplies one rather than computing it.
-	return newPlanner(c, cache), cache, exeKey{Dev: 42, Ino: 4242}
+	return newPlanner(c, cache, ActionDirect), cache, exeKey{Dev: 42, Ino: 4242}
 }
 
 func TestPlannerCachesTheRuleListOfAnExecutable(t *testing.T) {
@@ -226,5 +226,23 @@ func TestPlannerLeavesAnUnidentifiableProcessAlone(t *testing.T) {
 	}
 	if len(cache.slots) != 0 {
 		t.Fatal("an unidentified process was cached")
+	}
+}
+
+// The policy for a connection nobody can attribute is a choice: leaving it
+// alone, or refusing it so a blocking rule does not fail open.
+func TestPlannerAppliesTheUnknownOwnerPolicy(t *testing.T) {
+	for _, policy := range []Action{ActionDirect, ActionBlock} {
+		compiled, err := compileRules([]Rule{{Action: ActionProxy, Class: 1}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		p := newPlanner(compiled, newFakeCache(), policy)
+		o := orig{Pid: 0x7ffffff0, Port: 80}
+		o.IP = [4]byte{1, 1, 1, 1}
+		action, _ := p.decide(o)
+		if action != policy {
+			t.Errorf("policy %v gave %v", policy, action)
+		}
 	}
 }

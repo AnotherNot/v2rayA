@@ -43,6 +43,8 @@ O modo exige root, kernel 5.14 ou mais recente e cgroup v2 em `/sys/fs/cgroup`. 
 
 A primeira conexão de um programa é julgada pelo serviço, que guarda a resposta no kernel; um programa bloqueado é recusado pelo kernel já na segunda conexão. Um programa cujas regras não cabem no kernel é julgado pelo serviço a cada conexão, e o log o nomeia.
 
+Uma conexão cujo programa não pode ser identificado — o processo terminou antes da consulta, ou o serviço não o enxerga — segue **Proprietário desconhecido**: por padrão fica intocada, e pode ser configurada para ser recusada, para que uma regra de bloqueio não falhe aberta.
+
 ## TUN
 
 O núcleo cria o dispositivo TUN e atribui seu endereço. Com **Rota automática** ativada, o v2rayA instala as rotas e, no modo *serviço e interceptação*, direciona o resolvedor do sistema para o núcleo; com ela desativada, os scripts de configuração e remoção em **Configurar script de rota** fazem isso.

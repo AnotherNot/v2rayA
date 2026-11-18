@@ -201,6 +201,7 @@ export default {
     },
     inboundSniffing: "嗅探",
     transparentProxy: "透明代理/系统代理",
+    appRouterUnknownOwner: "未知归属",
     transparentType: "透明代理/系统代理实现方式",
     logLevel: "日志等级",
     pacMode: "规则端口的分流模式",
@@ -233,6 +234,7 @@ export default {
       gfwlist: "仅 blocklist 走代理",
       sameAsPacMode: "分流规则与规则端口所选模式一致",
       appRouter: "按应用",
+      block: "阻止",
       default: "保持系统默认",
       on: "启用",
       off: "关闭",
@@ -259,6 +261,8 @@ export default {
         "全局代理开启后，无需经过额外设置，任何TCP流量均会经过V2RayA。另外，如需作为网关使得连接本机的其他主机或docker也享受代理，请勾选“开启局域网共享”。",
       appRouter:
         "由发起连接的程序决定走向：路由器读取程序身份，按 RoutingA 编辑器中的 process(...) 规则处理。仅限 Linux，需要 root 与 cgroup v2；目前只处理 IPv4 上的 TCP。没有被任何规则点名的程序完全不受影响；程序的第一个连接由服务判断，之后结果被缓存，被阻止的程序从第二个连接起由内核直接拒绝。",
+      appRouterUnknownOwner:
+        "当无法识别发起连接的程序时如何处理：进程在检查前已退出，或服务看不到它。选择“直连”可让这类流量继续工作；选择“阻止”则避免阻止规则失效。阻止也会拦下服务无法归属的一切，因此规则写错会表现为应用不可用，而不是悄悄泄漏。",
       transparentType:
         "★tproxy: 支持udp，不支持docker。★redirect: docker友好，不支持udp；开启 DNS 接管时，还需要占用本地53端口以应对dns污染。★tun: 由核心打开 TUN 设备并接管默认路由；支持 Linux、Windows、macOS 与 UDP，自动排除 v2rayA 与核心自身，并可按进程名排除其他进程。Windows 与 macOS 上直接查询局域网 DNS 的应用仍会绕过它。",
       tproxyExcludedInterfaces:

@@ -132,15 +132,26 @@ func startAppRouter(tmpl *Template) error {
 		}
 	}
 	router, err := approuter.Start(approuter.Options{
-		Cgroup:     "/sys/fs/cgroup",
-		ClassPorts: classPorts,
-		Rules:      plan.rules,
+		Cgroup:        "/sys/fs/cgroup",
+		ClassPorts:    classPorts,
+		Rules:         plan.rules,
+		CorePid:       CorePid(),
+		UnknownPolicy: unknownOwnerPolicy(tmpl.Setting),
 	})
 	if err != nil {
 		return fmt.Errorf("could not set up the app router: %w", err)
 	}
 	appRouterEngine.router = router
 	return nil
+}
+
+// unknownOwnerPolicy reads the setting, defaulting to leaving the connection
+// alone when the field was written before it existed.
+func unknownOwnerPolicy(setting *configure.Setting) approuter.Action {
+	if setting != nil && setting.AppRouterUnknownOwner == configure.AppRouterOwnerBlock {
+		return approuter.ActionBlock
+	}
+	return approuter.ActionDirect
 }
 
 // cleanupResidualTransparentProxyRules cleans up any residual iptables/nftables rules

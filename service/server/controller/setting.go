@@ -121,6 +121,12 @@ func PutSetting(ctx *gin.Context) {
 		common.ResponseError(ctx, badRequest("dnsMode", err))
 		return
 	}
+	if err = configure.ValidateAppRouterUnknownOwner(data.AppRouterUnknownOwner); err != nil {
+		common.ResponseError(ctx, common.Coded("TRANSPARENT_TYPE_INVALID", logError(err), map[string]interface{}{
+			"value": string(data.AppRouterUnknownOwner),
+		}))
+		return
+	}
 	if err = configure.ValidateTransparentType(data.TransparentType); err != nil {
 		common.ResponseError(ctx, common.Coded("TRANSPARENT_TYPE_INVALID", logError(err), map[string]interface{}{
 			"value": string(data.TransparentType),

@@ -110,6 +110,12 @@ func NewProcess(tmpl *Template,
 		return nil, err
 	}
 	process.proc = proc
+	if proc != nil {
+		// The app router needs the core's pid to leave its own connections
+		// alone: the core is the process that dials the outbounds the classes
+		// name, and routing them would close the loop.
+		setCorePid(proc.Pid)
+	}
 	var unexpectedExiting atomic.Bool
 	go func() {
 		defer close(process.done)
@@ -197,6 +203,7 @@ func (p *Process) Close() error {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	// 停止 xray 进程（v2raya-core 内部会同时关闭 DNS 模块）
+	clearCorePid()
 	if p.procCancel != nil {
 		cancel := p.procCancel
 		p.expectedStop.Store(true)
@@ -425,3 +432,14 @@ func (p *Process) rollback(stage int) {
 		}
 	}
 }
+
+// corePid is the pid of the running core, or 0 when none runs. The app router
+// reads it when it attaches, and the core is started before it.
+var corePid atomic.Int32
+
+func setCorePid(pid int) { corePid.Store(int32(pid)) }
+
+func clearCorePid() { corePid.Store(0) }
+
+// CorePid reports the running core's pid, or 0.
+func CorePid() int { return int(corePid.Load()) }

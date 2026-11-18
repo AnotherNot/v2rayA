@@ -86,6 +86,12 @@ type Options struct {
 	ClassPorts map[int]int
 	// Rules are applied in order; the first match decides.
 	Rules []Rule
+	// CorePid is the core process, whose own connections are never routed:
+	// it is the process that dials the outbounds the classes name.
+	CorePid int
+	// UnknownPolicy is what happens to a connection whose program cannot be
+	// identified. ActionDirect leaves it alone; ActionBlock refuses it.
+	UnknownPolicy Action
 }
 
 // Stats is what the engine counted since it was attached. The first counters

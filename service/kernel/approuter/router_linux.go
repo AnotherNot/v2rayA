@@ -30,7 +30,7 @@ type routerCfg struct {
 	Enabled   uint32
 	RelayPort uint32
 	SelfTgid  uint32
-	Pad       uint32
+	CoreTgid  uint32
 	Netns     uint64
 }
 
@@ -73,6 +73,7 @@ type Router struct {
 	relay      *relay
 	planner    *planner
 	netns      uint64
+	coreTgid   uint32
 	stop       chan struct{}
 	done       chan struct{}
 	mu         sync.Mutex
@@ -128,7 +129,13 @@ func Start(opts Options) (*Router, error) {
 	if err != nil {
 		return nil, fmt.Errorf("load the app router: %w", err)
 	}
-	r := &Router{collection: collection, netns: cookie, stop: make(chan struct{}), done: make(chan struct{})}
+	r := &Router{
+		collection: collection,
+		netns:      cookie,
+		coreTgid:   initNamespacePidOf(opts.CorePid),
+		stop:       make(chan struct{}),
+		done:       make(chan struct{}),
+	}
 	cleanup := func() {
 		for _, l := range r.links {
 			_ = l.Close()
@@ -167,7 +174,7 @@ func Start(opts Options) (*Router, error) {
 		exe2rules: collection.Maps["exe2rules"],
 		execRules: collection.Maps["exec_rules"],
 	}
-	r.planner = newPlanner(compiled, cache)
+	r.planner = newPlanner(compiled, cache, opts.UnknownPolicy)
 	r.relay = newRelay(mapStore{byPort: r.byPort}, r.planner, opts.ClassPorts)
 	if err := r.relay.start(); err != nil {
 		cleanup()
@@ -207,6 +214,7 @@ func (r *Router) putConfig(enabled bool) error {
 	config := routerCfg{
 		RelayPort: uint32(RelayPort),
 		SelfTgid:  initNamespacePid(),
+		CoreTgid:  r.coreTgid,
 		Netns:     r.netns,
 	}
 	if enabled {
@@ -303,8 +311,15 @@ func (r *Router) Close() error {
 // pids in. Inside a container the two differ, and comparing the wrong one would
 // leave the daemon's own sockets unexempt: the relay's dial would be redirected
 // back to the relay, and the flow would loop until it timed out.
-func initNamespacePid() uint32 {
-	data, err := os.ReadFile("/proc/self/status")
+func initNamespacePid() uint32 { return initNamespacePidOf(os.Getpid()) }
+
+// initNamespacePidOf is the same answer for another process of this namespace,
+// which is how the core's pid is named the way the kernel names it.
+func initNamespacePidOf(pid int) uint32 {
+	if pid <= 0 {
+		return 0
+	}
+	data, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/status")
 	if err == nil {
 		for _, line := range strings.Split(string(data), "\n") {
 			if !strings.HasPrefix(line, "NSpid:") {
@@ -319,7 +334,10 @@ func initNamespacePid() uint32 {
 			break
 		}
 	}
-	return uint32(os.Getpid())
+	if pid > 0 {
+		return uint32(pid)
+	}
+	return 0
 }
 
 // netnsCookie reads the network namespace cookie of this process. Programs
