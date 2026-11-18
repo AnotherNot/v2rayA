@@ -22,7 +22,7 @@ require (
 	github.com/stevenroose/gonfig v0.1.5
 	github.com/tidwall/gjson v1.20.0
 	github.com/v2fly/v2ray-core/v5 v5.7.0
-	github.com/v2rayA/RoutingA v1.0.2
+	github.com/v2rayA/RoutingA v1.0.3
 	github.com/v2rayA/beego/v2 v2.0.7
 	github.com/v2rayA/v2rayA-lib4 v0.0.0-20230812094818-595f87cb2a49
 	github.com/vearutop/statigz v1.1.7
@@ -104,3 +104,5 @@ require (
 // replace github.com/daeuniverse/softwind => ../../softwind
 
 replace github.com/v2fly/v2ray-core/v5 => github.com/v2rayA/v2ray-core/v5 v5.0.0-20230812170925-960565fa0686
+
+replace github.com/v2rayA/RoutingA => github.com/AnotherNot/RoutingA v1.0.3

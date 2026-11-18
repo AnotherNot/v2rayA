@@ -1,6 +1,7 @@
 package v2ray
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/v2rayA/v2rayA/conf"
@@ -9,6 +10,8 @@ import (
 	"github.com/v2rayA/v2rayA/kernel/coreObj"
 )
 
+// process(...) is the app router's condition. The core's router has no matcher
+// for an executable, so the rule must not reach it with the condition dropped.
 func appRouterSetting() *configure.Setting {
 	s := configure.NewSetting()
 	s.Transparent = configure.TransparentProxy
@@ -31,40 +34,135 @@ func findClassInbound(tmpl *Template, tag string) *coreObj.Inbound {
 	return nil
 }
 
-// A class is a loopback SOCKS inbound: the relay dials it, and the core decides
-// from the inbound which outbound the class means.
-func TestAppRouterModeAddsALoopbackClassInbound(t *testing.T) {
-	withPorts(t)
-	setting := appRouterSetting()
-	tmpl := baseTemplate(t, setting)
-	if err := tmpl.setInbound(setting); err != nil {
-		t.Fatal(err)
+func TestValidateRoutingARejectsABadProcessParameter(t *testing.T) {
+	if err := ValidateRoutingA("process(uid: 1000)->proxy"); err == nil {
+		t.Fatal("an unknown process parameter was accepted")
 	}
-	inbound := findClassInbound(tmpl, AppRouterClassTag(1))
-	if inbound == nil {
-		t.Fatal("no class inbound was generated")
-	}
-	if inbound.Protocol != "socks" {
-		t.Errorf("protocol %q, want socks", inbound.Protocol)
-	}
-	if inbound.Listen != "127.0.0.1" {
-		t.Errorf("listen %q, want loopback: the class must not be reachable from the network", inbound.Listen)
-	}
-	if inbound.Port != approuter.ClassPort(1) {
-		t.Errorf("port %d, want %d", inbound.Port, approuter.ClassPort(1))
-	}
-	if inbound.Settings == nil || inbound.Settings.UDP {
-		t.Errorf("the first stage carries TCP only, settings %+v", inbound.Settings)
+	if err := ValidateRoutingA("process()->proxy"); err == nil {
+		t.Fatal("an empty process(...) was accepted")
 	}
 }
 
-// The class inbound is fed by the engine, which has already decided: the rule
-// carries the class to the proxy outbound, and the transparent policy adds
-// nothing.
-func TestAppRouterModeRoutesTheClassToTheDefaultOutbound(t *testing.T) {
+func TestValidateRoutingAAcceptsAProcessRule(t *testing.T) {
+	for _, text := range []string{
+		"process(firefox)->proxy",
+		`process(name: "chrom*", folder: /opt/apps)->direct`,
+		"process(firefox) && port(443)->work",
+	} {
+		if err := ValidateRoutingA(text); err != nil {
+			t.Errorf("%s: %v", text, err)
+		}
+	}
+}
+
+func TestValidateRoutingAAcceptsTheConditionsTheRouterHas(t *testing.T) {
+	text := `domain(domain: example.com) && ip(1.1.1.1) && port(443) && network(tcp)->proxy`
+	if err := ValidateRoutingA(text); err != nil {
+		t.Fatalf("a rule without process(...) was refused: %v", err)
+	}
+}
+
+// A custom inbound's rules go straight to the core, so an executable condition
+// there has nowhere to be applied.
+func TestValidateCustomInboundRoutingARejectsAProcessCondition(t *testing.T) {
+	if err := ValidateCustomInboundRoutingA("process(firefox)->direct"); err == nil {
+		t.Fatal("a custom inbound accepted a process(...) condition")
+	}
+}
+
+func withRoutingAText(t *testing.T, text string) {
+	t.Helper()
+	previous := configure.GetRoutingA()
+	t.Cleanup(func() { _ = configure.SetRoutingA(&previous) })
+	if err := configure.SetRoutingA(&text); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// The core's rules must not carry a rule whose executable condition it cannot
+// enforce; with the engine off that rule applies to nothing, and the log says
+// so instead of the rule silently matching everything.
+func TestParseRoutingASkipsAProcessRuleForTheCore(t *testing.T) {
+	withRoutingAText(t, "process(firefox)->direct")
+	tmpl := baseTemplate(t, configure.NewSetting())
+	withProxyOutbound(tmpl)
+	if err := parseRoutingA(tmpl, []string{"rule-http", "rule-socks"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, rule := range tmpl.Routing.Rules {
+		if rule.OutboundTag == "direct" {
+			t.Fatalf("the process rule reached the core: %+v", rule)
+		}
+	}
+	if len(tmpl.Routing.Rules) != 1 {
+		t.Fatalf("%d rules, want only the catch-all: %+v", len(tmpl.Routing.Rules), tmpl.Routing.Rules)
+	}
+}
+
+func TestAppRouterModeGeneratesOneInboundPerOutbound(t *testing.T) {
 	withPorts(t)
+	withRoutingAText(t, strings.Join([]string{
+		"process(firefox)->work",
+		"process(curl) && port(443)->proxy",
+		"process(wget)->direct",
+		"process(bitcoin)->block",
+	}, "\n"))
 	setting := appRouterSetting()
-	setting.Transparent = configure.TransparentAllowlist
+	tmpl := baseTemplate(t, setting)
+	tmpl.Outbounds = []coreObj.OutboundObject{
+		{Tag: "proxy", Protocol: "vmess"},
+		{Tag: "work", Protocol: "vmess"},
+	}
+	if err := tmpl.setInbound(setting); err != nil {
+		t.Fatal(err)
+	}
+	if err := tmpl.setTransparentRouting(); err != nil {
+		t.Fatal(err)
+	}
+	plan := tmpl.appRouter
+	if plan == nil {
+		t.Fatal("no plan was built")
+	}
+	if len(plan.rules) != 4 {
+		t.Fatalf("%d engine rules, want 4", len(plan.rules))
+	}
+	if got := plan.classes[1]; got != "work" {
+		t.Errorf("class 1 is %q, want the outbound named first", got)
+	}
+	if got := plan.classes[2]; got != "proxy" {
+		t.Errorf("class 2 is %q", got)
+	}
+	if plan.rules[2].Action != approuter.ActionDirect || plan.rules[3].Action != approuter.ActionBlock {
+		t.Errorf("direct/block were not kept: %+v", plan.rules)
+	}
+
+	class1 := findClassInbound(tmpl, AppRouterClassTag(1))
+	class2 := findClassInbound(tmpl, AppRouterClassTag(2))
+	if class1 == nil || class2 == nil {
+		t.Fatalf("class inbounds missing: %+v", tmpl.Inbounds)
+	}
+	if class1.Port != approuter.ClassPort(1) || class2.Port != approuter.ClassPort(2) {
+		t.Errorf("ports %d and %d", class1.Port, class2.Port)
+	}
+	if class1.Listen != "127.0.0.1" || class1.Protocol != "socks" {
+		t.Errorf("class 1: %+v", class1)
+	}
+	// One rule per class, each naming its own outbound.
+	routed := map[string]string{}
+	for _, rule := range tmpl.Routing.Rules {
+		if len(rule.InboundTag) == 1 && strings.HasPrefix(rule.InboundTag[0], "approuter-") {
+			routed[rule.InboundTag[0]] = rule.OutboundTag
+		}
+	}
+	if len(routed) != 2 || routed[AppRouterClassTag(1)] != "work" || routed[AppRouterClassTag(2)] != "proxy" {
+		t.Fatalf("class rules: %+v", routed)
+	}
+}
+
+func TestAppRouterRuleKeepsItsDestinationConditions(t *testing.T) {
+	withPorts(t)
+	withRoutingAText(t, "process(curl) && ip(10.0.0.0/8, 192.0.2.1) && port(80, 443, 8000-8100)->proxy")
+	setting := appRouterSetting()
 	tmpl := baseTemplate(t, setting)
 	withProxyOutbound(tmpl)
 	if err := tmpl.setInbound(setting); err != nil {
@@ -73,33 +171,120 @@ func TestAppRouterModeRoutesTheClassToTheDefaultOutbound(t *testing.T) {
 	if err := tmpl.setTransparentRouting(); err != nil {
 		t.Fatal(err)
 	}
-	var found *coreObj.RoutingRule
-	for i := range tmpl.Routing.Rules {
-		for _, tag := range tmpl.Routing.Rules[i].InboundTag {
-			if tag == AppRouterClassTag(1) {
-				found = &tmpl.Routing.Rules[i]
+	rule := tmpl.appRouter.rules[0]
+	wantHosts := []approuter.IPRange{{Lo: 0x0a000000, Hi: 0x0affffff}, {Lo: 0xc0000201, Hi: 0xc0000201}}
+	if len(rule.V4) != 2 || rule.V4[0] != wantHosts[0] || rule.V4[1] != wantHosts[1] {
+		t.Fatalf("hosts: %+v", rule.V4)
+	}
+	if len(rule.Ports) != 3 {
+		t.Fatalf("ports: %+v", rule.Ports)
+	}
+	if rule.Ports[2] != (approuter.PortRange{Lo: 8000, Hi: 8100}) {
+		t.Fatalf("the port range was not read: %+v", rule.Ports[2])
+	}
+}
+
+func TestAppRouterRefusesConditionsItCannotEnforce(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		text string
+	}{
+		{"domain", "process(curl) && domain(example.com)->proxy"},
+		{"udp", "process(curl) && network(tcp, udp)->proxy"},
+		{"geoip", "process(curl) && ip(geoip:cn)->proxy"},
+		{"protocol", "process(curl) && protocol(tls)->proxy"},
+		{"source", "process(curl) && source(10.0.0.1)->proxy"},
+		{"ipv6", `process(curl) && ip("2001:db8::/32")->proxy`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			withPorts(t)
+			withRoutingAText(t, tc.text)
+			setting := appRouterSetting()
+			tmpl := baseTemplate(t, setting)
+			withProxyOutbound(tmpl)
+			if err := tmpl.setInbound(setting); err != nil {
+				t.Fatal(err)
 			}
+			if err := tmpl.setTransparentRouting(); err == nil {
+				t.Fatalf("%s was accepted", tc.name)
+			}
+		})
+	}
+}
+
+func TestAppRouterRefusesAnOutboundThatIsNotConnected(t *testing.T) {
+	withPorts(t)
+	withRoutingAText(t, "process(curl)->nowhere")
+	setting := appRouterSetting()
+	tmpl := baseTemplate(t, setting)
+	withProxyOutbound(tmpl)
+	if err := tmpl.setInbound(setting); err != nil {
+		t.Fatal(err)
+	}
+	if err := tmpl.setTransparentRouting(); err == nil {
+		t.Fatal("an outbound that does not exist was accepted")
+	}
+}
+
+// With no process rule the mode routes nothing, and it must say so by not
+// generating inbounds rather than by generating an unused one.
+func TestAppRouterModeWithNoProcessRulesRoutesNothing(t *testing.T) {
+	withPorts(t)
+	withRoutingAText(t, "default: proxy\ndomain(geosite:cn)->direct")
+	setting := appRouterSetting()
+	tmpl := baseTemplate(t, setting)
+	withProxyOutbound(tmpl)
+	if err := tmpl.setInbound(setting); err != nil {
+		t.Fatal(err)
+	}
+	if err := tmpl.setTransparentRouting(); err != nil {
+		t.Fatal(err)
+	}
+	if len(tmpl.appRouter.rules) != 0 {
+		t.Fatalf("%d engine rules", len(tmpl.appRouter.rules))
+	}
+	for _, ib := range tmpl.Inbounds {
+		if _, ok := appRouterClassOf(ib.Tag); ok {
+			t.Fatalf("an inbound was generated for nothing: %+v", ib)
 		}
 	}
-	if found == nil {
-		t.Fatalf("no rule routes the class inbound: %+v", tmpl.Routing.Rules)
+}
+
+// The class inbound carries the destination the application asked for, read
+// from the socket. Sniffing would replace it with a name from the payload (an
+// HTTP Host header, say), and the outbound would dial that name instead.
+func TestAppRouterClassInboundDoesNotSniff(t *testing.T) {
+	withPorts(t)
+	withRoutingAText(t, "process(curl)->proxy")
+	setting := appRouterSetting()
+	setting.InboundSniffing = configure.InboundSniffingHttpTLS
+	tmpl := baseTemplate(t, setting)
+	withProxyOutbound(tmpl)
+	if err := tmpl.setInbound(setting); err != nil {
+		t.Fatal(err)
 	}
-	if found.OutboundTag != "proxy" {
-		t.Errorf("class routed to %q, want the proxy outbound", found.OutboundTag)
+	if err := tmpl.setTransparentRouting(); err != nil {
+		t.Fatal(err)
 	}
-	// The policy is the rules' business in this mode; an allowlist of IPs is
-	// not what the class inbound should be filtered by.
-	if len(tmpl.Routing.Rules) > 1 {
-		for _, rule := range tmpl.Routing.Rules {
-			if rule.InboundTag == nil || len(rule.InboundTag) == 0 {
-				continue
-			}
-			for _, tag := range rule.InboundTag {
-				if tag == "transparent" {
-					t.Errorf("a rule for the transparent inbound was generated in app_router mode: %+v", rule)
-				}
-			}
+	class := findClassInbound(tmpl, AppRouterClassTag(1))
+	if class == nil {
+		t.Fatal("no class inbound was generated")
+	}
+	if class.Sniffing.Enabled || len(class.Sniffing.DestOverride) != 0 {
+		t.Fatalf("the class inbound sniffs: %+v", class.Sniffing)
+	}
+	// Every other inbound keeps the behaviour the setting asks for.
+	var socks *coreObj.Inbound
+	for i := range tmpl.Inbounds {
+		if tmpl.Inbounds[i].Tag == "socks" {
+			socks = &tmpl.Inbounds[i]
 		}
+	}
+	if socks == nil {
+		t.Fatal("no socks inbound")
+	}
+	if !socks.Sniffing.Enabled {
+		t.Fatal("the ordinary socks inbound lost its sniffing")
 	}
 }
 
@@ -135,37 +320,5 @@ func TestAppRouterClassTagRoundTrips(t *testing.T) {
 		if _, ok := appRouterClassOf(other); ok {
 			t.Errorf("%q was read as a class", other)
 		}
-	}
-}
-// The class inbound carries the destination the application asked for, read
-// from the socket. Sniffing would replace it with a name from the payload (an
-// HTTP Host header, say), and the outbound would dial that name instead.
-func TestAppRouterClassInboundDoesNotSniff(t *testing.T) {
-	withPorts(t)
-	setting := appRouterSetting()
-	setting.InboundSniffing = configure.InboundSniffingHttpTLS
-	tmpl := baseTemplate(t, setting)
-	if err := tmpl.setInbound(setting); err != nil {
-		t.Fatal(err)
-	}
-	class := findClassInbound(tmpl, AppRouterClassTag(1))
-	if class == nil {
-		t.Fatal("no class inbound was generated")
-	}
-	if class.Sniffing.Enabled || len(class.Sniffing.DestOverride) != 0 {
-		t.Fatalf("the class inbound sniffs: %+v", class.Sniffing)
-	}
-	// Every other inbound keeps the behaviour the setting asks for.
-	var socks *coreObj.Inbound
-	for i := range tmpl.Inbounds {
-		if tmpl.Inbounds[i].Tag == "socks" {
-			socks = &tmpl.Inbounds[i]
-		}
-	}
-	if socks == nil {
-		t.Fatal("no socks inbound")
-	}
-	if !socks.Sniffing.Enabled {
-		t.Fatal("the ordinary socks inbound lost its sniffing")
 	}
 }

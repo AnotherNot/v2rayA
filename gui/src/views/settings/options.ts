@@ -54,6 +54,7 @@ export const transparentTypes = (
     items.push(
       { value: "redirect", title: "redirect" },
       { value: "tproxy", title: "tproxy" },
+      { value: "app_router", title: t("setting.options.appRouter") },
     );
   if (!host.lite)
     items.push({

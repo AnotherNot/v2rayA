@@ -237,6 +237,7 @@ export default {
       whitelistCn: "Proxy except allowlist",
       gfwlist: "Proxy only blocklist",
       sameAsPacMode: "Traffic Splitting Mode is the Same as the Rule Port",
+      appRouter: "By application",
       default: "Keep Default",
       on: "On",
       off: "Off",
@@ -265,6 +266,8 @@ export default {
         "Needed by the blocklist mode; update before switching to it.",
       transparentProxy:
         "If transparent proxy on, no extra configure needed and all TCP traffic will pass through the v2rayA. Providing proxy service to other computers and docker as the gateway should make option 'Share in LAN' on.",
+      appRouter:
+        "Traffic is routed by the program that opens the connection: the process(...) rules in the RoutingA editor decide. Linux only, root and cgroup v2; TCP over IPv4 for now. A program no rule names is left alone, the first connection of a program is judged by the service, and a blocked program is refused outright from its second connection on.",
       transparentType:
         "★tproxy: supports UDP, but not docker. ★redirect: friendly for docker, but does not support UDP; when DNS interception is on, it also uses local port 53 for DNS anti-pollution. ★tun: the core opens a TUN device and takes the default route; works on Linux, Windows and macOS, supports UDP, excludes v2rayA and the core by itself and lets you exclude other processes by name. On Windows and macOS, applications that query a LAN resolver directly still bypass it.",
       tproxyExcludedInterfaces:

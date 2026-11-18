@@ -234,6 +234,7 @@ export default {
       whitelistCn: "allowlist 외 프록시",
       gfwlist: "blocklist만 프록시",
       sameAsPacMode: "트래픽 분할 모드가 규칙 포트와 동일",
+      appRouter: "애플리케이션별",
       default: "기본값 유지",
       on: "켜기",
       off: "끄기",
@@ -262,6 +263,8 @@ export default {
       gfwlistUnused: "blocklist 모드에 필요하며, 전환하기 전에 업데이트하세요.",
       transparentProxy:
         "투명 프록시를 켜면 추가 설정 없이 모든 TCP 트래픽이 v2rayA를 통과합니다. 다른 컴퓨터와 Docker에 게이트웨이로 프록시 서비스를 제공하려면 'LAN에서 공유' 옵션을 켜세요.",
+      appRouter:
+        "연결을 연 프로그램에 따라 경로가 결정됩니다. RoutingA 편집기의 process(...) 규칙이 판단합니다. Linux 전용이며 root와 cgroup v2가 필요하고, 현재는 IPv4의 TCP만 다룹니다. 어떤 규칙도 지목하지 않은 프로그램은 전혀 건드리지 않고, 프로그램의 첫 연결은 서비스가 판단한 뒤 결과가 캐시되며, 차단된 프로그램은 두 번째 연결부터 커널이 즉시 거부합니다.",
       transparentType:
         "★tproxy: UDP를 지원하지만 Docker는 지원하지 않습니다. ★redirect: Docker에 적합하지만 UDP를 지원하지 않습니다. DNS 가로채기가 켜져 있을 때 DNS 오염 방지를 위해 로컬 포트 53을 사용합니다. ★tun: 코어가 TUN 장치를 열고 기본 라우트를 가져갑니다. Linux, Windows, macOS와 UDP를 지원하며 v2rayA와 코어를 자동으로 제외하고 다른 프로세스를 이름으로 제외할 수 있습니다. Windows와 macOS에서는 LAN DNS에 직접 질의하는 애플리케이션이 여전히 우회합니다.",
       tproxyExcludedInterfaces:

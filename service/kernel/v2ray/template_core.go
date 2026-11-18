@@ -41,6 +41,9 @@ type Template struct {
 	ApiPort       int                    `json:"-"`
 	Setting       *configure.Setting     `json:"-"`
 	serverInfoMap map[string]*serverInfo `json:"-"` // outbound tag -> server info
+	// appRouter is what the rules mean for the engine that applies them. It is
+	// kept out of the core's JSON: the core has no matcher for an executable.
+	appRouter *appRouterPlan
 }
 
 func (t *Template) Close() error {
@@ -105,6 +108,11 @@ func NewTemplate(serverInfos []serverInfo, setting *configure.Setting) (t *Templ
 	//set inbound ports according to the setting
 	if err = t.setInbound(setting); err != nil {
 		return nil, err
+	}
+	if setting.TransparentType != configure.TransparentAppRouter {
+		// A rule that selects on the executable is the app router's; with the
+		// engine off nothing applies it, and saying so beats silence.
+		logInactiveAppRules()
 	}
 	//生成新 DNS 模块配置
 	if err = t.setDNS(serverInfos); err != nil {

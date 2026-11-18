@@ -37,7 +37,6 @@ type Params struct {
 	IPV6Support          string `id:"ipv6-support" default:"auto" desc:"Optional values: auto, on, off. Make sure your IPv6 network works fine before you turn it on."`
 	RedirectBoundDevice  bool   `id:"redirect-respect-bound-device" desc:"[Linux Only] In redirect mode, let TCP sockets bound to a device (SO_BINDTODEVICE, as NetworkManager's connectivity checks are) bypass the proxy. Needs kernel 5.14 or later and cgroup v2 at /sys/fs/cgroup."`
 	AppRouterProbe       bool   `id:"app-router-probe" desc:"[Linux Only] Experimental: attach the app-router probe to the root cgroup, count connects per executable and log the counters. It changes no traffic; it exists to prove the mechanism on a machine. Needs kernel 5.14 or later, cgroup v2 at /sys/fs/cgroup and root."`
-	AppRouterApps        string `id:"app-router-apps" desc:"[Linux Only] Applications the app router routes, comma-separated, by the executable name the kernel reports (15 characters at most), e.g. firefox,curl. Only used in app_router mode, where it stands in for the rules the RoutingA editor will carry. Empty leaves the mode attached to nothing; its decisions are logged."`
 	NftablesSupport      string `id:"nftables-support" default:"auto" desc:"Optional values: auto, on, off. Experimental feature. Make sure you have installed nftables."`
 	PassCheckRoot        bool   `id:"passcheckroot" desc:"Skip privilege checking. Use it only when you cannot start v2raya but confirm you have root privilege"`
 	ResetPassword        bool   `id:"reset-password" ignore:"1"`

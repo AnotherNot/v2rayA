@@ -135,7 +135,7 @@ func PostCustomInbound(ctx *gin.Context) {
 				lines[i] = strings.Replace(lines[i], hardcode, "", 1)
 			}
 		}
-		if err := v2ray.ValidateRoutingA(strings.Join(lines, "\n")); err != nil {
+		if err := v2ray.ValidateCustomInboundRoutingA(strings.Join(lines, "\n")); err != nil {
 			common.ResponseError(ctx, logError(fmt.Errorf("invalid RoutingA rules: %w", err)))
 			return
 		}

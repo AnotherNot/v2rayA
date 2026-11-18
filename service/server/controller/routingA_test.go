@@ -33,12 +33,32 @@ func TestPutRoutingARejectsAnEscapingGeoFile(t *testing.T) {
 	}
 }
 
-// A stored process(...) rule would take effect the next time the core starts,
-// where the generator refuses it — after the text has already been saved. The
-// endpoint refuses it before the store, while the user is still looking.
-func TestPutRoutingARejectsAProcessCondition(t *testing.T) {
+// process(...) is the app router's condition, so the editor is where it belongs
+// and the endpoint stores it; the engine applies it, not the core.
+func TestPutRoutingAAcceptsAProcessRule(t *testing.T) {
 	withSetupDatabase(t)
 	body := `{"routingA":"process(firefox) && port(443)->proxy"}`
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodPut, "/routingA", strings.NewReader(body))
+	ctx.Request.Header.Set("Content-Type", "application/json")
+	PutRoutingA(ctx)
+
+	if code, _ := codeOf(t, recorder); code != common.SUCCESS {
+		t.Fatalf("code=%v (%s)", code, recorder.Body.String())
+	}
+	var stored string
+	configure.GetRoutingARaw(&stored)
+	if !strings.Contains(stored, "process(firefox)") {
+		t.Fatalf("the rule was not stored: %q", stored)
+	}
+}
+
+// A process(...) this build cannot enforce is refused while the user is looking
+// at it, not at the next core start.
+func TestPutRoutingARejectsABadProcessParameter(t *testing.T) {
+	withSetupDatabase(t)
+	body := `{"routingA":"process(uid: 1000)->proxy"}`
 	recorder := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(recorder)
 	ctx.Request = httptest.NewRequest(http.MethodPut, "/routingA", strings.NewReader(body))
@@ -48,8 +68,8 @@ func TestPutRoutingARejectsAProcessCondition(t *testing.T) {
 	if code, _ := codeOf(t, recorder); code != common.FAIL {
 		t.Fatalf("code=%v (%s)", code, recorder.Body.String())
 	}
-	if !strings.Contains(recorder.Body.String(), "process(...)") {
-		t.Fatalf("the error does not name the condition: %s", recorder.Body.String())
+	if !strings.Contains(recorder.Body.String(), "name, path and folder") {
+		t.Fatalf("the error does not say what a process(...) may name: %s", recorder.Body.String())
 	}
 	var stored string
 	configure.GetRoutingARaw(&stored)

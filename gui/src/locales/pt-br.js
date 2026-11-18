@@ -239,6 +239,7 @@ export default {
       gfwlist: "Proxy apenas para blocklist",
       sameAsPacMode:
         "O modo de divisão de tráfego é igual ao da porta de regras",
+      appRouter: "Por aplicativo",
       default: "Manter o padrão",
       on: "Ativado",
       off: "Desativado",
@@ -270,6 +271,8 @@ export default {
         "Necessário para o modo blocklist; atualize antes de alternar para ele.",
       transparentProxy:
         "Com o proxy transparente ativado, nenhuma configuração extra é necessária e todo o tráfego TCP passará pelo v2rayA. Para fornecer proxy a outros computadores e ao Docker pelo gateway, ative a opção 'Compartilhar na LAN'.",
+      appRouter:
+        "O tráfego é roteado pelo programa que abre a conexão: as regras process(...) do editor RoutingA decidem. Apenas Linux, com root e cgroup v2; por enquanto TCP sobre IPv4. Um programa que nenhuma regra nomeia não é tocado, a primeira conexão de um programa é julgada pelo serviço e o resultado é guardado, e um programa bloqueado é recusado pelo kernel já na segunda conexão.",
       transparentType:
         "★tproxy: suporta UDP, mas não Docker. ★redirect: compatível com Docker, mas não suporta UDP; quando a interceptação de DNS está ativada, também precisa ocupar a porta local 53 para evitar a poluição do DNS. ★tun: o núcleo abre um dispositivo TUN e assume a rota padrão; funciona em Linux, Windows e macOS, suporta UDP, exclui o v2rayA e o núcleo automaticamente e permite excluir outros processos pelo nome. No Windows e no macOS, aplicativos que consultam diretamente um resolvedor da rede local ainda o ignoram.",
       tproxyExcludedInterfaces:

@@ -19,12 +19,29 @@ Com o proxy transparente ativado, o tráfego chega ao núcleo sem nenhuma config
 | `tproxy`         | Linux                                                              | `TPROXY` do iptables/nftables; TCP e UDP                                                                                 |
 | `tun`            | Linux, Windows, macOS                                              | o núcleo abre um dispositivo TUN; TCP e UDP; exclui o v2rayA e o próprio núcleo automaticamente                          |
 | Proxy do sistema | Windows; Linux e macOS quando não é executado como root (`--lite`) | configura o proxy do ambiente gráfico (GNOME e KDE no Linux); abrange apenas os aplicativos que as respeitam             |
+| Por aplicativo | Linux | um programa cgroup eBPF compara o programa que abre o socket com as regras `process(...)` do RoutingA; por enquanto TCP sobre IPv4 |
 
 `redirect` e `tproxy` exigem root e `iptables` ou `nftables`; `tun` exige `/dev/net/tun` e `ip` no Linux e privilégios de administrador no Windows e no macOS.
 
 **Prefixos de interfaces excluídos** mantém o tráfego que chega pelas interfaces indicadas (bridges do Docker, túneis VPN; `docker*`, `veth*`, `wg*`, `ppp*` por padrão) fora de `redirect` e `tproxy`; o DNS dessas interfaces só é interceptado no modo *serviço e interceptação*.
 
 `--redirect-respect-bound-device` (Linux) deixa as conexões TCP vinculadas a uma interface com `SO_BINDTODEVICE` fora do `redirect`: as verificações de conectividade do NetworkManager são conexões desse tipo e, redirecionadas, informam uma conexão limitada e mantêm os aplicativos offline. Desligado por padrão. Quando ligado, o serviço marca esses sockets com `0x80` por cgroup BPF; isso requer kernel 5.14 ou mais recente e cgroup v2, e sem eles o `redirect` não inicia.
+
+## Por aplicativo
+
+`app_router` decide por programa, não por endereço. Um programa cgroup lê o executável por trás do socket, compara-o com as regras `process(...)` do editor RoutingA e deixa a conexão intocada, entrega-a ao outbound que a regra nomeia ou a recusa.
+
+```
+process(firefox) -> proxy
+process(curl) && port(443) -> work
+process(transmission) -> block
+```
+
+Um valor sem parâmetro é o nome do arquivo; `name:`, `path:` e `folder:` dizem de que parte do programa se trata, e `*` e `?` são curingas. As regras são lidas de cima para baixo e a primeira que casa vence. Um programa que nenhuma regra nomeia não é tocado, e uma regra `process(...)` fica inativa enquanto outra implementação estiver escolhida — o log diz quantas foram ignoradas.
+
+O modo exige root, kernel 5.14 ou mais recente e cgroup v2 em `/sys/fs/cgroup`. Ele carrega TCP sobre IPv4; UDP e IPv6 ainda não passam por ele. O programa por trás do socket é identificado por `/proc`, então o serviço precisa enxergar o espaço de processos do host: num contêiner com namespace de PID próprio os programas não são identificados e suas conexões ficam intocadas.
+
+A primeira conexão de um programa é julgada pelo serviço, que guarda a resposta no kernel; um programa bloqueado é recusado pelo kernel já na segunda conexão. Um programa cujas regras não cabem no kernel é julgado pelo serviço a cada conexão, e o log o nomeia.
 
 ## TUN
 

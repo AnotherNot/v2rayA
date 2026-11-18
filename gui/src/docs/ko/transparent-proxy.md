@@ -19,12 +19,29 @@
 | `tproxy`      | Linux                                                           | iptables/nftables `TPROXY`. TCP와 UDP 지원                                                           |
 | `tun`         | Linux, Windows, macOS                                           | 코어가 TUN 장치를 엽니다. TCP와 UDP 지원. v2rayA와 코어를 자동으로 제외                                  |
 | 시스템 프록시 | Windows. Linux와 macOS에서는 root 권한 없이 실행할 때(`--lite`) | 데스크톱의 프록시 설정을 변경(Linux에서는 GNOME과 KDE). 해당 설정을 따르는 애플리케이션에만 적용     |
+| 애플리케이션별 | Linux | cgroup eBPF 프로그램이 소켓을 연 프로그램을 RoutingA의 `process(...)` 규칙과 대조합니다. 현재는 IPv4의 TCP만 다룹니다 |
 
 `redirect`와 `tproxy`에는 root 권한과 `iptables` 또는 `nftables`가 필요합니다. `tun`에는 Linux에서 `/dev/net/tun`과 `ip`가, Windows와 macOS에서 관리자 권한이 필요합니다.
 
 **제외할 인터페이스 접두사**는 지정한 인터페이스(Docker 브리지, VPN 터널. 기본값은 `docker*`, `veth*`, `wg*`, `ppp*`)로 들어오는 트래픽이 `redirect`와 `tproxy`를 거치지 않게 합니다. 해당 트래픽의 DNS는 **서비스 및 가로채기** 모드에서 가로채집니다.
 
 `--redirect-respect-bound-device`(Linux)는 `SO_BINDTODEVICE`로 인터페이스에 바인딩된 TCP 연결이 `redirect`를 거치지 않게 합니다. NetworkManager의 연결 확인이 이런 연결이며, 리디렉션되면 연결이 제한됨으로 보고되어 이에 의존하는 앱이 계속 오프라인 상태가 됩니다. 기본값은 꺼짐입니다. 켜면 서비스가 cgroup BPF로 이런 소켓에 `0x80` 마크를 붙이는데, 커널 5.14 이상과 cgroup v2가 필요하며 없으면 `redirect`가 시작되지 않습니다.
+
+## 애플리케이션별
+
+`app_router`는 주소가 아니라 프로그램으로 판단합니다. cgroup 프로그램이 소켓 뒤의 실행 파일을 읽어 RoutingA 편집기의 `process(...)` 규칙과 대조하고, 연결을 그대로 두거나 규칙이 지정한 아웃바운드로 넘기거나 거부합니다.
+
+```
+process(firefox) -> proxy
+process(curl) && port(443) -> work
+process(transmission) -> block
+```
+
+값만 쓰면 파일 이름이고, `name:`, `path:`, `folder:`는 프로그램의 어느 부분을 뜻하는지 지정하며 `*`와 `?`는 와일드카드입니다. 규칙은 위에서 아래로 적용되고 첫 일치가 이깁니다. 어떤 규칙도 지목하지 않은 프로그램은 전혀 건드리지 않으며, 다른 구현 방식을 고르면 `process(...)` 규칙은 적용되지 않고 로그가 건너뛴 규칙 수를 알려 줍니다.
+
+이 모드에는 root, 5.14 이상 커널, `/sys/fs/cgroup`의 cgroup v2가 필요합니다. IPv4의 TCP만 다루며 UDP와 IPv6는 아직 통과하지 않습니다. 소켓 뒤의 프로그램은 `/proc`로 식별하므로 서비스가 호스트의 프로세스 네임스페이스를 볼 수 있어야 합니다. 사설 PID 네임스페이스를 쓰는 컨테이너에서는 프로그램을 식별할 수 없어 연결이 그대로 남습니다.
+
+프로그램의 첫 연결은 서비스가 판단하고 그 결과를 커널에 캐시합니다. 차단된 프로그램은 두 번째 연결부터 커널이 즉시 거부합니다. 규칙이 커널에 다 들어가지 않는 프로그램은 대신 매 연결마다 서비스가 판단하며 로그에 이름이 남습니다.
 
 ## TUN
 

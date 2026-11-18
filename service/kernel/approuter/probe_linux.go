@@ -41,9 +41,9 @@ type Probe struct {
 	closed      bool
 }
 
-// Mirrors struct probe_exe_key. The padding is explicit: encoding/binary sizes
-// a Go struct by summing its fields and would otherwise disagree with C.
-type exeKey struct {
+// probeExeKey mirrors struct probe_exe_key. It is a separate type from exeKey
+// only because the probe's map is its own; the layout is the same.
+type probeExeKey struct {
 	Dev uint32
 	Pad uint32
 	Ino uint64
@@ -143,7 +143,7 @@ func (p *Probe) Snapshot() (Snapshot, error) {
 	}
 	snapshot.Connects6 = counter
 	iter := p.executables.Iterate()
-	var key exeKey
+	var key probeExeKey
 	var stat exeStat
 	for iter.Next(&key, &stat) {
 		snapshot.Executables = append(snapshot.Executables, Executable{

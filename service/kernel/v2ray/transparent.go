@@ -105,25 +105,19 @@ func stopAppRouter() {
 	appRouterEngine.router = nil
 }
 
-// startAppRouter attaches the engine and its relay. The applications come from
-// the command line for now; the RoutingA rules will replace that list, and the
-// class inbounds stay what they are.
+// startAppRouter attaches the engine and its relay to the rules the template
+// was generated from, so the engine and the core's rules cannot disagree.
 func startAppRouter(tmpl *Template) error {
 	appRouterEngine.Lock()
 	defer appRouterEngine.Unlock()
 	if appRouterEngine.router != nil {
 		return nil
 	}
-	var apps []string
-	for _, name := range strings.Split(conf.GetEnvironmentConfig().AppRouterApps, ",") {
-		if name = strings.TrimSpace(name); name != "" {
-			apps = append(apps, name)
-		}
-	}
-	if len(apps) == 0 {
+	plan := tmpl.appRouter
+	if plan == nil || len(plan.rules) == 0 {
 		// The mode is on but selects nothing: attaching a program that routes
 		// nothing would hide the misconfiguration behind normal traffic.
-		log.Warn("app router: no applications are selected, so no traffic is routed; pass --app-router-apps")
+		log.Warn("app router: the rules select no application, so no traffic is routed")
 		return nil
 	}
 	classPorts := make(map[int]int)
@@ -132,13 +126,15 @@ func startAppRouter(tmpl *Template) error {
 			classPorts[class] = ib.Port
 		}
 	}
-	if len(classPorts) == 0 {
-		return fmt.Errorf("the app router needs a class inbound, and the generated config has none")
+	for class := range plan.classes {
+		if _, ok := classPorts[class]; !ok {
+			return fmt.Errorf("the app router needs an inbound for class %d, and the generated config has none", class)
+		}
 	}
 	router, err := approuter.Start(approuter.Options{
 		Cgroup:     "/sys/fs/cgroup",
-		Apps:       apps,
 		ClassPorts: classPorts,
+		Rules:      plan.rules,
 	})
 	if err != nil {
 		return fmt.Errorf("could not set up the app router: %w", err)

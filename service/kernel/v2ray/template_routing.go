@@ -11,6 +11,7 @@ import (
 	"github.com/mohae/deepcopy"
 	"github.com/v2rayA/RoutingA"
 	"github.com/v2rayA/v2rayA/db/configure"
+	"github.com/v2rayA/v2rayA/kernel/approuter"
 	"github.com/v2rayA/v2rayA/kernel/coreObj"
 	"github.com/v2rayA/v2rayA/kernel/iptables"
 	"github.com/v2rayA/v2rayA/kernel/v2ray/asset"
@@ -184,25 +185,89 @@ func ValidateRoutingA(text string) error {
 		return err
 	}
 	for _, rule := range rules {
-		if r, ok := rule.(RoutingA.Routing); ok {
-			if err := checkRoutingAConditions(r); err != nil {
-				return err
+		r, ok := rule.(RoutingA.Routing)
+		if !ok {
+			continue
+		}
+		for _, f := range r.And {
+			if f.Name != "process" {
+				continue
+			}
+			// The condition is the app router's, so its shape is checked here
+			// rather than by the core: a parameter nothing can enforce is
+			// refused while the user is looking at it.
+			if _, isProcess, err := f.ProcessMatcher(); isProcess && err != nil {
+				return fmt.Errorf("the rule for %q: %w", r.Out, err)
 			}
 		}
 	}
 	return nil
 }
 
-// checkRoutingAConditions refuses a condition the core's router has no matcher
+// ValidateCustomInboundRoutingA checks the rules of a custom inbound, which go
+// straight to the core's router: an executable condition there would be dropped
+// and the rule would match more than written.
+func ValidateCustomInboundRoutingA(text string) error {
+	if err := ValidateRoutingA(text); err != nil {
+		return err
+	}
+	return validateCoreRoutingA(text)
+}
+
+// validateCoreRoutingA refuses a condition the core's router has no matcher
 // for. Dropping one is not harmless: the rule keeps its other conditions and
-// then matches more traffic than its author wrote.
-func checkRoutingAConditions(r RoutingA.Routing) error {
-	for _, f := range r.And {
-		if f.Name == "process" {
-			return fmt.Errorf("RoutingA: the rule for %q selects on process(...), which the core's router cannot enforce; without it the rule would match every process, so it is refused", r.Out)
+// then matches more traffic than its author wrote. It is used where the text
+// goes straight to the core — a custom inbound's own rules — and not for the
+// main editor, whose process(...) rules the app router applies.
+func validateCoreRoutingA(text string) error {
+	rules, err := RoutingA.Parse(text)
+	if err != nil {
+		return err
+	}
+	for _, rule := range rules {
+		r, ok := rule.(RoutingA.Routing)
+		if !ok {
+			continue
+		}
+		for _, f := range r.And {
+			if f.Name == "process" {
+				return fmt.Errorf("RoutingA: the rule for %q selects on process(...), which a custom inbound cannot enforce; application rules belong in the main rule set, with the app router on", r.Out)
+			}
 		}
 	}
 	return nil
+}
+
+// hasProcessCondition reports whether a rule selects on the executable, which
+// is the app router's business rather than the core's.
+func hasProcessCondition(r RoutingA.Routing) bool {
+	for _, f := range r.And {
+		if f.Name == "process" {
+			return true
+		}
+	}
+	return false
+}
+
+// expandRoutingAEnv replaces $$NAME$$ placeholders with the environment's value,
+// the way a deployment can keep a rule set's addresses out of the database.
+func expandRoutingAEnv(text, who string) string {
+	lines := strings.Split(text, "\n")
+	hardcodeReplacement := regexp.MustCompile(`\$\$.+?\$\$`)
+	for i := range lines {
+		hardcodes := hardcodeReplacement.FindAllString(lines[i], -1)
+		for _, hardcode := range hardcodes {
+			env := strings.TrimSuffix(strings.TrimPrefix(hardcode, "$$"), "$$")
+			val, ok := os.LookupEnv(env)
+			if !ok {
+				log.Error("%s: Environment variable \"%v\" is not found", who, env)
+			} else {
+				log.Info("%s: Environment variable %v=%v", who, env, strconv.Quote(val))
+			}
+			lines[i] = strings.Replace(lines[i], hardcode, val, 1)
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 func parseRoutingA(t *Template, routingInboundTags []string) error {
@@ -215,22 +280,7 @@ func parseRoutingA(t *Template, routingInboundTags []string) error {
 	if src.DomainStrategy != "" {
 		t.Routing.DomainStrategy = src.DomainStrategy
 	}
-	lines := strings.Split(configure.GetRoutingA(), "\n")
-	hardcodeReplacement := regexp.MustCompile(`\$\$.+?\$\$`)
-	for i := range lines {
-		hardcodes := hardcodeReplacement.FindAllString(lines[i], -1)
-		for _, hardcode := range hardcodes {
-			env := strings.TrimSuffix(strings.TrimPrefix(hardcode, "$$"), "$$")
-			val, ok := os.LookupEnv(env)
-			if !ok {
-				log.Error("RoutingA: Environment variable \"%v\" is not found", env)
-			} else {
-				log.Info("RoutingA: Environment variable %v=%v", env, strconv.Quote(val))
-			}
-			lines[i] = strings.Replace(lines[i], hardcode, val, 1)
-		}
-	}
-	rules, err := RoutingA.Parse(strings.Join(lines, "\n"))
+	rules, err := RoutingA.Parse(expandRoutingAEnv(configure.GetRoutingA(), "parseRoutingA"))
 	if err != nil {
 		log.Warn("parseRoutingA: %v", err)
 		return err
@@ -333,8 +383,11 @@ func parseRoutingA(t *Template, routingInboundTags []string) error {
 				}
 			}
 		case RoutingA.Routing:
-			if err := checkRoutingAConditions(rule); err != nil {
-				return err
+			if hasProcessCondition(rule) {
+				// The app router applies these, not the core's router: the
+				// core has no matcher for the executable, and a rule that kept
+				// its other conditions would match more than it says.
+				continue
 			}
 			rr := deepcopy.Copy(coreObj.RoutingRule{
 				Type:        "field",
@@ -438,8 +491,8 @@ func parseRoutingARules(rulesText string, inboundTag string) (rules []coreObj.Ro
 	for _, rule := range parsedRules {
 		switch rule := rule.(type) {
 		case RoutingA.Routing:
-			if err := checkRoutingAConditions(rule); err != nil {
-				return nil, err
+			if hasProcessCondition(rule) {
+				return nil, fmt.Errorf("the custom inbound %q selects on process(...), which it cannot enforce; application rules belong in the main rule set", inboundTag)
 			}
 			rr := deepcopy.Copy(coreObj.RoutingRule{
 				Type:        "field",
@@ -513,15 +566,28 @@ func (t *Template) setTransparentRouting() (err error) {
 	// when the flow reaches an inbound, so the transparent policy has nothing
 	// to add: a class goes to the outbound it stands for.
 	if t.Setting.TransparentType == configure.TransparentAppRouter {
-		defaultOutbound, _ := t.FirstProxyOutboundName(nil)
-		for _, ib := range t.Inbounds {
-			if _, ok := appRouterClassOf(ib.Tag); !ok {
-				continue
-			}
+		plan, err := t.compileAppRouter()
+		if err != nil {
+			return err
+		}
+		t.appRouter = plan
+		if len(plan.rules) == 0 {
+			log.Warn("app router: no rule selects on process(...), so no traffic is routed; write one in the RoutingA editor")
+			return nil
+		}
+		for _, class := range plan.order {
+			tag := AppRouterClassTag(class)
+			t.Inbounds = append(t.Inbounds, coreObj.Inbound{
+				Port:     approuter.ClassPort(class),
+				Protocol: "socks",
+				Listen:   "127.0.0.1",
+				Settings: &coreObj.InboundSettings{UDP: false},
+				Tag:      tag,
+			})
 			t.Routing.Rules = append(t.Routing.Rules, coreObj.RoutingRule{
 				Type:        "field",
-				InboundTag:  []string{ib.Tag},
-				OutboundTag: defaultOutbound,
+				InboundTag:  []string{tag},
+				OutboundTag: plan.classes[class],
 			})
 		}
 		return nil

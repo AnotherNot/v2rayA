@@ -11,17 +11,29 @@ import (
 	"github.com/v2rayA/v2rayA/pkg/util/log"
 )
 
-// orig is the destination the application asked for, recovered from the map the
-// connect hook filled.
+// actionDecide is what the kernel sets on a flow whose executable it cannot
+// decide. It never leaves the relay: the relay resolves it into one of the
+// actions above.
+const actionDecide Action = 3
+
+// orig is the destination the application asked for, with what the kernel knew
+// about the socket when it redirected it.
 type orig struct {
-	IP   [4]byte // network order
-	Port int
-	Pid  uint32
+	IP        [4]byte // network order
+	Port      int
+	Pid       uint32
+	ExeDev    uint32
+	ExeIno    uint64
+	Action    Action
+	InboundID int
 }
 
 func (o orig) String() string {
 	return net.JoinHostPort(net.IP(o.IP[:]).String(), strconv.Itoa(o.Port))
 }
+
+// ipOf reads the destination as the host-order number the rules compare.
+func ipOf(o orig) uint32 { return binary.BigEndian.Uint32(o.IP[:]) }
 
 // portKey is the client's own address: what the relay sees as its peer.
 type portKey struct {
@@ -35,19 +47,26 @@ type flowStore interface {
 	take(key portKey) (orig, bool, error)
 }
 
+// decider turns a flow the kernel could not decide into an action.
+type decider interface {
+	decide(o orig) (Action, int)
+}
+
 // relay accepts what the kernel rewrote to it and hands each flow to the local
-// inbound of its class.
+// inbound of its class, dials it, or drops it.
 type relay struct {
 	store      flowStore
+	decider    decider
 	classPorts map[int]int
-	class      int
 	ln         net.Listener
 	relayed    atomic.Uint64
 	refused    atomic.Uint64
+	direct     atomic.Uint64
+	decided    atomic.Uint64
 }
 
-func newRelay(store flowStore, classPorts map[int]int, class int) *relay {
-	return &relay{store: store, classPorts: classPorts, class: class}
+func newRelay(store flowStore, d decider, classPorts map[int]int) *relay {
+	return &relay{store: store, decider: d, classPorts: classPorts}
 }
 
 func (r *relay) start() error {
@@ -115,23 +134,58 @@ func (r *relay) handle(conn net.Conn) {
 		return
 	}
 
-	port, ok := r.classPorts[r.class]
+	action, class := o.Action, o.InboundID
+	if action == actionDecide {
+		r.decided.Add(1)
+		action, class = r.decider.decide(o)
+	}
+	switch action {
+	case ActionProxy:
+		r.handToInbound(conn, o, class)
+	case ActionBlock:
+		r.refused.Add(1)
+		log.Debug("app router: %s -> blocked (pid %d)", o, o.Pid)
+	case ActionDirect:
+		r.dialDirect(conn, o)
+	default:
+		r.refused.Add(1)
+		log.Warn("app router: %s carries action %d, which the relay cannot serve; refusing", o, action)
+	}
+}
+
+func (r *relay) handToInbound(conn net.Conn, o orig, class int) {
+	port, ok := r.classPorts[class]
 	if !ok {
 		// A flow whose class has no inbound is refused: sending it anywhere
 		// else would apply a decision nobody made.
 		r.refused.Add(1)
-		log.Warn("app router: class %d has no local inbound; refusing %s", r.class, o)
+		log.Warn("app router: class %d has no local inbound; refusing %s", class, o)
 		return
 	}
 	inbound := net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
 	up, err := socks5Dial(inbound, net.IP(o.IP[:]), o.Port)
 	if err != nil {
 		r.refused.Add(1)
-		log.Warn("app router: hand %s to the class %d inbound at %s: %v", o, r.class, inbound, err)
+		log.Warn("app router: hand %s to the class %d inbound at %s: %v", o, class, inbound, err)
 		return
 	}
 	defer up.Close()
 	r.relayed.Add(1)
-	log.Debug("app router: %v -> class %d -> %s (pid %d)", conn.RemoteAddr(), r.class, o, o.Pid)
+	log.Debug("app router: %v -> class %d -> %s (pid %d)", conn.RemoteAddr(), class, o, o.Pid)
+	splice(conn, up)
+}
+
+// dialDirect serves a flow the engine decided to leave alone but had already
+// redirected to the relay.
+func (r *relay) dialDirect(conn net.Conn, o orig) {
+	up, err := net.DialTimeout("tcp", o.String(), 10*time.Second)
+	if err != nil {
+		r.refused.Add(1)
+		log.Warn("app router: direct dial %s: %v", o, err)
+		return
+	}
+	defer up.Close()
+	r.direct.Add(1)
+	log.Debug("app router: %s -> direct (pid %d)", o, o.Pid)
 	splice(conn, up)
 }

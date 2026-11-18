@@ -11,7 +11,6 @@ import (
 
 	"github.com/v2rayA/v2rayA/common"
 	"github.com/v2rayA/v2rayA/db/configure"
-	"github.com/v2rayA/v2rayA/kernel/approuter"
 	"github.com/v2rayA/v2rayA/kernel/coreObj"
 	"github.com/v2rayA/v2rayA/kernel/iptables"
 	"github.com/v2rayA/v2rayA/pkg/util/log"
@@ -323,16 +322,9 @@ func (t *Template) setInbound(setting *configure.Setting) error {
 				Tag:      "transparent",
 			})
 		case configure.TransparentAppRouter:
-			// Each class is a loopback SOCKS inbound: the relay dials it, and
-			// the core decides from its port which outbound the class means.
-			// The first stage has one class, the proxy group.
-			t.Inbounds = append(t.Inbounds, coreObj.Inbound{
-				Port:     approuter.ClassPort(1),
-				Protocol: "socks",
-				Listen:   "127.0.0.1",
-				Settings: &coreObj.InboundSettings{UDP: false},
-				Tag:      AppRouterClassTag(1),
-			})
+			// The class inbounds come from the rules, not from here: one per
+			// outbound the rules name, added in setTransparentRouting once the
+			// rules are read.
 		}
 
 	}

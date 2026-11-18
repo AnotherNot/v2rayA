@@ -234,6 +234,11 @@ defineExpose({ sync: () => settings.load() });
             v-if="transparentOn"
             v-model="form.transparentType"
             :title="t('setting.transparentType')"
+            :hint="
+              form.transparentType === 'app_router'
+                ? t('setting.messages.appRouter')
+                : undefined
+            "
             :items="transparentTypes"
           />
         </v-expand-transition>

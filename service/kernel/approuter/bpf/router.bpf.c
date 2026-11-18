@@ -1,9 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// Per-application routing, first stage: TCP over IPv4, one destination class.
-// The connect() of a selected executable is rewritten to the local relay, which
-// hands the flow to a local inbound of the core; every other connect is left
-// alone.
+// Per-application routing: the connect() of a selected executable is matched
+// against that executable's ordered rule list and is sent to a local relay,
+// left alone, or refused. Sockets in one cgroup subtree and one network
+// namespace only.
+//
+// A rule carries a set of destination addresses, ports and an action; the first
+// rule of the executable's list that matches decides. Rules live in arrays so
+// the whole walk is bounded and the verifier can see its extent.
+//
+// Two things are called "class" elsewhere and are kept apart here:
+//   - the ordered rule list of one executable (exec_rules, keyed by exe2rules);
+//   - the local inbound a proxy rule hands the flow to (the rule's inbound_id).
 //
 // The object is generated and committed, the way the core's .pb.go files are,
 // so ./build-all.sh needs no clang. Regenerate it from the service module root
@@ -16,11 +24,36 @@
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
+#include <bpf/bpf_core_read.h>
+
+// Minimal kernel types, relocated against the running kernel's BTF (CO-RE).
+// Only the fields read below matter.
+#pragma clang attribute push(__attribute__((preserve_access_index)), apply_to = record)
+struct super_block { __u32 s_dev; };
+struct inode { struct super_block *i_sb; unsigned long i_ino; };
+struct file { struct inode *f_inode; };
+struct mm_struct { struct file *exe_file; };
+struct task_struct { struct mm_struct *mm; };
+#pragma clang attribute pop
 
 #define AF_INET 2
 #define IPPROTO_TCP 6
 
-#define MAX_APPS 64
+#define ACT_DIRECT 0
+#define ACT_PROXY 1
+#define ACT_BLOCK 2
+#define ACT_DECIDE 3 // unknown executable: the relay decides once and caches it
+
+#define MAX_RULES 256
+#define MAX_EXE_RULES 256
+#define RULES_PER_EXE 16
+#define MAX_V4 2
+#define MAX_PORTS 2
+
+// An executable whose matching rules do not fit in its list: every flow of it
+// is decided in user space instead of being walked here. Failing instead would
+// silently stop applying its rules.
+#define RULES_DECIDE 0xffffffffu
 
 struct router_cfg {
 	__u32 enabled;
@@ -30,22 +63,49 @@ struct router_cfg {
 	__u64 netns; // netns cookie of the relay; 0 = every namespace
 };
 
-// An executable name as bpf_get_current_comm reports it: sixteen bytes, which
-// two words hold without the padding encoding/binary would have to be told
-// about.
-struct router_comm_key {
-	__u64 w0;
-	__u64 w1;
+// The identity of an executable: its file, not its name. Two binaries called
+// the same are told apart, and a replaced binary is a different executable.
+struct router_exe_key {
+	__u32 dev;
+	__u32 pad;
+	__u64 ino;
+};
+
+// One rule, reduced to what the kernel can evaluate. Addresses are host order,
+// ports host order, ranges inclusive.
+struct router_rule {
+	__u8 action;        // ACT_*
+	__u8 any_host;
+	__u8 any_port;
+	__u8 n_v4;
+	__u8 n_port;
+	__u8 inbound_id;    // for ACT_PROXY: which local inbound to hand the flow to
+	__u8 pad[2];
+	struct { __u32 lo; __u32 hi; } v4[MAX_V4];
+	struct { __u16 lo; __u16 hi; } port[MAX_PORTS];
+};
+
+// The ordered rules of one executable.
+struct router_exec_rules {
+	__u32 n;
+	__u32 rule[RULES_PER_EXE];
 };
 
 // The destination the application asked for, kept while the socket talks to the
-// relay instead.
+// relay instead. addr holds an IPv4 address in its last four bytes.
 struct router_orig {
-	__u32 ip4;  // network order
+	__u8 addr[16];
 	__u16 port; // host order
-	__u16 pad;
-	__u32 pid;
-	__u32 pad2;
+	__u16 pad0;
+	__u32 pid; // tgid
+	__u32 exe_dev;
+	__u32 pad1;
+	__u64 exe_ino;
+	__u8 action;
+	__u8 family;
+	__u8 proto;
+	__u8 inbound_id;
+	__u8 pad3[4];
 };
 
 // What the relay sees as its peer: the client's local address and port, both
@@ -59,27 +119,35 @@ struct router_port_key {
 	struct { __uint(type, kind); __uint(max_entries, entries); __type(key, key_t); __type(value, val_t); } name SEC(".maps")
 
 MAP(cfg, BPF_MAP_TYPE_ARRAY, 1, __u32, struct router_cfg);
-// The executables whose connects are routed. Matched on the name the kernel
-// reports for the task, which is what an application list names.
-MAP(app_names, BPF_MAP_TYPE_HASH, MAX_APPS, struct router_comm_key, __u8);
-// The original destination, keyed by socket, so getpeername can report it.
+MAP(brules, BPF_MAP_TYPE_ARRAY, MAX_RULES, __u32, struct router_rule);
+MAP(exec_rules, BPF_MAP_TYPE_ARRAY, MAX_EXE_RULES, __u32, struct router_exec_rules);
+// Executable -> its rule list. An entry the kernel was not given sends the
+// flow to the relay, which resolves, decides and caches it.
+MAP(exe2rules, BPF_MAP_TYPE_HASH, 4096, struct router_exe_key, __u32);
+// Executables that are never redirected: the daemon and the core.
+MAP(exempt_exe, BPF_MAP_TYPE_HASH, 256, struct router_exe_key, __u8);
+// The original destination, so getpeername can report it, and so the relay can
+// recover it from the peer address it sees.
 MAP(by_cookie, BPF_MAP_TYPE_LRU_HASH, 8192, __u64, struct router_orig);
-// ... and keyed by the client's own address, which is the handle the relay has
-// when it accepts the connection.
 MAP(by_port, BPF_MAP_TYPE_LRU_HASH, 8192, struct router_port_key, struct router_orig);
 
-// Diagnostics. The order is mirrored by the loader.
-MAP(stats, BPF_MAP_TYPE_ARRAY, 8, __u32, __u64);
+MAP(stats, BPF_MAP_TYPE_ARRAY, 16, __u32, __u64);
 
 enum {
 	STAT_CONNECT = 0,         // every TCP connect the hook saw
 	STAT_IMPLICIT_DIRECT = 1, // the destination is never proxied
-	STAT_NOT_SELECTED = 2,    // the executable is not in the list
-	STAT_SELF = 3,            // the daemon's own socket
-	STAT_FOREIGN_NETNS = 4,   // another network namespace: containers, and the like
-	STAT_REDIRECTED = 5,      // the destination was rewritten to the relay
-	STAT_PORT_WRITTEN = 6,    // ... and reached the relay's lookup table
-	STAT_GETPEERNAME = 7,     // the original destination was reported back
+	STAT_SELF = 2,            // the daemon's own socket
+	STAT_FOREIGN_NETNS = 3,   // another network namespace
+	STAT_DECIDE = 4,          // the executable was unknown: the relay decides
+	STAT_NO_RULE = 5,         // known executable, no rule matched
+	STAT_RULE_DIRECT = 6,
+	STAT_RULE_PROXY = 7,
+	STAT_RULE_BLOCK = 8,
+	STAT_REDIRECTED = 9,
+	STAT_PORT_WRITTEN = 10,
+	STAT_GETPEERNAME = 11,
+	STAT_EXEMPT = 12,
+	STAT_RULES_FULL = 13, // the executable has more rules than fit
 };
 
 static __always_inline void count(__u32 i)
@@ -103,9 +171,26 @@ static __always_inline int foreign_netns(void *ctx)
 	return c && c->netns && bpf_get_netns_cookie(ctx) != c->netns;
 }
 
-// Never proxied whatever the list says: loopback, the unspecified range and
-// multicast. A rule that wants loopback joins later; the relay's own port must
-// never come back to the relay.
+// The (device, inode) pair of the executable behind the calling task.
+static __always_inline int exe_identity(struct router_exe_key *key)
+{
+	struct task_struct *task = bpf_get_current_task_btf();
+	struct mm_struct *mm = BPF_CORE_READ(task, mm);
+	if (!mm)
+		return 0;
+	struct file *exe = BPF_CORE_READ(mm, exe_file);
+	if (!exe)
+		return 0;
+	struct inode *in = BPF_CORE_READ(exe, f_inode);
+	if (!in)
+		return 0;
+	key->dev = BPF_CORE_READ(in, i_sb, s_dev);
+	key->ino = BPF_CORE_READ(in, i_ino);
+	return key->ino != 0;
+}
+
+// Addresses that are never proxied whatever the rules say: loopback, the
+// unspecified range and multicast.
 static __always_inline int implicit_direct4(__u32 ip4)
 {
 	if ((ip4 >> 24) == 127)
@@ -115,21 +200,95 @@ static __always_inline int implicit_direct4(__u32 ip4)
 	return ip4 >= 0xe0000000; // multicast and above
 }
 
-static __always_inline int selected(void)
+static __always_inline int rule_matches(const struct router_rule *r, __u32 ip4, __u16 port)
 {
-	__u8 comm[16] = {};
-	bpf_get_current_comm(&comm, sizeof(comm));
-	struct router_comm_key key = {};
-	__builtin_memcpy(&key, comm, sizeof(comm));
-	return bpf_map_lookup_elem(&app_names, &key) != 0;
+	if (!r->any_port) {
+		int ok = 0;
+#pragma unroll
+		for (int i = 0; i < MAX_PORTS; i++) {
+			if (i >= r->n_port)
+				break;
+			if (port >= r->port[i].lo && port <= r->port[i].hi) {
+				ok = 1;
+				break;
+			}
+		}
+		if (!ok)
+			return 0;
+	}
+	if (!r->any_host) {
+		int ok = 0;
+#pragma unroll
+		for (int i = 0; i < MAX_V4; i++) {
+			if (i >= r->n_v4)
+				break;
+			if (ip4 >= r->v4[i].lo && ip4 <= r->v4[i].hi) {
+				ok = 1;
+				break;
+			}
+		}
+		if (!ok)
+			return 0;
+	}
+	return 1;
+}
+
+// The first matching rule of the executable's list decides. inbound_out is set
+// only for ACT_PROXY.
+static __always_inline int decide_exec(__u8 *inbound_out, __u32 slot, __u32 ip4, __u16 port)
+{
+	*inbound_out = 0;
+	struct router_exec_rules *er = bpf_map_lookup_elem(&exec_rules, &slot);
+	if (!er)
+		return ACT_DIRECT;
+	if (er->n == RULES_DECIDE) {
+		count(STAT_RULES_FULL);
+		return ACT_DECIDE;
+	}
+#pragma unroll
+	for (int i = 0; i < RULES_PER_EXE; i++) {
+		if (i >= er->n)
+			break;
+		__u32 ri = er->rule[i];
+		struct router_rule *r = bpf_map_lookup_elem(&brules, &ri);
+		if (!r)
+			break;
+		if (!rule_matches(r, ip4, port))
+			continue;
+		*inbound_out = r->inbound_id;
+		switch (r->action) {
+		case ACT_PROXY:
+			count(STAT_RULE_PROXY);
+			break;
+		case ACT_BLOCK:
+			count(STAT_RULE_BLOCK);
+			break;
+		default:
+			count(STAT_RULE_DIRECT);
+			break;
+		}
+		return r->action;
+	}
+	count(STAT_NO_RULE);
+	return ACT_DIRECT;
+}
+
+// record hands the original destination to the relay keyed by the socket and
+// counts the redirection. The caller has already rewritten the destination.
+static __always_inline int record(struct bpf_sock_addr *ctx, struct router_orig *o)
+{
+	__u64 cookie = bpf_get_socket_cookie(ctx);
+	bpf_map_update_elem(&by_cookie, &cookie, o, BPF_ANY);
+	count(STAT_REDIRECTED);
+	return 1;
 }
 
 SEC("cgroup/connect4")
 int router_connect4(struct bpf_sock_addr *ctx)
 {
-	// Only TCP and only IPv4: UDP and IPv6 are later stages, and a hook that
-	// half-serves them would leave the list's traffic on the direct path
-	// without saying so.
+	// TCP over IPv4 only: UDP and IPv6 are later stages, and a hook that
+	// half-serves them would leave their traffic on the direct path without
+	// saying so.
 	if (ctx->protocol != IPPROTO_TCP)
 		return 1;
 	count(STAT_CONNECT);
@@ -152,22 +311,52 @@ int router_connect4(struct bpf_sock_addr *ctx)
 		count(STAT_IMPLICIT_DIRECT);
 		return 1;
 	}
-	if (!selected()) {
-		count(STAT_NOT_SELECTED);
-		return 1;
-	}
 
 	struct router_orig o = {};
-	o.ip4 = ctx->user_ip4;
+	o.family = AF_INET;
+	o.proto = IPPROTO_TCP;
 	o.port = port;
 	o.pid = bpf_get_current_pid_tgid() >> 32;
-	__u64 cookie = bpf_get_socket_cookie(ctx);
-	bpf_map_update_elem(&by_cookie, &cookie, &o, BPF_ANY);
+	__builtin_memcpy(o.addr + 12, &ctx->user_ip4, 4);
+
+	struct router_exe_key key = {};
+	if (!exe_identity(&key)) {
+		// Nothing to match on: let the relay look the process up.
+		count(STAT_DECIDE);
+		o.action = ACT_DECIDE;
+	} else {
+		o.exe_dev = key.dev;
+		o.exe_ino = key.ino;
+		if (bpf_map_lookup_elem(&exempt_exe, &key)) {
+			count(STAT_EXEMPT);
+			return 1;
+		}
+		__u32 *slot = bpf_map_lookup_elem(&exe2rules, &key);
+		if (!slot) {
+			count(STAT_DECIDE);
+			o.action = ACT_DECIDE;
+		} else {
+			__u8 inbound = 0;
+			int act = decide_exec(&inbound, *slot, ip4, port);
+			switch (act) {
+			case ACT_BLOCK:
+				return 0; // EPERM: the connection is refused
+			case ACT_PROXY:
+				o.action = ACT_PROXY;
+				o.inbound_id = inbound;
+				break;
+			case ACT_DECIDE:
+				o.action = ACT_DECIDE;
+				break;
+			default:
+				return 1; // direct: the socket is untouched
+			}
+		}
+	}
 
 	ctx->user_ip4 = bpf_htonl(0x7f000001);
 	ctx->user_port = bpf_htons(c->relay_port);
-	count(STAT_REDIRECTED);
-	return 1;
+	return record(ctx, &o);
 }
 
 // The relay has to learn the destination by something it can see, and what it
@@ -212,9 +401,9 @@ int router_getpeername4(struct bpf_sock_addr *ctx)
 		return 1;
 	__u64 cookie = bpf_get_socket_cookie(ctx);
 	struct router_orig *o = bpf_map_lookup_elem(&by_cookie, &cookie);
-	if (!o)
+	if (!o || o->family != AF_INET)
 		return 1;
-	ctx->user_ip4 = o->ip4;
+	__builtin_memcpy(&ctx->user_ip4, o->addr + 12, 4);
 	ctx->user_port = bpf_htons(o->port);
 	count(STAT_GETPEERNAME);
 	return 1;

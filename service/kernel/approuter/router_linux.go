@@ -5,10 +5,10 @@ package approuter
 import (
 	"bytes"
 	_ "embed"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -34,21 +34,20 @@ type routerCfg struct {
 	Netns     uint64
 }
 
-// Mirrors struct router_comm_key: sixteen bytes of bpf_get_current_comm, read
-// as two words. The bytes are what both sides key on, so the order the words
-// are interpreted in does not matter as long as it is the same on both.
-type routerCommKey struct {
-	W0 uint64
-	W1 uint64
-}
-
 // Mirrors struct router_orig.
 type routerOrig struct {
-	IP4  uint32
-	Port uint16
-	Pad  uint16
-	Pid  uint32
-	Pad2 uint32
+	Addr      [16]uint8
+	Port      uint16
+	Pad0      uint16
+	Pid       uint32
+	ExeDev    uint32
+	Pad1      uint32
+	ExeIno    uint64
+	Action    uint8
+	Family    uint8
+	Proto     uint8
+	InboundID uint8
+	Pad3      [4]uint8
 }
 
 // Mirrors struct router_port_key.
@@ -57,9 +56,12 @@ type routerPortKey struct {
 	Port uint32
 }
 
-// singleClass is the class the engine serves. One class is what the first
-// stage needs: a flow is either routed through the proxy group or left alone.
-const singleClass = 1
+// Mirrors struct router_exec_rules: the ordered rule indexes of one
+// executable, plus its length.
+type routerExecRules struct {
+	N    uint32
+	Rule [rulesPerExe]uint32
+}
 
 // Router is the attached engine: the cgroup programs and the relay that
 // receives what they rewrite.
@@ -69,6 +71,7 @@ type Router struct {
 	stats      *ebpf.Map
 	links      []link.Link
 	relay      *relay
+	planner    *planner
 	netns      uint64
 	stop       chan struct{}
 	done       chan struct{}
@@ -80,11 +83,22 @@ type Router struct {
 // relay. Real BPF links are used and nothing is pinned: closing the descriptors
 // must also detach the programs after a crash.
 func Start(opts Options) (*Router, error) {
-	if len(opts.Apps) == 0 {
-		return nil, errors.New("the app router needs at least one application")
+	if len(opts.Rules) == 0 {
+		return nil, errors.New("the app router needs at least one rule")
 	}
-	if _, ok := opts.ClassPorts[singleClass]; !ok {
-		return nil, fmt.Errorf("the app router needs a local inbound for class %d", singleClass)
+	compiled, err := compileRules(opts.Rules)
+	if err != nil {
+		return nil, err
+	}
+	used := map[int]bool{}
+	for _, rule := range opts.Rules {
+		if rule.Action != ActionProxy {
+			continue
+		}
+		if _, ok := opts.ClassPorts[rule.Class]; !ok {
+			return nil, fmt.Errorf("a rule sends traffic to class %d, and no inbound serves it", rule.Class)
+		}
+		used[rule.Class] = true
 	}
 	cookie, err := netnsCookie()
 	if errors.Is(err, unix.ENOPROTOOPT) {
@@ -121,7 +135,7 @@ func Start(opts Options) (*Router, error) {
 		}
 		collection.Close()
 	}
-	if err := r.fillMaps(collection, opts); err != nil {
+	if err := r.fillMaps(collection, compiled); err != nil {
 		cleanup()
 		return nil, err
 	}
@@ -149,7 +163,12 @@ func Start(opts Options) (*Router, error) {
 	}
 	r.byPort = collection.Maps["by_port"]
 	r.stats = collection.Maps["stats"]
-	r.relay = newRelay(mapStore{byPort: r.byPort}, opts.ClassPorts, singleClass)
+	cache := &mapCache{
+		exe2rules: collection.Maps["exe2rules"],
+		execRules: collection.Maps["exec_rules"],
+	}
+	r.planner = newPlanner(compiled, cache)
+	r.relay = newRelay(mapStore{byPort: r.byPort}, r.planner, opts.ClassPorts)
 	if err := r.relay.start(); err != nil {
 		cleanup()
 		return nil, err
@@ -161,10 +180,72 @@ func Start(opts Options) (*Router, error) {
 		cleanup()
 		return nil, err
 	}
-	log.Info("app router: attached to %s, relaying on port %d, applications %s",
-		opts.Cgroup, RelayPort, strings.Join(opts.Apps, ", "))
+	log.Info("app router: attached to %s, %d rules, %d classes, relaying on port %d",
+		opts.Cgroup, len(opts.Rules), len(used), RelayPort)
 	go r.report()
 	return r, nil
+}
+
+func (r *Router) fillMaps(collection *ebpf.Collection, compiled *compiled) error {
+	rules, ok := collection.Maps["brules"]
+	if !ok {
+		return errors.New("the embedded app router has no brules map")
+	}
+	for i := range compiled.kernel {
+		if err := rules.Put(uint32(i), compiled.kernel[i]); err != nil {
+			return fmt.Errorf("write rule %d: %w", i+1, err)
+		}
+	}
+	return r.putConfig(false)
+}
+
+func (r *Router) putConfig(enabled bool) error {
+	cfg, ok := r.collection.Maps["cfg"]
+	if !ok {
+		return errors.New("the embedded app router has no cfg map")
+	}
+	config := routerCfg{
+		RelayPort: uint32(RelayPort),
+		SelfTgid:  initNamespacePid(),
+		Netns:     r.netns,
+	}
+	if enabled {
+		config.Enabled = 1
+	}
+	return cfg.Put(uint32(0), config)
+}
+
+// Snapshot reads what the kernel and the relay have counted.
+func (r *Router) Snapshot() (Stats, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.closed {
+		return Stats{}, errors.New("the app router is closed")
+	}
+	var counters [16]uint64
+	for i := range counters {
+		if err := r.stats.Lookup(uint32(i), &counters[i]); err != nil {
+			return Stats{}, err
+		}
+	}
+	return Stats{
+		Connects:       counters[0],
+		ImplicitDirect: counters[1],
+		Self:           counters[2],
+		ForeignNetns:   counters[3],
+		Decide:         counters[4],
+		NoRule:         counters[5],
+		RuleDirect:     counters[6],
+		RuleProxy:      counters[7],
+		RuleBlock:      counters[8],
+		Redirected:     counters[9],
+		PortWritten:    counters[10],
+		Getpeername:    counters[11],
+		Exempt:         counters[12],
+		RulesFull:      counters[13],
+		Relayed:        r.relay.relayed.Load(),
+		Refused:        r.relay.refused.Load(),
+	}, nil
 }
 
 // report writes the counters to the log while the engine runs: a mode that
@@ -184,82 +265,11 @@ func (r *Router) report() {
 				log.Warn("app router: read counters: %v", err)
 				continue
 			}
-			log.Info("app router: %d connects seen, %d redirected, %d relayed, %d refused, %d not selected",
-				snapshot.Connects, snapshot.Redirected, snapshot.Relayed, snapshot.Refused, snapshot.NotSelected)
+			log.Info("app router: %d connects, %d proxied, %d direct, %d blocked, %d decided late, %d relayed, %d dialled directly, %d refused",
+				snapshot.Connects, snapshot.RuleProxy, snapshot.RuleDirect, snapshot.RuleBlock,
+				snapshot.Decide, r.relay.relayed.Load(), r.relay.direct.Load(), snapshot.Refused)
 		}
 	}
-}
-
-func (r *Router) fillMaps(collection *ebpf.Collection, opts Options) error {
-	apps, ok := collection.Maps["app_names"]
-	if !ok {
-		return errors.New("the embedded app router has no app_names map")
-	}
-	value := uint8(1)
-	for _, name := range opts.Apps {
-		name = strings.TrimSpace(name)
-		if name == "" {
-			continue
-		}
-		if len(name) > 15 {
-			// bpf_get_current_comm keeps fifteen bytes and a terminator, so a
-			// longer name can never match.
-			return fmt.Errorf("%q is longer than the 15 bytes the kernel reports for a process name", name)
-		}
-		var comm [16]byte
-		copy(comm[:], name)
-		key := routerCommKey{
-			W0: binary.NativeEndian.Uint64(comm[0:8]),
-			W1: binary.NativeEndian.Uint64(comm[8:16]),
-		}
-		if err := apps.Put(key, value); err != nil {
-			return fmt.Errorf("add %q to the application list: %w", name, err)
-		}
-	}
-	return r.putConfig(false)
-}
-
-func (r *Router) putConfig(enabled bool) error {
-	cfg, ok := r.collection.Maps["cfg"]
-	if !ok {
-		return errors.New("the embedded app router has no cfg map")
-	}
-	config := routerCfg{
-		RelayPort: uint32(RelayPort),
-		SelfTgid:  uint32(os.Getpid()),
-		Netns:     r.netns,
-	}
-	if enabled {
-		config.Enabled = 1
-	}
-	return cfg.Put(uint32(0), config)
-}
-
-// Snapshot reads what the kernel and the relay have counted.
-func (r *Router) Snapshot() (Stats, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if r.closed {
-		return Stats{}, errors.New("the app router is closed")
-	}
-	var counters [8]uint64
-	for i := range counters {
-		if err := r.stats.Lookup(uint32(i), &counters[i]); err != nil {
-			return Stats{}, err
-		}
-	}
-	return Stats{
-		Connects:       counters[0],
-		ImplicitDirect: counters[1],
-		NotSelected:    counters[2],
-		Self:           counters[3],
-		ForeignNetns:   counters[4],
-		Redirected:     counters[5],
-		PortWritten:    counters[6],
-		Getpeername:    counters[7],
-		Relayed:        r.relay.relayed.Load(),
-		Refused:        r.relay.refused.Load(),
-	}, nil
 }
 
 func (r *Router) Close() error {
@@ -287,6 +297,29 @@ func (r *Router) Close() error {
 	r.links = nil
 	r.collection.Close()
 	return errors.Join(append([]error{relayErr}, errs...)...)
+}
+
+// initNamespacePid is this process's pid in the namespace the kernel reports
+// pids in. Inside a container the two differ, and comparing the wrong one would
+// leave the daemon's own sockets unexempt: the relay's dial would be redirected
+// back to the relay, and the flow would loop until it timed out.
+func initNamespacePid() uint32 {
+	data, err := os.ReadFile("/proc/self/status")
+	if err == nil {
+		for _, line := range strings.Split(string(data), "\n") {
+			if !strings.HasPrefix(line, "NSpid:") {
+				continue
+			}
+			fields := strings.Fields(strings.TrimPrefix(line, "NSpid:"))
+			if len(fields) > 0 {
+				if pid, err := strconv.ParseUint(fields[0], 10, 32); err == nil {
+					return uint32(pid)
+				}
+			}
+			break
+		}
+	}
+	return uint32(os.Getpid())
 }
 
 // netnsCookie reads the network namespace cookie of this process. Programs
@@ -321,7 +354,31 @@ func (s mapStore) take(key portKey) (orig, bool, error) {
 	if err := s.byPort.Delete(bpfKey); err != nil && !errors.Is(err, ebpf.ErrKeyNotExist) {
 		return orig{}, false, err
 	}
-	o := orig{Port: int(value.Port), Pid: value.Pid}
-	binary.NativeEndian.PutUint32(o.IP[:], value.IP4)
+	o := orig{
+		Port:      int(value.Port),
+		Pid:       value.Pid,
+		ExeDev:    value.ExeDev,
+		ExeIno:    value.ExeIno,
+		Action:    Action(value.Action),
+		InboundID: int(value.InboundID),
+	}
+	copy(o.IP[:], value.Addr[12:16])
 	return o, true, nil
+}
+
+// mapCache writes what the slow path learned into the kernel's maps.
+type mapCache struct {
+	exe2rules *ebpf.Map
+	execRules *ebpf.Map
+}
+
+func (c *mapCache) putExe(key exeKey, slot uint32) error {
+	return c.exe2rules.Put(key, slot)
+}
+
+func (c *mapCache) putExecRules(slot uint32, ruleIndexes []uint32) error {
+	var value routerExecRules
+	value.N = uint32(len(ruleIndexes))
+	copy(value.Rule[:], ruleIndexes)
+	return c.execRules.Put(slot, value)
 }
