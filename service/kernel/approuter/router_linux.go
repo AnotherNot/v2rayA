@@ -73,6 +73,7 @@ type Router struct {
 	links      []link.Link
 	relay      *relay
 	udpRelay   *udpRelay
+	dns        *dnsReporter
 	planner    *planner
 	netns      uint64
 	coreTgid   uint32
@@ -182,7 +183,13 @@ func Start(opts Options) (*Router, error) {
 		exe2rules: collection.Maps["exe2rules"],
 		execRules: collection.Maps["exec_rules"],
 	}
-	r.planner = newPlanner(compiled, cache, opts.UnknownPolicy)
+	names := newNameStore()
+	r.planner = newPlanner(compiled, cache, opts.UnknownPolicy, names)
+	r.dns, err = startDNSReporter(opts.DNSReportSocket, names)
+	if err != nil {
+		cleanup()
+		return nil, err
+	}
 	r.relay = newRelay(mapStore{byPort: r.byPort}, r.planner, opts.ClassPorts)
 	if err := r.relay.start(); err != nil {
 		cleanup()
@@ -219,6 +226,17 @@ func (r *Router) fillMaps(collection *ebpf.Collection, compiled *compiled) error
 		if err := rules.Put(uint32(i), compiled.kernel[i]); err != nil {
 			return fmt.Errorf("write rule %d: %w", i+1, err)
 		}
+	}
+	// Slot 1 is the reserved "decide every flow in user space" marker. It is
+	// written once and read for every executable whose rules do not fit: an
+	// executable cached with this slot and an empty list here would look like
+	// one with no rules at all, and the kernel would let its traffic past.
+	execRules, ok := collection.Maps["exec_rules"]
+	if !ok {
+		return errors.New("the embedded app router has no exec_rules map")
+	}
+	if err := execRules.Put(uint32(slotDecide), routerExecRules{N: rulesDecide}); err != nil {
+		return fmt.Errorf("write the decide marker: %w", err)
 	}
 	return r.putConfig(false)
 }
@@ -330,7 +348,7 @@ func (r *Router) Close() error {
 	<-r.done
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	relayErr := errors.Join(r.relay.close(), r.udpRelay.close())
+	relayErr := errors.Join(r.relay.close(), r.udpRelay.close(), r.dns.close())
 	var errs []error
 	for i := len(r.links) - 1; i >= 0; i-- {
 		errs = append(errs, r.links[i].Close())

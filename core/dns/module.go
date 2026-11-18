@@ -25,6 +25,7 @@ type DnsModule struct {
 	stats       DnsStats
 	metrics     *DnsMetrics     // 指标收集器（新增）
 	diagnostics *Diagnostics    // 诊断模块（新增）
+	reporter    *Reporter       // 把「名称 → 地址」报给服务，用于按域名匹配规则
 	dispatcher  RouteDispatcher // xray-core 内部路由调度器（Start 前设置）
 	mu          sync.RWMutex
 	ctx         context.Context
@@ -215,9 +216,15 @@ func (m *DnsModule) Start() error {
 	// Create the DNS handler with the configured timeout.
 	timeout := time.Duration(m.config.Listener.Timeout) * time.Second
 	m.handler = NewDnsHandler(timeout, m)
+	var handler Handler = m.handler
+	if m.reporter = NewReporter(m.config.Report); m.reporter != nil {
+		// The report happens before the answer is returned, so a connection
+		// the application makes next cannot outrun the name it resolved.
+		handler = &reportingHandler{inner: handler, reporter: m.reporter}
+	}
 
 	// Create the DNS listener.
-	m.listener = NewDnsListener(&m.config.Listener, m.handler)
+	m.listener = NewDnsListener(&m.config.Listener, handler)
 
 	// Start the listener.
 	log.Printf("[dns module] starting DNS listener on %s", m.config.Listener.ListenAddr)
@@ -443,6 +450,11 @@ func (m *DnsModule) Stop() error {
 
 	if m.cancel != nil {
 		m.cancel()
+	}
+
+	if m.reporter != nil {
+		_ = m.reporter.Close()
+		m.reporter = nil
 	}
 
 	m.wg.Wait()

@@ -83,7 +83,9 @@ func compileRules(rules []Rule) (*compiled, error) {
 		if len(r.Ports) == 0 {
 			br.AnyPort = 1
 		}
-		fits := len(r.V4) <= maxHostsPerRule && len(r.V6) <= maxHostsPerRule && len(r.Ports) <= maxPortsPerRule
+		// A rule that names a domain cannot be decided by the kernel at all:
+		// it would match on the address alone, which is not what it says.
+		fits := len(r.Domains) == 0 && len(r.V4) <= maxHostsPerRule && len(r.V6) <= maxHostsPerRule && len(r.Ports) <= maxPortsPerRule
 		// A rule that does not fit keeps whatever the kernel can see only if
 		// that is still exact; anything else is marked and decided in user
 		// space. Copying a truncated list would make the rule match more.
@@ -98,10 +100,14 @@ func compileRules(rules []Rule) (*compiled, error) {
 	return c, nil
 }
 
-// matchesDestination applies the destination half of a rule. An IPv4
-// destination is matched only by IPv4 ranges and an IPv6 one only by IPv6
-// ranges, so a rule that names one family never catches the other.
-func matchesDestination(r Rule, d destination, port uint16) bool {
+// matchesFlow applies a rule to a flow. An IPv4 destination is matched only by
+// IPv4 ranges and an IPv6 one only by IPv6 ranges, so a rule that names one
+// family never catches the other; a rule that names a domain needs one of those
+// names among the ones the DNS module answered for the address.
+func matchesFlow(r Rule, d destination, port uint16, names []string) bool {
+	if !matchDomains(r.Domains, names) {
+		return false
+	}
 	if len(r.Ports) > 0 {
 		ok := false
 		for _, pr := range r.Ports {
@@ -146,12 +152,12 @@ func less6(a, b [4]uint32) bool {
 
 // decide returns the action of the first rule that matches this flow, and the
 // class a proxy action goes to.
-func (c *compiled) decide(indexes []int, d destination, port uint16, network Network) (Action, int) {
+func (c *compiled) decide(indexes []int, d destination, port uint16, network Network, names []string) (Action, int) {
 	for _, i := range indexes {
 		if !c.rules[i].Network.Covers(network) {
 			continue
 		}
-		if !matchesDestination(c.rules[i], d, port) {
+		if !matchesFlow(c.rules[i], d, port, names) {
 			continue
 		}
 		return c.rules[i].Action, c.rules[i].Class
@@ -192,17 +198,18 @@ type planner struct {
 	compiled   *compiled
 	cache      ruleCache
 	unknown    Action
+	names      *nameStore
 	mu         sync.Mutex
 	nextSlot   uint32
 	remembered map[exeKey][]int
 }
 
-func newPlanner(c *compiled, cache ruleCache, unknown Action) *planner {
+func newPlanner(c *compiled, cache ruleCache, unknown Action, names *nameStore) *planner {
 	if unknown != ActionBlock {
 		unknown = ActionDirect
 	}
 	return &planner{
-		compiled: c, cache: cache, unknown: unknown,
+		compiled: c, cache: cache, unknown: unknown, names: names,
 		nextSlot: firstSlot, remembered: map[exeKey][]int{},
 	}
 }
@@ -213,6 +220,7 @@ func newPlanner(c *compiled, cache ruleCache, unknown Action) *planner {
 // read back.
 func (p *planner) decide(o orig) (Action, int) {
 	d := o.destination()
+	names := p.names.lookup(o.ip())
 	name, path, err := executableOf(o.Pid)
 	if err != nil {
 		// The process that opened this socket is not identifiable: it exited
@@ -224,7 +232,7 @@ func (p *planner) decide(o orig) (Action, int) {
 	}
 	indexes := p.rulesFor(name, path)
 	p.remember(o, name, path, indexes)
-	return p.compiled.decide(indexes, d, uint16(o.Port), o.Network)
+	return p.compiled.decide(indexes, d, uint16(o.Port), o.Network, names)
 }
 
 // rulesFor lists the rules that are about this executable, in order.

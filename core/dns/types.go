@@ -138,6 +138,23 @@ type DnsModuleConfig struct {
 	// them out of a TUN that holds the default route. Empty leaves them
 	// unbound; Linux ignores it.
 	EgressInterface string `json:"egress_interface,omitempty"`
+	// Report, when set, sends every name-to-address pair the module answers
+	// to a local socket. The service matches rules written against a name
+	// there; without the report it never learns which address a name resolved
+	// to. Empty means no rule needs it.
+	Report *ReportConfig `json:"report,omitempty"`
+}
+
+// ReportConfig points the module at the service that matches rules written
+// against a name.
+type ReportConfig struct {
+	// Socket is a Unix socket path the service listens on.
+	Socket string `json:"socket"`
+	// AckTimeoutMS bounds the wait for the service to confirm it stored a
+	// pair; zero uses reportDefaultTimeout. The wait is what keeps a
+	// connection made right after the answer from arriving before the name
+	// is known.
+	AckTimeoutMS int `json:"ack_timeout_ms,omitempty"`
 }
 
 // CacheConfig holds DNS cache configuration.

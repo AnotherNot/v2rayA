@@ -1,9 +1,12 @@
 package approuter
 
 import (
+	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/v2rayA/RoutingA"
 )
@@ -84,27 +87,27 @@ func TestCompiledDecideTakesTheFirstMatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	indexes := []int{0, 1, 2}
-	if action, _ := c.decide(indexes, at(0x01010101), 443, NetworkTCP); action != ActionBlock {
+	if action, _ := c.decide(indexes, at(0x01010101), 443, NetworkTCP, nil); action != ActionBlock {
 		t.Fatalf("port 443 got %v", action)
 	}
-	if action, class := c.decide(indexes, at(0x01010101), 80, NetworkTCP); action != ActionProxy || class != 1 {
+	if action, class := c.decide(indexes, at(0x01010101), 80, NetworkTCP, nil); action != ActionProxy || class != 1 {
 		t.Fatalf("port 80 got %v class %d", action, class)
 	}
 	// A destination no rule mentions is left alone.
-	if action, _ := c.decide([]int{2}, at(0x01010101), 80, NetworkTCP); action != ActionDirect {
+	if action, _ := c.decide([]int{2}, at(0x01010101), 80, NetworkTCP, nil); action != ActionDirect {
 		t.Fatalf("no matching rule gave %v", action)
 	}
 }
 
 func TestMatchesDestinationNeedsBothHalves(t *testing.T) {
 	r := Rule{V4: []IPRange{{0x0a000000, 0x0affffff}}, Ports: []PortRange{{80, 80}}}
-	if !matchesDestination(r, at(0x0a000001), 80) {
+	if !matchesFlow(r, at(0x0a000001), 80, nil) {
 		t.Fatal("a destination inside both ranges did not match")
 	}
-	if matchesDestination(r, at(0x0a000001), 81) {
+	if matchesFlow(r, at(0x0a000001), 81, nil) {
 		t.Fatal("the wrong port matched")
 	}
-	if matchesDestination(r, at(0x0b000001), 80) {
+	if matchesFlow(r, at(0x0b000001), 80, nil) {
 		t.Fatal("the wrong address matched")
 	}
 }
@@ -152,7 +155,7 @@ func plannerFor(t *testing.T, rules []Rule) (*planner, *fakeCache, exeKey) {
 	cache := newFakeCache()
 	// The identity the kernel would report is not what stat() says on some
 	// filesystems, so the test supplies one rather than computing it.
-	return newPlanner(c, cache, ActionDirect), cache, exeKey{Dev: 42, Ino: 4242}
+	return newPlanner(c, cache, ActionDirect, nil), cache, exeKey{Dev: 42, Ino: 4242}
 }
 
 func TestPlannerCachesTheRuleListOfAnExecutable(t *testing.T) {
@@ -237,7 +240,7 @@ func TestPlannerAppliesTheUnknownOwnerPolicy(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		p := newPlanner(compiled, newFakeCache(), policy)
+		p := newPlanner(compiled, newFakeCache(), policy, nil)
 		o := orig{Pid: 0x7ffffff0, Port: 80}
 		o.Addr = v4Addr(1, 1, 1, 1)
 		action, _ := p.decide(o)
@@ -259,13 +262,13 @@ func TestCompiledDecideRespectsTheNetwork(t *testing.T) {
 		t.Fatal(err)
 	}
 	indexes := []int{0, 1, 2}
-	if action, _ := c.decide(indexes, at(0x01010101), 443, NetworkUDP); action != ActionBlock {
+	if action, _ := c.decide(indexes, at(0x01010101), 443, NetworkUDP, nil); action != ActionBlock {
 		t.Fatalf("the UDP rule gave %v for a UDP flow", action)
 	}
-	if action, class := c.decide(indexes, at(0x01010101), 443, NetworkTCP); action != ActionProxy || class != 1 {
+	if action, class := c.decide(indexes, at(0x01010101), 443, NetworkTCP, nil); action != ActionProxy || class != 1 {
 		t.Fatalf("the TCP rule gave %v class %d for a TCP flow", action, class)
 	}
-	if action, _ := c.decide([]int{2}, at(0x01010101), 443, NetworkUDP); action != ActionDirect {
+	if action, _ := c.decide([]int{2}, at(0x01010101), 443, NetworkUDP, nil); action != ActionDirect {
 		t.Fatalf("a rule without a network gave %v", action)
 	}
 	if !(NetworkBoth.Covers(NetworkTCP) && NetworkBoth.Covers(NetworkUDP)) {
@@ -295,26 +298,26 @@ func at6(a, b, c, d uint32) destination {
 // IPv4 one, even when the address happens to be all zeroes on one side.
 func TestMatchesDestinationSeparatesTheFamilies(t *testing.T) {
 	v4any := Rule{V4: []IPRange{{0x0a000000, 0x0affffff}}} // 10.0.0.0/8
-	if !matchesDestination(v4any, at(0x0a000001), 80) {
+	if !matchesFlow(v4any, at(0x0a000001), 80, nil) {
 		t.Fatal("an IPv4 destination inside the range did not match")
 	}
-	if matchesDestination(v4any, at6(0, 0, 0, 0), 80) {
+	if matchesFlow(v4any, at6(0, 0, 0, 0), 80, nil) {
 		t.Fatal("an IPv4 rule caught an IPv6 flow")
 	}
 	v6any := Rule{V6: []IPRange6{{Lo: [4]uint32{0, 0, 0, 0}, Hi: [4]uint32{0, 0, 0, 0}}}}
-	if !matchesDestination(v6any, at6(0, 0, 0, 0), 80) {
+	if !matchesFlow(v6any, at6(0, 0, 0, 0), 80, nil) {
 		t.Fatal("an IPv6 destination inside the range did not match")
 	}
-	if matchesDestination(v6any, at(0), 80) {
+	if matchesFlow(v6any, at(0), 80, nil) {
 		t.Fatal("an IPv6 rule caught an IPv4 flow")
 	}
 	mixed := Rule{V4: []IPRange{{0x0a000000, 0x0affffff}}, V6: []IPRange6{
 		{Lo: [4]uint32{0xfd00, 0, 0, 1}, Hi: [4]uint32{0xfd00, 0, 0, 0xffff}},
 	}}
-	if !matchesDestination(mixed, at(0x0a000001), 80) {
+	if !matchesFlow(mixed, at(0x0a000001), 80, nil) {
 		t.Fatal("the IPv4 half of a mixed rule did not match")
 	}
-	if !matchesDestination(mixed, at6(0xfd00, 0, 0, 2), 80) {
+	if !matchesFlow(mixed, at6(0xfd00, 0, 0, 2), 80, nil) {
 		t.Fatal("the IPv6 half of a mixed rule did not match")
 	}
 }
@@ -378,16 +381,147 @@ func TestCompiledDecideComparesIPv6AsA128BitNumber(t *testing.T) {
 		t.Fatal(err)
 	}
 	indexes := []int{0, 1, 2}
-	if action, _ := c.decide(indexes, at6(0x2001, 0xdb8, 0, 1), 443, NetworkTCP); action != ActionBlock {
+	if action, _ := c.decide(indexes, at6(0x2001, 0xdb8, 0, 1), 443, NetworkTCP, nil); action != ActionBlock {
 		t.Fatalf("the CIDR range gave %v", action)
 	}
-	if action, _ := c.decide(indexes, at6(0x2001, 0xdb9, 0, 1), 443, NetworkTCP); action != ActionDirect {
+	if action, _ := c.decide(indexes, at6(0x2001, 0xdb9, 0, 1), 443, NetworkTCP, nil); action != ActionDirect {
 		t.Fatalf("an address past the range gave %v", action)
 	}
-	if action, _ := c.decide(indexes, at6(0, 0, 0, 0x10), 443, NetworkTCP); action != ActionProxy {
+	if action, _ := c.decide(indexes, at6(0, 0, 0, 0x10), 443, NetworkTCP, nil); action != ActionProxy {
 		t.Fatalf("the single-address range gave %v", action)
 	}
-	if action, _ := c.decide(indexes, at6(0, 0, 0, 1), 443, NetworkTCP); action != ActionDirect {
+	if action, _ := c.decide(indexes, at6(0, 0, 0, 1), 443, NetworkTCP, nil); action != ActionDirect {
 		t.Fatalf("::1 matched a range that starts at ::10: %v", action)
+	}
+}
+
+// mustDomains compiles patterns the way the editor writes them.
+func mustDomains(t *testing.T, values ...string) []DomainPattern {
+	t.Helper()
+	var out []DomainPattern
+	for _, value := range values {
+		p, err := CompileDomainPattern(value)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out = append(out, p)
+	}
+	return out
+}
+
+// A rule that names a domain cannot be evaluated by the kernel: it would match
+// on the address alone, which is not what it says. Its executables are decided
+// here instead, which is what an unfittable rule already means.
+func TestCompileMarksADomainRuleAsUnfittable(t *testing.T) {
+	c, err := compileRules([]Rule{{
+		Apps:    apps("x"),
+		Action:  ActionProxy,
+		Class:   1,
+		Domains: mustDomains(t, "example.com"),
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.fits[0] {
+		t.Fatal("a rule that names a domain was reported as fitting the kernel")
+	}
+}
+
+// The name decides, and the rule order still decides which name wins. With no
+// name at all the domain rules do not match; with a name that matches neither
+// they do not match either.
+func TestCompiledDecideMatchesTheNameOfAnAddress(t *testing.T) {
+	c, err := compileRules([]Rule{
+		{Apps: apps("x"), Action: ActionBlock, Domains: mustDomains(t, "full: ads.example.com")},
+		{Apps: apps("x"), Action: ActionProxy, Class: 1, Domains: mustDomains(t, "example.com")},
+		{Apps: apps("x"), Action: ActionDirect},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexes := []int{0, 1, 2}
+	if action, _ := c.decide(indexes, at(0x01010101), 443, NetworkTCP, []string{"ads.example.com"}); action != ActionBlock {
+		t.Fatalf("the exact name gave %v", action)
+	}
+	if action, class := c.decide(indexes, at(0x01010101), 443, NetworkTCP, []string{"www.example.com"}); action != ActionProxy || class != 1 {
+		t.Fatalf("the suffix name gave %v class %d", action, class)
+	}
+	if action, _ := c.decide(indexes, at(0x01010101), 443, NetworkTCP, nil); action != ActionDirect {
+		t.Fatalf("no name gave %v", action)
+	}
+	if action, _ := c.decide(indexes, at(0x01010101), 443, NetworkTCP, []string{"other.test"}); action != ActionDirect {
+		t.Fatalf("an unrelated name gave %v", action)
+	}
+}
+
+// The planner asks the table the DNS module reports into, and the executable
+// with a domain rule is cached for the slow path, not for the kernel.
+func TestPlannerMatchesTheNameTheDNSAnswered(t *testing.T) {
+	p, cache, key := plannerFor(t, []Rule{
+		{Action: ActionProxy, Class: 1, Domains: mustDomains(t, "full: name.test")},
+		{Action: ActionDirect},
+	})
+	store := newNameStore()
+	store.learn("name.test", netip.MustParseAddr("10.0.0.1"), time.Minute)
+	p.names = store
+
+	o := orig{Pid: uint32(os.Getpid()), ExeDev: key.Dev, ExeIno: key.Ino, Port: 443, Addr: v4Addr(10, 0, 0, 1)}
+	if action, class := p.decide(o); action != ActionProxy || class != 1 {
+		t.Fatalf("the named address gave %v class %d", action, class)
+	}
+	if slot := cache.slots[key]; slot != slotDecide {
+		t.Fatalf("slot %d, want the decide slot", slot)
+	}
+
+	o.Addr = v4Addr(10, 0, 0, 2)
+	if action, _ := p.decide(o); action != ActionDirect {
+		t.Fatalf("an address no name points at gave %v", action)
+	}
+}
+
+// The report socket is how the module's answers reach the table.
+func TestDNSReporterLearnsWhatTheModuleAnswered(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "dns.sock")
+	store := newNameStore()
+	r, err := startDNSReporter(path, store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = r.close() })
+
+	conn, err := net.Dial("unix", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	send := func(line string) byte {
+		t.Helper()
+		if _, err := conn.Write([]byte(line + "\n")); err != nil {
+			t.Fatal(err)
+		}
+		var ack [1]byte
+		if _, err := conn.Read(ack[:]); err != nil {
+			t.Fatal(err)
+		}
+		return ack[0]
+	}
+	if ack := send(`{"name":"Name.TEST.","addr":"10.0.0.9","ttl":60}`); ack != dnsReportAck {
+		t.Fatalf("ack %q", ack)
+	}
+	// The ack comes after the entry is stored, so it is readable now.
+	got := store.lookup(net.IPv4(10, 0, 0, 9))
+	if len(got) != 1 || got[0] != "name.test" {
+		t.Fatalf("lookup gave %v", got)
+	}
+	// A report that cannot be read is acknowledged too, and the connection
+	// stays usable: a broken line must not stall the resolver.
+	if ack := send("not json"); ack != dnsReportAck {
+		t.Fatalf("ack %q for a malformed report", ack)
+	}
+	if ack := send(`{"name":"other.test","addr":"10.0.0.10","ttl":60}`); ack != dnsReportAck {
+		t.Fatalf("ack %q after a malformed report", ack)
+	}
+	if got := store.lookup(net.IPv4(10, 0, 0, 10)); len(got) != 1 || got[0] != "other.test" {
+		t.Fatalf("lookup after a malformed report gave %v", got)
 	}
 }

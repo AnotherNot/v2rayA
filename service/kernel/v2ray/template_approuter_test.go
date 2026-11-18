@@ -189,7 +189,6 @@ func TestAppRouterRefusesConditionsItCannotEnforce(t *testing.T) {
 		name string
 		text string
 	}{
-		{"domain", "process(curl) && domain(example.com)->proxy"},
 		{"sctp", "process(curl) && network(sctp)->proxy"},
 		{"geoip", "process(curl) && ip(geoip:cn)->proxy"},
 		{"protocol", "process(curl) && protocol(tls)->proxy"},
@@ -421,5 +420,109 @@ process(ssh) && ip(10.0.0.0/8, "2001:db8::/32")->direct`)
 	}
 	if mixed.V4[0] != (approuter.IPRange{Lo: 0x0a000000, Hi: 0x0affffff}) {
 		t.Fatalf("mixed v4: %+v", mixed.V4)
+	}
+}
+
+// A domain condition becomes part of the engine rule; the matcher itself is
+// tested in the engine's package.
+func TestAppRouterReadsDomainConditions(t *testing.T) {
+	withPorts(t)
+	withRoutingAText(t, `process(curl) && domain(example.com, full: api.example.com, regexp: "^ads\\.")->proxy
+process(wget) && domains(private.test)->direct`)
+	setting := appRouterSetting()
+	tmpl := baseTemplate(t, setting)
+	withProxyOutbound(tmpl)
+	if err := tmpl.setInbound(setting); err != nil {
+		t.Fatal(err)
+	}
+	if err := tmpl.setTransparentRouting(); err != nil {
+		t.Fatal(err)
+	}
+	plan := tmpl.appRouter
+	if len(plan.rules) != 2 {
+		t.Fatalf("%d rules", len(plan.rules))
+	}
+	if len(plan.rules[0].Domains) != 3 {
+		t.Fatalf("the first rule carries %d patterns", len(plan.rules[0].Domains))
+	}
+	if len(plan.rules[1].Domains) != 1 {
+		t.Fatalf("domains(...) carries %d patterns", len(plan.rules[1].Domains))
+	}
+	if !plan.hasDomainRules() {
+		t.Fatal("a plan with a domain rule says it has none")
+	}
+}
+
+// A name is not in the packet: the module that answered it has to report what
+// it answered, and it only sees the queries the system sends it when it owns
+// them. Another mode would leave the rule silently applying to nothing.
+func TestAppRouterDomainRuleNeedsTheDNSModuleInHijackMode(t *testing.T) {
+	withPorts(t)
+	withRoutingAText(t, "process(curl) && domain(example.com)->proxy")
+
+	service := appRouterSetting()
+	service.DnsMode = configure.DnsModeService
+	tmpl := baseTemplate(t, service)
+	withProxyOutbound(tmpl)
+	if _, err := tmpl.appRouterDNSReport(); err == nil {
+		t.Fatal("a domain rule was accepted with the DNS module in service mode")
+	}
+
+	hijack := appRouterSetting()
+	hijack.DnsMode = configure.DnsModeHijack
+	tmpl = baseTemplate(t, hijack)
+	withProxyOutbound(tmpl)
+	socket, err := tmpl.appRouterDNSReport()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasSuffix(socket, "approuter-dns.sock") {
+		t.Fatalf("the report socket is %q", socket)
+	}
+}
+
+// Without a domain rule there is nothing to report, so the module is left as it
+// was: no socket, no extra work per answer.
+func TestAppRouterWithoutDomainRulesAsksForNoDNSReport(t *testing.T) {
+	withPorts(t)
+	withRoutingAText(t, "process(curl) && port(443)->proxy")
+	tmpl := baseTemplate(t, appRouterSetting())
+	withProxyOutbound(tmpl)
+	socket, err := tmpl.appRouterDNSReport()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if socket != "" {
+		t.Fatalf("a report socket was asked for without a domain rule: %q", socket)
+	}
+}
+
+// The editor and the settings page can say the combination is unusable before
+// the core is restarted: a domain rule and a DNS module that never sees the
+// query.
+func TestValidateAppRouterDomainsRefusesDNSModesThatCannotSeeTheQuery(t *testing.T) {
+	text := "process(curl) && domain(example.com)->proxy"
+	setting := appRouterSetting()
+	setting.DnsMode = configure.DnsModeOff
+	if err := ValidateAppRouterDomains(setting, text); err == nil {
+		t.Fatal("a domain rule was accepted with the DNS module off")
+	}
+	setting.DnsMode = configure.DnsModeService
+	if err := ValidateAppRouterDomains(setting, text); err == nil {
+		t.Fatal("a domain rule was accepted with the DNS module in service mode")
+	}
+	setting.DnsMode = configure.DnsModeHijack
+	if err := ValidateAppRouterDomains(setting, text); err != nil {
+		t.Fatalf("a domain rule was refused in hijack mode: %v", err)
+	}
+	if err := ValidateAppRouterDomains(setting, "process(curl) && port(443)->proxy"); err != nil {
+		t.Fatalf("a rule without a domain was refused: %v", err)
+	}
+	// The same text is fine in another transparent mode: the process rule is
+	// inactive there, and so is the domain condition.
+	setting.TransparentType = configure.TransparentRedirect
+	setting.DnsMode = configure.DnsModeOff
+	if err := ValidateAppRouterDomains(setting, text); err != nil {
+		t.Fatalf("a rule outside app_router mode was refused: %v", err)
 	}
 }

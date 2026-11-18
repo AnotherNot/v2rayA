@@ -45,6 +45,10 @@ func PutRoutingA(ctx *gin.Context) {
 		common.ResponseError(ctx, logError(fmt.Errorf("invalid RoutingA rules: %w", err)))
 		return
 	}
+	if err := v2ray.ValidateAppRouterDomains(configure.GetSettingNotNil(), strings.Join(lines, "\n")); err != nil {
+		common.ResponseError(ctx, common.Coded("APP_ROUTER_DNS_MODE", logError(err), nil))
+		return
+	}
 	// Name the geo tags the files on this machine do not hold before the
 	// core gets its turn: a restart with an unknown tag fails and rolls the
 	// setting back, and the core's log line is all the user would get.

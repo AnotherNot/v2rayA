@@ -108,6 +108,10 @@ type Rule struct {
 	V4    []IPRange
 	V6    []IPRange6
 	Ports []PortRange
+	// Domains narrows the rule to destinations the DNS module answered for
+	// one of these names. The kernel cannot evaluate them, so an executable
+	// with such a rule always has its flows decided here.
+	Domains []DomainPattern
 }
 
 // Options is what the engine needs to start.
@@ -127,6 +131,10 @@ type Options struct {
 	// UnknownPolicy is what happens to a connection whose program cannot be
 	// identified. ActionDirect leaves it alone; ActionBlock refuses it.
 	UnknownPolicy Action
+	// DNSReportSocket is the Unix socket the DNS module reports the names it
+	// answered on, or "" when no rule selects on a domain. Without it a rule
+	// that names a domain has nothing to match and applies to nothing.
+	DNSReportSocket string
 }
 
 // Stats is what the engine counted since it was attached. The first counters

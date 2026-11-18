@@ -4,10 +4,12 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net/netip"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/v2rayA/RoutingA"
+	"github.com/v2rayA/v2rayA/conf"
 	"github.com/v2rayA/v2rayA/db/configure"
 	"github.com/v2rayA/v2rayA/kernel/approuter"
 	"github.com/v2rayA/v2rayA/pkg/util/log"
@@ -117,7 +119,11 @@ func (t *Template) appRuleOf(r RoutingA.Routing, plan *appRouterPlan, outboundTa
 				}
 			}
 		case "domain", "domains":
-			return out, true, fmt.Errorf("the rule for %q selects on a domain, which application rules cannot carry yet; use an address or port", r.Out)
+			patterns, err := domainPatternsOf(f)
+			if err != nil {
+				return out, true, fmt.Errorf("the rule for %q: %w", r.Out, err)
+			}
+			out.Domains = append(out.Domains, patterns...)
 		case "protocol":
 			return out, true, fmt.Errorf("the rule for %q selects on the sniffed protocol, which application rules cannot carry", r.Out)
 		case "source", "sourcePort", "user", "inboundTag":
@@ -299,6 +305,117 @@ func v6Words(addr netip.Addr) [4]uint32 {
 		w[i] = binary.BigEndian.Uint32(b[i*4:])
 	}
 	return w
+}
+
+// domainPatternsOf reads the values of a domain(...) or domains(...)
+// condition. A named value carries its prefix ("full: a.com"); a bare one is a
+// suffix match, which is what `domain: a.com` means in the editor.
+func domainPatternsOf(f RoutingA.Function) ([]approuter.DomainPattern, error) {
+	var values []string
+	for key, vv := range f.NamedParams {
+		for _, v := range vv {
+			values = append(values, key+":"+v)
+		}
+	}
+	values = append(values, f.Params...)
+	var patterns []approuter.DomainPattern
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		p, err := approuter.CompileDomainPattern(value)
+		if err != nil {
+			return nil, err
+		}
+		patterns = append(patterns, p)
+	}
+	return patterns, nil
+}
+
+// hasDomainRules reports whether any rule selects on a name. Such a rule cannot
+// be decided by the kernel, so every flow of the executables it names goes
+// through the service, and the service needs what the DNS module answered.
+func (p *appRouterPlan) hasDomainRules() bool {
+	for i := range p.rules {
+		if len(p.rules[i].Domains) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// ValidateAppRouterDomains refuses a setting or a rule text that together would
+// leave a domain rule with no way to learn a name. The config build refuses the
+// same combination; this is what lets the editor and the settings page say so
+// while the user is looking at what they wrote.
+func ValidateAppRouterDomains(setting *configure.Setting, text string) error {
+	if setting == nil || setting.TransparentType != configure.TransparentAppRouter {
+		return nil
+	}
+	if configure.ResolveDnsMode(setting) == configure.DnsModeHijack {
+		return nil
+	}
+	if !routingAHasDomainRules(text) {
+		return nil
+	}
+	return fmt.Errorf("a rule selects on a domain, so the DNS module has to stay in the path of the answer: choose the hijack DNS mode, or remove the domain condition")
+}
+
+// routingAHasDomainRules reports whether a rule that selects on process(...)
+// also selects on a name.
+func routingAHasDomainRules(text string) bool {
+	rules, err := RoutingA.Parse(text)
+	if err != nil {
+		return false
+	}
+	for _, rule := range rules {
+		r, ok := rule.(RoutingA.Routing)
+		if !ok {
+			continue
+		}
+		var process, domain bool
+		for _, f := range r.And {
+			switch f.Name {
+			case "process":
+				process = true
+			case "domain", "domains":
+				domain = true
+			}
+		}
+		if process && domain {
+			return true
+		}
+	}
+	return false
+}
+
+// dnsReportSocket is where the DNS module reports the names it answered, and
+// the engine listens. A Unix socket in the configuration directory needs no
+// port, and the file's mode keeps other users out.
+func dnsReportSocket() string {
+	return filepath.Join(conf.GetEnvironmentConfig().Config, "approuter-dns.sock")
+}
+
+// appRouterDNSReport is the socket the DNS module has to report to, or "" when
+// no rule selects on a name. A name is not in the packet, so the module that
+// answered it has to say what it answered; that only happens when the system's
+// queries actually reach the module, which is the hijack mode.
+func (t *Template) appRouterDNSReport() (string, error) {
+	if t.Setting == nil || t.Setting.TransparentType != configure.TransparentAppRouter {
+		return "", nil
+	}
+	plan, err := t.compileAppRouter()
+	if err != nil {
+		return "", err
+	}
+	if !plan.hasDomainRules() {
+		return "", nil
+	}
+	if configure.ResolveDnsMode(t.Setting) != configure.DnsModeHijack {
+		return "", fmt.Errorf("a rule selects on a domain, so the DNS module has to stay in the path of the answer: choose the hijack DNS mode, or remove the domain condition")
+	}
+	return dnsReportSocket(), nil
 }
 
 // portRangesOf reads port(80, 443, 1000-2000).

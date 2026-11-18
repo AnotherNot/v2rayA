@@ -131,12 +131,17 @@ func startAppRouter(tmpl *Template) error {
 			return fmt.Errorf("the app router needs an inbound for class %d, and the generated config has none", class)
 		}
 	}
+	dnsReport := ""
+	if plan.hasDomainRules() {
+		dnsReport = dnsReportSocket()
+	}
 	router, err := approuter.Start(approuter.Options{
-		Cgroup:        "/sys/fs/cgroup",
-		ClassPorts:    classPorts,
-		Rules:         plan.rules,
-		CorePid:       CorePid(),
-		UnknownPolicy: unknownOwnerPolicy(tmpl.Setting),
+		Cgroup:          "/sys/fs/cgroup",
+		ClassPorts:      classPorts,
+		Rules:           plan.rules,
+		CorePid:         CorePid(),
+		UnknownPolicy:   unknownOwnerPolicy(tmpl.Setting),
+		DNSReportSocket: dnsReport,
 	})
 	if err != nil {
 		return fmt.Errorf("could not set up the app router: %w", err)
