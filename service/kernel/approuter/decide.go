@@ -39,11 +39,12 @@ type bpfRule struct {
 	AnyHost   uint8
 	AnyPort   uint8
 	NV4       uint8
+	NV6       uint8
 	NPort     uint8
 	InboundID uint8
 	Network   uint8
-	Pad       [1]uint8
 	V4        [maxHostsPerRule]IPRange
+	V6        [maxHostsPerRule]IPRange6
 	Port      [maxPortsPerRule]PortRange
 }
 
@@ -72,21 +73,23 @@ func compileRules(rules []Rule) (*compiled, error) {
 			Action:    uint8(r.Action),
 			InboundID: uint8(r.Class),
 			NV4:       uint8(len(r.V4)),
+			NV6:       uint8(len(r.V6)),
 			NPort:     uint8(len(r.Ports)),
 			Network:   uint8(r.Network),
 		}
-		if len(r.V4) == 0 {
+		if len(r.V4) == 0 && len(r.V6) == 0 {
 			br.AnyHost = 1
 		}
 		if len(r.Ports) == 0 {
 			br.AnyPort = 1
 		}
-		fits := len(r.V4) <= maxHostsPerRule && len(r.Ports) <= maxPortsPerRule
+		fits := len(r.V4) <= maxHostsPerRule && len(r.V6) <= maxHostsPerRule && len(r.Ports) <= maxPortsPerRule
 		// A rule that does not fit keeps whatever the kernel can see only if
 		// that is still exact; anything else is marked and decided in user
 		// space. Copying a truncated list would make the rule match more.
 		if fits {
 			copy(br.V4[:], r.V4)
+			copy(br.V6[:], r.V6)
 			copy(br.Port[:], r.Ports)
 		}
 		c.kernel[i] = br
@@ -95,8 +98,10 @@ func compileRules(rules []Rule) (*compiled, error) {
 	return c, nil
 }
 
-// matchesDestination applies the destination half of a rule.
-func matchesDestination(r Rule, ip uint32, port uint16) bool {
+// matchesDestination applies the destination half of a rule. An IPv4
+// destination is matched only by IPv4 ranges and an IPv6 one only by IPv6
+// ranges, so a rule that names one family never catches the other.
+func matchesDestination(r Rule, d destination, port uint16) bool {
 	if len(r.Ports) > 0 {
 		ok := false
 		for _, pr := range r.Ports {
@@ -109,29 +114,44 @@ func matchesDestination(r Rule, ip uint32, port uint16) bool {
 			return false
 		}
 	}
-	if len(r.V4) > 0 {
-		ok := false
-		for _, ir := range r.V4 {
-			if ip >= ir.Lo && ip <= ir.Hi {
-				ok = true
-				break
+	if len(r.V4) == 0 && len(r.V6) == 0 {
+		return true
+	}
+	if d.isIPv6 {
+		for _, ir := range r.V6 {
+			if !less6(d.v6, ir.Lo) && !less6(ir.Hi, d.v6) {
+				return true
 			}
 		}
-		if !ok {
-			return false
+		return false
+	}
+	for _, ir := range r.V4 {
+		if d.v4 >= ir.Lo && d.v4 <= ir.Hi {
+			return true
 		}
 	}
-	return true
+	return false
+}
+
+// less6 reports whether a is below b, word by word from the most significant,
+// which is what makes the word comparison an address comparison.
+func less6(a, b [4]uint32) bool {
+	for i := range a {
+		if a[i] != b[i] {
+			return a[i] < b[i]
+		}
+	}
+	return false
 }
 
 // decide returns the action of the first rule that matches this flow, and the
 // class a proxy action goes to.
-func (c *compiled) decide(indexes []int, ip uint32, port uint16, network Network) (Action, int) {
+func (c *compiled) decide(indexes []int, d destination, port uint16, network Network) (Action, int) {
 	for _, i := range indexes {
 		if !c.rules[i].Network.Covers(network) {
 			continue
 		}
-		if !matchesDestination(c.rules[i], ip, port) {
+		if !matchesDestination(c.rules[i], d, port) {
 			continue
 		}
 		return c.rules[i].Action, c.rules[i].Class
@@ -192,7 +212,7 @@ func newPlanner(c *compiled, cache ruleCache, unknown Action) *planner {
 // through here, which is why the answer for this flow is computed rather than
 // read back.
 func (p *planner) decide(o orig) (Action, int) {
-	ip := ipOf(o)
+	d := o.destination()
 	name, path, err := executableOf(o.Pid)
 	if err != nil {
 		// The process that opened this socket is not identifiable: it exited
@@ -204,7 +224,7 @@ func (p *planner) decide(o orig) (Action, int) {
 	}
 	indexes := p.rulesFor(name, path)
 	p.remember(o, name, path, indexes)
-	return p.compiled.decide(indexes, ip, uint16(o.Port), o.Network)
+	return p.compiled.decide(indexes, d, uint16(o.Port), o.Network)
 }
 
 // rulesFor lists the rules that are about this executable, in order.

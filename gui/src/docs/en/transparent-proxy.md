@@ -19,7 +19,7 @@ With the transparent proxy on, traffic reaches the core without any application 
 | `tproxy`       | Linux                                                        | iptables/nftables `TPROXY`; TCP and UDP                                                                      |
 | `tun`          | Linux, Windows, macOS                                        | the core opens a TUN device; TCP and UDP; excludes v2rayA and the core by itself                             |
 | System proxy   | Windows; Linux and macOS when not running as root (`--lite`) | sets the desktop's proxy settings (GNOME and KDE on Linux); only applications that honour them are covered   |
-| By application | Linux | a cgroup eBPF program matches the program that opens the socket against the `process(...)` rules of RoutingA; TCP and UDP over IPv4 for now, with DHCP left alone |
+| By application | Linux | a cgroup eBPF program matches the program that opens the socket against the `process(...)` rules of RoutingA; TCP over IPv4 and IPv6 and UDP over IPv4, with DHCP left alone |
 
 `redirect` and `tproxy` need root and `iptables` or `nftables`; `tun` needs `/dev/net/tun` and `ip` on Linux and administrator rights on Windows and macOS.
 
@@ -38,9 +38,9 @@ process(steam) && network(udp) -> proxy
 process(transmission) -> block
 ```
 
-A bare value is a file name; `name:`, `path:` and `folder:` say which part of the program the value means, and `*` and `?` are wildcards. Rules match from top to bottom and the first match wins. `network(tcp)` or `network(udp)` narrows a rule to one transport; without it the rule covers both. A program no rule names is not touched at all, and a `process(...)` rule is inactive while another implementation is chosen — the log says how many such rules were skipped.
+A bare value is a file name; `name:`, `path:` and `folder:` say which part of the program the value means, and `*` and `?` are wildcards. Rules match from top to bottom and the first match wins. `network(tcp)` or `network(udp)` narrows a rule to one transport; without it the rule covers both. An IPv6 literal in `ip(...)` is quoted, as in `ip("2001:db8::/32")` or `ip("::1-::5")`; a rule that names one family does not match the other. A program no rule names is not touched at all, and a `process(...)` rule is inactive while another implementation is chosen — the log says how many such rules were skipped.
 
-The mode needs root, kernel 5.14 or later and cgroup v2 at `/sys/fs/cgroup`. It carries TCP and UDP over IPv4; IPv6 is not routed by it yet. A datagram socket is matched per destination, so one socket talking to several places still gets the right rule for every datagram. DHCP is never proxied. The program behind a socket is identified through `/proc`, so the service has to see the host's process namespace: in a container with a private PID namespace programs cannot be identified and their connections are left alone.
+The mode needs root, kernel 5.14 or later and cgroup v2 at `/sys/fs/cgroup`. It carries TCP over IPv4 and IPv6, and UDP over IPv4 — including an IPv4 destination reached through an IPv6 socket. A native IPv6 datagram is refused rather than sent around its rule, because the kernel will not carry a datagram rewritten to the IPv4 relay; a program is learned from a connection the service can see, so one that sends only native IPv6 datagrams is refused until it makes such a connection. A datagram socket is matched per destination, so one socket talking to several places still gets the right rule for every datagram. DHCP is never proxied. The program behind a socket is identified through `/proc`, so the service has to see the host's process namespace: in a container with a private PID namespace programs cannot be identified and their connections are left alone.
 
 The first connection of a program is judged by the service, which then caches the answer in the kernel; a blocked program is refused outright from its second connection on. A program whose rules the kernel cannot hold is judged by the service on every connection instead, and the log names it.
 

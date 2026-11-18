@@ -221,7 +221,7 @@ func (r *udpRelay) flowFor(flowAddr uint32, client net.Addr, o orig) (*udpFlow, 
 		if !ok {
 			return nil, fmt.Errorf("class %d has no local inbound", class)
 		}
-		assoc, err := socks5UDPAssociate(net.JoinHostPort("127.0.0.1", strconv.Itoa(port)), net.IP(o.IP[:]), o.Port)
+		assoc, err := socks5UDPAssociate(net.JoinHostPort("127.0.0.1", strconv.Itoa(port)), o.ip(), o.Port)
 		if err != nil {
 			return nil, fmt.Errorf("hand it to the class %d inbound: %w", class, err)
 		}

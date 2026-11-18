@@ -194,7 +194,9 @@ func TestAppRouterRefusesConditionsItCannotEnforce(t *testing.T) {
 		{"geoip", "process(curl) && ip(geoip:cn)->proxy"},
 		{"protocol", "process(curl) && protocol(tls)->proxy"},
 		{"source", "process(curl) && source(10.0.0.1)->proxy"},
-		{"ipv6", `process(curl) && ip("2001:db8::/32")->proxy`},
+		{"v4-mapped", `process(curl) && ip("::ffff:1.2.3.4")->proxy`},
+		{"v4-mapped range", `process(curl) && ip("::ffff:1.2.3.0/120")->proxy`},
+		{"reversed IPv6 range", `process(curl) && ip("::5-::1")->proxy`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			withPorts(t)
@@ -374,5 +376,50 @@ func TestAppRouterClassInboundAcceptsUDP(t *testing.T) {
 	}
 	if class.Settings == nil || !class.Settings.UDP {
 		t.Fatalf("the class inbound does not accept UDP: %+v", class.Settings)
+	}
+}
+
+// An IPv6 destination is matched by an IPv6 range only: CIDR, a single address
+// and "first-last" all become the four host-order words the kernel compares.
+func TestAppRouterReadsIPv6Ranges(t *testing.T) {
+	withPorts(t)
+	withRoutingAText(t, `process(curl) && ip("2001:db8::/32")->proxy
+process(wget) && ip("::10")->direct
+process(nc) && ip("::1-::5")->block
+process(ssh) && ip(10.0.0.0/8, "2001:db8::/32")->direct`)
+	setting := appRouterSetting()
+	tmpl := baseTemplate(t, setting)
+	withProxyOutbound(tmpl)
+	if err := tmpl.setInbound(setting); err != nil {
+		t.Fatal(err)
+	}
+	if err := tmpl.setTransparentRouting(); err != nil {
+		t.Fatal(err)
+	}
+	plan := tmpl.appRouter
+	if len(plan.rules) != 4 {
+		t.Fatalf("%d rules", len(plan.rules))
+	}
+	cidr := plan.rules[0].V6
+	if len(cidr) != 1 || cidr[0].Lo != [4]uint32{0x20010db8, 0, 0, 0} || cidr[0].Hi != [4]uint32{0x20010db8, 0xffffffff, 0xffffffff, 0xffffffff} {
+		t.Fatalf("CIDR: %+v", cidr)
+	}
+	if len(plan.rules[0].V4) != 0 {
+		t.Fatalf("an IPv6 rule carries IPv4 ranges: %+v", plan.rules[0].V4)
+	}
+	single := plan.rules[1].V6
+	if len(single) != 1 || single[0].Lo != [4]uint32{0, 0, 0, 0x10} || single[0].Hi != single[0].Lo {
+		t.Fatalf("single address: %+v", single)
+	}
+	firstLast := plan.rules[2].V6
+	if len(firstLast) != 1 || firstLast[0].Lo != [4]uint32{0, 0, 0, 1} || firstLast[0].Hi != [4]uint32{0, 0, 0, 5} {
+		t.Fatalf("first-last: %+v", firstLast)
+	}
+	mixed := plan.rules[3]
+	if len(mixed.V4) != 1 || len(mixed.V6) != 1 {
+		t.Fatalf("mixed: v4 %+v v6 %+v", mixed.V4, mixed.V6)
+	}
+	if mixed.V4[0] != (approuter.IPRange{Lo: 0x0a000000, Hi: 0x0affffff}) {
+		t.Fatalf("mixed v4: %+v", mixed.V4)
 	}
 }

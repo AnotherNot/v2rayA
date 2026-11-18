@@ -229,7 +229,7 @@ func TestUDPRelayDialsADirectFlow(t *testing.T) {
 	_, relay := udpRelayAround(t, store, fakeUDPDecider{}, map[int]int{})
 	const flow = 0x7f010203
 	store.record(flow, orig{
-		IP: [4]byte{127, 0, 0, 1}, Port: echo.Port, Action: ActionDirect, Network: NetworkUDP,
+		Addr: v4Addr(127, 0, 0, 1), Family: familyInet, Port: echo.Port, Action: ActionDirect, Network: NetworkUDP,
 	})
 	got, from := exchange(t, relay, flow, "ping")
 	if got != "ping" {
@@ -249,7 +249,7 @@ func TestUDPRelayHandsAProxiedFlowToTheClassInbound(t *testing.T) {
 	_, relay := udpRelayAround(t, store, fakeUDPDecider{}, map[int]int{1: portOf(t, inbound.addr())})
 	const flow = 0x7f010405
 	store.record(flow, orig{
-		IP: [4]byte{127, 0, 0, 1}, Port: echo.Port, Action: ActionProxy, InboundID: 1, Network: NetworkUDP,
+		Addr: v4Addr(127, 0, 0, 1), Family: familyInet, Port: echo.Port, Action: ActionProxy, InboundID: 1, Network: NetworkUDP,
 	})
 	got, _ := exchange(t, relay, flow, "through")
 	if got != "through" {
@@ -273,7 +273,7 @@ func TestUDPRelayDecidesAFlowTheKernelCouldNot(t *testing.T) {
 	r, relay := udpRelayAround(t, store, fakeUDPDecider{action: ActionDirect}, map[int]int{})
 	const flow = 0x7f010607
 	store.record(flow, orig{
-		IP: [4]byte{127, 0, 0, 1}, Port: echo.Port, Action: actionDecide, Network: NetworkUDP,
+		Addr: v4Addr(127, 0, 0, 1), Family: familyInet, Port: echo.Port, Action: actionDecide, Network: NetworkUDP,
 	})
 	got, _ := exchange(t, relay, flow, "decide")
 	if got != "decide" {
@@ -291,7 +291,7 @@ func TestUDPRelayDropsABlockedFlow(t *testing.T) {
 	r, relay := udpRelayAround(t, store, fakeUDPDecider{action: ActionBlock}, map[int]int{})
 	const flow = 0x7f010809
 	store.record(flow, orig{
-		IP: [4]byte{127, 0, 0, 1}, Port: echo.Port, Action: actionDecide, Network: NetworkUDP,
+		Addr: v4Addr(127, 0, 0, 1), Family: familyInet, Port: echo.Port, Action: actionDecide, Network: NetworkUDP,
 	})
 	client, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
 	if err != nil {

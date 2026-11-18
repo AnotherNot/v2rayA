@@ -90,11 +90,12 @@ func (t *Template) appRuleOf(r RoutingA.Routing, plan *appRouterPlan, outboundTa
 		case "process":
 			// Already read above.
 		case "ip":
-			ranges, err := ipRangesOf(f)
+			v4, v6, err := ipRangesOf(f)
 			if err != nil {
 				return out, true, fmt.Errorf("the rule for %q: %w", r.Out, err)
 			}
-			out.V4 = append(out.V4, ranges...)
+			out.V4 = append(out.V4, v4...)
+			out.V6 = append(out.V6, v6...)
 		case "port":
 			ranges, err := portRangesOf(f)
 			if err != nil {
@@ -165,7 +166,10 @@ func classOf(plan *appRouterPlan, outbound string) (int, bool) {
 }
 
 // ipRangesOf reads the literal addresses and CIDRs of an ip(...) condition.
-func ipRangesOf(f RoutingA.Function) ([]approuter.IPRange, error) {
+// The families are returned apart because the engine matches an IPv4
+// destination against IPv4 ranges only, and an IPv6 one against IPv6 ranges.
+// A colon means IPv6: an IPv4 literal never carries one.
+func ipRangesOf(f RoutingA.Function) ([]approuter.IPRange, []approuter.IPRange6, error) {
 	var values []string
 	for key, vv := range f.NamedParams {
 		for _, v := range vv {
@@ -173,22 +177,31 @@ func ipRangesOf(f RoutingA.Function) ([]approuter.IPRange, error) {
 		}
 	}
 	values = append(values, f.Params...)
-	var ranges []approuter.IPRange
+	var v4 []approuter.IPRange
+	var v6 []approuter.IPRange6
 	for _, value := range values {
 		value = strings.TrimSpace(value)
 		if value == "" {
 			continue
 		}
 		if strings.HasPrefix(value, "geoip:") || strings.HasPrefix(value, "ext:") {
-			return nil, fmt.Errorf("ip(%s) is a database reference, and application rules read literal addresses for now", value)
+			return nil, nil, fmt.Errorf("ip(%s) is a database reference, and application rules read literal addresses for now", value)
+		}
+		if strings.Contains(value, ":") {
+			r, err := ipRange6Of(value)
+			if err != nil {
+				return nil, nil, err
+			}
+			v6 = append(v6, r)
+			continue
 		}
 		r, err := ipRangeOf(value)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		ranges = append(ranges, r)
+		v4 = append(v4, r)
 	}
-	return ranges, nil
+	return v4, v6, nil
 }
 
 func ipRangeOf(value string) (approuter.IPRange, error) {
@@ -196,7 +209,7 @@ func ipRangeOf(value string) (approuter.IPRange, error) {
 		prefix = prefix.Masked()
 		addr := prefix.Addr()
 		if !addr.Is4() {
-			return approuter.IPRange{}, fmt.Errorf("ip(%s) is an IPv6 range, and application rules carry IPv4 only for now", value)
+			return approuter.IPRange{}, fmt.Errorf("ip(%s) is an IPv6 range, and a rule that names one family does not match the other", value)
 		}
 		v4 := addr.As4()
 		lo := binary.BigEndian.Uint32(v4[:])
@@ -208,11 +221,84 @@ func ipRangeOf(value string) (approuter.IPRange, error) {
 		return approuter.IPRange{}, fmt.Errorf("ip(%s) is not an address or a CIDR", value)
 	}
 	if !addr.Is4() {
-		return approuter.IPRange{}, fmt.Errorf("ip(%s) is an IPv6 address, and application rules carry IPv4 only for now", value)
+		return approuter.IPRange{}, fmt.Errorf("ip(%s) is an IPv6 address, and a rule that names one family does not match the other", value)
 	}
 	v4 := addr.As4()
 	n := binary.BigEndian.Uint32(v4[:])
 	return approuter.IPRange{Lo: n, Hi: n}, nil
+}
+
+// ipRange6Of reads one IPv6 value: an address, a CIDR or "first-last". A
+// v4-mapped literal is refused: a v4-mapped destination is an IPv4 destination
+// and is matched against IPv4 ranges, so the rule would never apply.
+func ipRange6Of(value string) (approuter.IPRange6, error) {
+	if first, last, ok := strings.Cut(value, "-"); ok {
+		lo, err := ipv6AddrOf(strings.TrimSpace(first), value)
+		if err != nil {
+			return approuter.IPRange6{}, err
+		}
+		hi, err := ipv6AddrOf(strings.TrimSpace(last), value)
+		if err != nil {
+			return approuter.IPRange6{}, err
+		}
+		if lo.Compare(hi) > 0 {
+			return approuter.IPRange6{}, fmt.Errorf("ip(%s) is reversed", value)
+		}
+		return approuter.IPRange6{Lo: v6Words(lo), Hi: v6Words(hi)}, nil
+	}
+	if prefix, err := netip.ParsePrefix(value); err == nil {
+		prefix = prefix.Masked()
+		if prefix.Addr().Is4() {
+			return approuter.IPRange6{}, fmt.Errorf("ip(%s) is an IPv4 range, and it is written without a colon", value)
+		}
+		if prefix.Addr().Is4In6() {
+			return approuter.IPRange6{}, fmt.Errorf("ip(%s) is a v4-mapped range; write the IPv4 range instead", value)
+		}
+		lo := v6Words(prefix.Addr())
+		hi := lo
+		for i := range hi {
+			switch keep := prefix.Bits() - i*32; {
+			case keep <= 0:
+				hi[i] = ^uint32(0)
+			case keep < 32:
+				hi[i] |= ^uint32(0) >> keep
+			}
+		}
+		return approuter.IPRange6{Lo: lo, Hi: hi}, nil
+	}
+	addr, err := ipv6AddrOf(value, value)
+	if err != nil {
+		return approuter.IPRange6{}, err
+	}
+	w := v6Words(addr)
+	return approuter.IPRange6{Lo: w, Hi: w}, nil
+}
+
+// ipv6AddrOf parses one IPv6 literal. value is the whole ip(...) parameter,
+// which is what the error names.
+func ipv6AddrOf(literal, value string) (netip.Addr, error) {
+	addr, err := netip.ParseAddr(literal)
+	if err != nil || !addr.Is6() {
+		return netip.Addr{}, fmt.Errorf("ip(%s) is not an IPv6 address, a CIDR or a range", value)
+	}
+	if addr.Zone() != "" {
+		return netip.Addr{}, fmt.Errorf("ip(%s) names an interface; a rule matches an address, not a link", value)
+	}
+	if addr.Is4In6() {
+		return netip.Addr{}, fmt.Errorf("ip(%s) is a v4-mapped address; write the IPv4 address instead", value)
+	}
+	return addr, nil
+}
+
+// v6Words splits a sixteen-byte address into four host-order words, most
+// significant first, which is what the kernel compares.
+func v6Words(addr netip.Addr) [4]uint32 {
+	b := addr.As16()
+	var w [4]uint32
+	for i := range w {
+		w[i] = binary.BigEndian.Uint32(b[i*4:])
+	}
+	return w
 }
 
 // portRangesOf reads port(80, 443, 1000-2000).

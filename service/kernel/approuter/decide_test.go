@@ -84,27 +84,27 @@ func TestCompiledDecideTakesTheFirstMatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	indexes := []int{0, 1, 2}
-	if action, _ := c.decide(indexes, 0x01010101, 443, NetworkTCP); action != ActionBlock {
+	if action, _ := c.decide(indexes, at(0x01010101), 443, NetworkTCP); action != ActionBlock {
 		t.Fatalf("port 443 got %v", action)
 	}
-	if action, class := c.decide(indexes, 0x01010101, 80, NetworkTCP); action != ActionProxy || class != 1 {
+	if action, class := c.decide(indexes, at(0x01010101), 80, NetworkTCP); action != ActionProxy || class != 1 {
 		t.Fatalf("port 80 got %v class %d", action, class)
 	}
 	// A destination no rule mentions is left alone.
-	if action, _ := c.decide([]int{2}, 0x01010101, 80, NetworkTCP); action != ActionDirect {
+	if action, _ := c.decide([]int{2}, at(0x01010101), 80, NetworkTCP); action != ActionDirect {
 		t.Fatalf("no matching rule gave %v", action)
 	}
 }
 
 func TestMatchesDestinationNeedsBothHalves(t *testing.T) {
 	r := Rule{V4: []IPRange{{0x0a000000, 0x0affffff}}, Ports: []PortRange{{80, 80}}}
-	if !matchesDestination(r, 0x0a000001, 80) {
+	if !matchesDestination(r, at(0x0a000001), 80) {
 		t.Fatal("a destination inside both ranges did not match")
 	}
-	if matchesDestination(r, 0x0a000001, 81) {
+	if matchesDestination(r, at(0x0a000001), 81) {
 		t.Fatal("the wrong port matched")
 	}
-	if matchesDestination(r, 0x0b000001, 80) {
+	if matchesDestination(r, at(0x0b000001), 80) {
 		t.Fatal("the wrong address matched")
 	}
 }
@@ -161,7 +161,7 @@ func TestPlannerCachesTheRuleListOfAnExecutable(t *testing.T) {
 		{Action: ActionDirect},
 	})
 	o := orig{Pid: uint32(os.Getpid()), ExeDev: key.Dev, ExeIno: key.Ino, Port: 443}
-	o.IP = [4]byte{1, 1, 1, 1}
+	o.Addr = v4Addr(1, 1, 1, 1)
 	if action, _ := p.decide(o); action != ActionBlock {
 		t.Fatalf("port 443 got %v", action)
 	}
@@ -185,7 +185,7 @@ func TestPlannerSendsAnUnfittableRuleToUserSpace(t *testing.T) {
 		V4:     []IPRange{{0, 1}, {2, 3}, {4, 5}},
 	}})
 	o := orig{Pid: uint32(os.Getpid()), ExeDev: key.Dev, ExeIno: key.Ino, Port: 80}
-	o.IP = [4]byte{4, 4, 4, 4}
+	o.Addr = v4Addr(4, 4, 4, 4)
 	p.decide(o)
 	if slot := cache.slots[key]; slot != slotDecide {
 		t.Fatalf("slot %d, want the decide slot", slot)
@@ -195,7 +195,7 @@ func TestPlannerSendsAnUnfittableRuleToUserSpace(t *testing.T) {
 func TestPlannerCachesAnExecutableThatMatchesNothing(t *testing.T) {
 	p, cache, key := plannerFor(t, nil)
 	o := orig{Pid: uint32(os.Getpid()), ExeDev: key.Dev, ExeIno: key.Ino, Port: 80}
-	o.IP = [4]byte{1, 1, 1, 1}
+	o.Addr = v4Addr(1, 1, 1, 1)
 	if action, _ := p.decide(o); action != ActionDirect {
 		t.Fatalf("an executable with no rules got %v", action)
 	}
@@ -209,7 +209,7 @@ func TestPlannerCachesAnExecutableThatMatchesNothing(t *testing.T) {
 func TestPlannerDoesNotCacheWithoutAnIdentity(t *testing.T) {
 	p, cache, _ := plannerFor(t, []Rule{{Action: ActionDirect}})
 	o := orig{Pid: uint32(os.Getpid()), Port: 80}
-	o.IP = [4]byte{1, 1, 1, 1}
+	o.Addr = v4Addr(1, 1, 1, 1)
 	p.decide(o)
 	if len(cache.slots) != 0 {
 		t.Fatalf("an entry was written without an identity: %+v", cache.slots)
@@ -220,7 +220,7 @@ func TestPlannerDoesNotCacheWithoutAnIdentity(t *testing.T) {
 func TestPlannerLeavesAnUnidentifiableProcessAlone(t *testing.T) {
 	p, cache, _ := plannerFor(t, []Rule{{Action: ActionBlock}})
 	o := orig{Pid: 0x7ffffff0, Port: 80} // a pid that does not exist
-	o.IP = [4]byte{1, 1, 1, 1}
+	o.Addr = v4Addr(1, 1, 1, 1)
 	if action, _ := p.decide(o); action != ActionDirect {
 		t.Fatalf("an unidentified process got %v", action)
 	}
@@ -239,7 +239,7 @@ func TestPlannerAppliesTheUnknownOwnerPolicy(t *testing.T) {
 		}
 		p := newPlanner(compiled, newFakeCache(), policy)
 		o := orig{Pid: 0x7ffffff0, Port: 80}
-		o.IP = [4]byte{1, 1, 1, 1}
+		o.Addr = v4Addr(1, 1, 1, 1)
 		action, _ := p.decide(o)
 		if action != policy {
 			t.Errorf("policy %v gave %v", policy, action)
@@ -259,13 +259,13 @@ func TestCompiledDecideRespectsTheNetwork(t *testing.T) {
 		t.Fatal(err)
 	}
 	indexes := []int{0, 1, 2}
-	if action, _ := c.decide(indexes, 0x01010101, 443, NetworkUDP); action != ActionBlock {
+	if action, _ := c.decide(indexes, at(0x01010101), 443, NetworkUDP); action != ActionBlock {
 		t.Fatalf("the UDP rule gave %v for a UDP flow", action)
 	}
-	if action, class := c.decide(indexes, 0x01010101, 443, NetworkTCP); action != ActionProxy || class != 1 {
+	if action, class := c.decide(indexes, at(0x01010101), 443, NetworkTCP); action != ActionProxy || class != 1 {
 		t.Fatalf("the TCP rule gave %v class %d for a TCP flow", action, class)
 	}
-	if action, _ := c.decide([]int{2}, 0x01010101, 443, NetworkUDP); action != ActionDirect {
+	if action, _ := c.decide([]int{2}, at(0x01010101), 443, NetworkUDP); action != ActionDirect {
 		t.Fatalf("a rule without a network gave %v", action)
 	}
 	if !(NetworkBoth.Covers(NetworkTCP) && NetworkBoth.Covers(NetworkUDP)) {
@@ -281,5 +281,113 @@ func TestCompileCarriesTheNetworkToTheKernel(t *testing.T) {
 	}
 	if c.kernel[0].Network != uint8(NetworkUDP) {
 		t.Fatalf("the kernel rule carries %d", c.kernel[0].Network)
+	}
+}
+
+// at and at6 are destinations in the shape a rule is compared against.
+func at(ip uint32) destination { return destination{v4: ip} }
+
+func at6(a, b, c, d uint32) destination {
+	return destination{v6: [4]uint32{a, b, c, d}, isIPv6: true}
+}
+
+// An IPv4 rule must not catch an IPv6 flow, and an IPv6 rule must not catch an
+// IPv4 one, even when the address happens to be all zeroes on one side.
+func TestMatchesDestinationSeparatesTheFamilies(t *testing.T) {
+	v4any := Rule{V4: []IPRange{{0x0a000000, 0x0affffff}}} // 10.0.0.0/8
+	if !matchesDestination(v4any, at(0x0a000001), 80) {
+		t.Fatal("an IPv4 destination inside the range did not match")
+	}
+	if matchesDestination(v4any, at6(0, 0, 0, 0), 80) {
+		t.Fatal("an IPv4 rule caught an IPv6 flow")
+	}
+	v6any := Rule{V6: []IPRange6{{Lo: [4]uint32{0, 0, 0, 0}, Hi: [4]uint32{0, 0, 0, 0}}}}
+	if !matchesDestination(v6any, at6(0, 0, 0, 0), 80) {
+		t.Fatal("an IPv6 destination inside the range did not match")
+	}
+	if matchesDestination(v6any, at(0), 80) {
+		t.Fatal("an IPv6 rule caught an IPv4 flow")
+	}
+	mixed := Rule{V4: []IPRange{{0x0a000000, 0x0affffff}}, V6: []IPRange6{
+		{Lo: [4]uint32{0xfd00, 0, 0, 1}, Hi: [4]uint32{0xfd00, 0, 0, 0xffff}},
+	}}
+	if !matchesDestination(mixed, at(0x0a000001), 80) {
+		t.Fatal("the IPv4 half of a mixed rule did not match")
+	}
+	if !matchesDestination(mixed, at6(0xfd00, 0, 0, 2), 80) {
+		t.Fatal("the IPv6 half of a mixed rule did not match")
+	}
+}
+
+// The kernel needs the same split: one count per family, and a rule that names
+// only one family is not "any host".
+func TestCompileKeepsTheIPv6Condition(t *testing.T) {
+	c, err := compileRules([]Rule{{
+		Apps:   apps("x"),
+		Action: ActionProxy,
+		Class:  1,
+		V6:     []IPRange6{{Lo: [4]uint32{0x2001, 0xdb8, 0, 0}, Hi: [4]uint32{0x2001, 0xdb8, 0xffff, 0xffff}}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	k := c.kernel[0]
+	if !c.fits[0] || k.AnyHost != 0 || k.NV4 != 0 || k.NV6 != 1 {
+		t.Fatalf("%+v fits=%v", k, c.fits[0])
+	}
+	if k.V6[0].Lo != [4]uint32{0x2001, 0xdb8, 0, 0} {
+		t.Fatalf("%+v", k.V6[0])
+	}
+}
+
+func TestCompileMarksTooManyIPv6Ranges(t *testing.T) {
+	c, err := compileRules([]Rule{{
+		Apps:   apps("x"),
+		Action: ActionDirect,
+		V6: []IPRange6{
+			{Lo: [4]uint32{1}, Hi: [4]uint32{2}},
+			{Lo: [4]uint32{3}, Hi: [4]uint32{4}},
+			{Lo: [4]uint32{5}, Hi: [4]uint32{6}},
+		},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.fits[0] {
+		t.Fatal("a rule with three IPv6 ranges was reported as fitting")
+	}
+	if c.kernel[0].AnyHost != 0 {
+		t.Fatal("the truncated rule was widened to any host")
+	}
+}
+
+// 128-bit comparison, word by word: the ranges of the PoC's O2-O4 checks are
+// the ones that would silently match the wrong address if the order were
+// reversed.
+func TestCompiledDecideComparesIPv6AsA128BitNumber(t *testing.T) {
+	c, err := compileRules([]Rule{
+		{Apps: apps("x"), Action: ActionBlock, V6: []IPRange6{
+			{Lo: [4]uint32{0x2001, 0xdb8, 0, 0}, Hi: [4]uint32{0x2001, 0xdb8, 0xffff, 0xffff}},
+		}},
+		{Apps: apps("x"), Action: ActionProxy, Class: 1, V6: []IPRange6{
+			{Lo: [4]uint32{0, 0, 0, 0x10}, Hi: [4]uint32{0, 0, 0, 0x10}},
+		}},
+		{Apps: apps("x"), Action: ActionDirect},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexes := []int{0, 1, 2}
+	if action, _ := c.decide(indexes, at6(0x2001, 0xdb8, 0, 1), 443, NetworkTCP); action != ActionBlock {
+		t.Fatalf("the CIDR range gave %v", action)
+	}
+	if action, _ := c.decide(indexes, at6(0x2001, 0xdb9, 0, 1), 443, NetworkTCP); action != ActionDirect {
+		t.Fatalf("an address past the range gave %v", action)
+	}
+	if action, _ := c.decide(indexes, at6(0, 0, 0, 0x10), 443, NetworkTCP); action != ActionProxy {
+		t.Fatalf("the single-address range gave %v", action)
+	}
+	if action, _ := c.decide(indexes, at6(0, 0, 0, 1), 443, NetworkTCP); action != ActionDirect {
+		t.Fatalf("::1 matched a range that starts at ::10: %v", action)
 	}
 }

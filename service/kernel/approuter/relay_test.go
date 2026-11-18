@@ -4,11 +4,27 @@ import (
 	"encoding/binary"
 	"io"
 	"net"
+	"net/netip"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
 )
+
+// v4Addr is an IPv4 destination in the shape orig carries it: the last four of
+// the sixteen bytes.
+func v4Addr(a, b, c, d byte) [16]byte {
+	var addr [16]byte
+	copy(addr[12:], []byte{a, b, c, d})
+	return addr
+}
+
+// v6Addr is a native IPv6 destination.
+func v6Addr(addr string) [16]byte {
+	var out [16]byte
+	out = netip.MustParseAddr(addr).As16()
+	return out
+}
 
 // fakeStore stands in for the kernel's map: a flow arrives with a destination
 // and an action recorded for its port, or it does not.
@@ -186,7 +202,7 @@ func TestRelayHandsAProxiedFlowToTheClassInbound(t *testing.T) {
 	store := newFakeStore()
 	client, r := relayAround(t, store, fakeDecider{}, map[int]int{1: inbound.port()})
 	store.record(peerKey(t, client), orig{
-		IP: [4]byte{93, 184, 216, 34}, Port: 443, Pid: 42,
+		Addr: v4Addr(93, 184, 216, 34), Port: 443, Pid: 42,
 		Action: ActionProxy, InboundID: 1,
 	})
 
@@ -220,7 +236,7 @@ func TestRelayDecidesAFlowTheKernelCouldNot(t *testing.T) {
 	store := newFakeStore()
 	client, r := relayAround(t, store, fakeDecider{action: ActionProxy, class: 1}, map[int]int{1: inbound.port()})
 	store.record(peerKey(t, client), orig{
-		IP: [4]byte{1, 2, 3, 4}, Port: 80, Action: actionDecide,
+		Addr: v4Addr(1, 2, 3, 4), Port: 80, Action: actionDecide,
 	})
 	if _, err := client.Write([]byte("x")); err != nil {
 		t.Fatal(err)
@@ -246,7 +262,7 @@ func TestRelayDialsADirectFlow(t *testing.T) {
 	client, r := relayAround(t, store, fakeDecider{action: ActionDirect}, map[int]int{})
 	addr := echo.Addr().(*net.TCPAddr)
 	store.record(peerKey(t, client), orig{
-		IP: [4]byte{127, 0, 0, 1}, Port: addr.Port, Action: actionDecide,
+		Addr: v4Addr(127, 0, 0, 1), Port: addr.Port, Action: actionDecide,
 	})
 	if _, err := client.Write([]byte("ping")); err != nil {
 		t.Fatal(err)
@@ -268,7 +284,7 @@ func TestRelayDropsABlockedFlow(t *testing.T) {
 	store := newFakeStore()
 	client, r := relayAround(t, store, fakeDecider{action: ActionBlock}, map[int]int{})
 	store.record(peerKey(t, client), orig{
-		IP: [4]byte{1, 2, 3, 4}, Port: 80, Action: actionDecide,
+		Addr: v4Addr(1, 2, 3, 4), Port: 80, Action: actionDecide,
 	})
 	_ = client.SetDeadline(time.Now().Add(5 * time.Second))
 	if _, err := client.Write([]byte("x")); err != nil {
@@ -292,7 +308,7 @@ func TestRelayConsumesTheMapping(t *testing.T) {
 	store := newFakeStore()
 	client, _ := relayAround(t, store, fakeDecider{}, map[int]int{1: inbound.port()})
 	key := peerKey(t, client)
-	store.record(key, orig{IP: [4]byte{1, 1, 1, 1}, Port: 80, Action: ActionProxy, InboundID: 1})
+	store.record(key, orig{Addr: v4Addr(1, 1, 1, 1), Port: 80, Action: ActionProxy, InboundID: 1})
 
 	if _, err := client.Write([]byte("x")); err != nil {
 		t.Logf("write: %v", err)
@@ -331,7 +347,7 @@ func TestRelayRefusesAClassWithoutAnInbound(t *testing.T) {
 	store := newFakeStore()
 	client, r := relayAround(t, store, fakeDecider{}, map[int]int{})
 	store.record(peerKey(t, client), orig{
-		IP: [4]byte{1, 1, 1, 1}, Port: 80, Action: ActionProxy, InboundID: 1,
+		Addr: v4Addr(1, 1, 1, 1), Port: 80, Action: ActionProxy, InboundID: 1,
 	})
 	_ = client.SetDeadline(time.Now().Add(5 * time.Second))
 	_, _ = io.ReadAll(client)
@@ -340,5 +356,79 @@ func TestRelayRefusesAClassWithoutAnInbound(t *testing.T) {
 	}
 	if r.relayed.Load() != 0 {
 		t.Fatal("a flow with no inbound was relayed")
+	}
+}
+
+// An IPv6 destination is handed to the class inbound as IPv6: the SOCKS5
+// request names it with its own address type, not as something else.
+func TestRelayHandsAnIPv6DestinationToTheClassInbound(t *testing.T) {
+	inbound := newFakeClassInbound(t)
+	store := newFakeStore()
+	client, r := relayAround(t, store, fakeDecider{}, map[int]int{1: inbound.port()})
+	store.record(peerKey(t, client), orig{
+		Addr: v6Addr("2001:db8::1"), Family: familyInet6, Port: 443,
+		Action: ActionProxy, InboundID: 1,
+	})
+
+	if _, err := client.Write([]byte("v6")); err != nil {
+		t.Fatal(err)
+	}
+	got := make([]byte, 2)
+	if _, err := io.ReadFull(client, got); err != nil {
+		t.Fatalf("read the echoed bytes back: %v", err)
+	}
+	select {
+	case dst := <-inbound.seen:
+		if dst != "[2001:db8::1]:443" {
+			t.Fatalf("the class inbound was asked for %s", dst)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the class inbound saw no request")
+	}
+	if r.relayed.Load() != 1 {
+		t.Fatalf("relayed=%d", r.relayed.Load())
+	}
+}
+
+// A direct IPv6 flow is dialled over IPv6, and the destination the application
+// sees in the log is the one it asked for.
+func TestRelayDialsAnIPv6FlowDirectly(t *testing.T) {
+	ln, err := net.Listen("tcp6", "[::1]:0")
+	if err != nil {
+		t.Skipf("IPv6 loopback is not available: %v", err)
+	}
+	t.Cleanup(func() { _ = ln.Close() })
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go func() {
+				defer conn.Close()
+				_, _ = io.Copy(conn, conn)
+			}()
+		}
+	}()
+	addr := ln.Addr().(*net.TCPAddr)
+	store := newFakeStore()
+	client, r := relayAround(t, store, fakeDecider{}, map[int]int{})
+	o := orig{Addr: v6Addr("::1"), Family: familyInet6, Port: addr.Port, Action: ActionDirect}
+	store.record(peerKey(t, client), o)
+	if _, err := client.Write([]byte("ping")); err != nil {
+		t.Fatal(err)
+	}
+	got := make([]byte, 4)
+	if _, err := io.ReadFull(client, got); err != nil {
+		t.Fatalf("read the echoed bytes back: %v", err)
+	}
+	if string(got) != "ping" {
+		t.Fatalf("echoed %q", got)
+	}
+	if o.String() != net.JoinHostPort("::1", strconv.Itoa(addr.Port)) {
+		t.Fatalf("the destination reads %s", o)
+	}
+	if r.direct.Load() != 1 {
+		t.Fatalf("direct=%d", r.direct.Load())
 	}
 }

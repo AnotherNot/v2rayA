@@ -8,6 +8,11 @@
 // the address the application asked for. Sockets in one cgroup subtree and one
 // network namespace only.
 //
+// Destinations are matched as IPv4 or IPv6. An IPv6 socket that names an IPv4
+// destination (a v4-mapped address) carries an IPv4 destination and takes the
+// IPv4 path. A native IPv6 datagram cannot be rewritten to the IPv4 relay, so
+// it is refused rather than let past its rule; IPv6 TCP and IPv4 UDP both work.
+//
 // A rule carries a set of destination addresses, ports and an action; the first
 // rule of the executable's list that matches decides. Rules live in arrays so
 // the whole walk is bounded and the verifier can see its extent.
@@ -40,6 +45,7 @@ struct task_struct { struct mm_struct *mm; };
 #pragma clang attribute pop
 
 #define AF_INET 2
+#define AF_INET6 10
 #define IPPROTO_TCP 6
 #define IPPROTO_UDP 17
 
@@ -56,6 +62,7 @@ struct task_struct { struct mm_struct *mm; };
 #define MAX_EXE_RULES 256
 #define RULES_PER_EXE 16
 #define MAX_V4 2
+#define MAX_V6 2
 #define MAX_PORTS 2
 
 // An executable whose matching rules do not fit in its list: every flow of it
@@ -86,11 +93,14 @@ struct router_rule {
 	__u8 any_host;
 	__u8 any_port;
 	__u8 n_v4;
+	__u8 n_v6;
 	__u8 n_port;
 	__u8 inbound_id;    // for ACT_PROXY: which local inbound to hand the flow to
 	__u8 network;       // NET_*; zero = both
-	__u8 pad[1];
 	struct { __u32 lo; __u32 hi; } v4[MAX_V4];
+	// Four host-order words, most significant first, so comparing them from
+	// the first is a 128-bit comparison.
+	struct { __u32 lo[4]; __u32 hi[4]; } v6[MAX_V6];
 	struct { __u16 lo; __u16 hi; } port[MAX_PORTS];
 };
 
@@ -167,6 +177,8 @@ enum {
 	STAT_UDP_NOFLOW = 16,   // no loopback flow address was free
 	STAT_UDP_REWRITTEN = 17, // answers turned back into the real source
 	STAT_UDP_RECVMSG = 18,   // every UDP answer the hook looked at
+	STAT_CONNECT6 = 19,      // TCP connects over IPv6 the hook saw
+	STAT_UDP6_REFUSED = 20,  // native IPv6 datagrams, which cannot be redirected
 };
 
 static __always_inline void count(__u32 i)
@@ -228,6 +240,36 @@ static __always_inline int implicit_direct_udp(__u32 ip4, __u16 port)
 	return port == 67 || port == 68;
 }
 
+// ::ffff:a.b.c.d is an IPv4 destination written in sixteen bytes.
+static __always_inline int v4_mapped6(const __u32 ip6[4])
+{
+	return ip6[0] == 0 && ip6[1] == 0 && ip6[2] == bpf_htonl(0x0000ffff);
+}
+
+// The same rule as implicit_direct4, for a native IPv6 destination: loopback,
+// multicast and link-local are never proxied.
+static __always_inline int implicit_direct6(const __u32 ip6[4])
+{
+	if (ip6[0] == 0 && ip6[1] == 0 && ip6[2] == 0 && ip6[3] == bpf_htonl(1))
+		return 1;
+	__u32 w0 = bpf_ntohl(ip6[0]);
+	if ((w0 >> 24) == 0xff)              // ff00::/8, multicast
+		return 1;
+	if (((w0 >> 16) & 0xffc0) == 0xfe80) // fe80::/10, link-local
+		return 1;
+	return 0;
+}
+
+// set_mapped_v4 writes an IPv4 address into a context's IPv6 destination in its
+// v4-mapped form, which is how an IPv6 socket reaches the relay on loopback.
+static __always_inline void set_mapped_v4(__u32 *ip6, __u32 ip4_be)
+{
+	ip6[0] = 0;
+	ip6[1] = 0;
+	ip6[2] = bpf_htonl(0x0000ffff);
+	ip6[3] = ip4_be;
+}
+
 // A loopback flow address stands for one UDP destination of one socket: the
 // relay replies from it and the recvmsg hook turns it back into the real
 // source. The socket is part of the identity, not just the process: a program
@@ -262,7 +304,65 @@ static __always_inline __u32 udp_flow_addr(struct router_orig *o, __u64 cookie)
 	return 0;
 }
 
-static __always_inline int rule_matches(const struct router_rule *r, __u32 ip4, __u16 port, __u8 pbit)
+// le6 reports whether a is not greater than b, word by word from the most
+// significant. Both sides are host order.
+static __always_inline int le6(const __u32 *a, const __u32 *b)
+{
+#pragma unroll
+	for (int i = 0; i < 4; i++) {
+		if (a[i] != b[i])
+			return a[i] < b[i];
+	}
+	return 1;
+}
+
+// in6_range compares a native IPv6 destination, which the kernel gives in
+// network order, against a rule's range. The destination is turned into host
+// order first: comparing the bytes as they arrive would compare the least
+// significant byte first on a little-endian machine.
+static __always_inline int in6_range(const __u32 *ip6_net, const struct router_rule *r, int i)
+{
+	__u32 ip[4];
+#pragma unroll
+	for (int k = 0; k < 4; k++)
+		ip[k] = bpf_ntohl(ip6_net[k]);
+	return le6(r->v6[i].lo, ip) && le6(ip, r->v6[i].hi);
+}
+
+// host_matches checks the rule's address condition. An IPv4 destination is
+// matched only by IPv4 ranges and an IPv6 one only by IPv6 ranges: a rule for
+// 0.0.0.0/8 must not catch an IPv6 flow whose address happens to be zero, and
+// the other way round.
+static __always_inline int host_matches(const struct router_rule *r, __u32 ip4, const __u32 *ip6, int is_v6)
+{
+	if (r->any_host)
+		return 1;
+	int ok = 0;
+	if (is_v6) {
+#pragma unroll
+		for (int i = 0; i < MAX_V6; i++) {
+			if (i >= r->n_v6)
+				break;
+			if (in6_range(ip6, r, i)) {
+				ok = 1;
+				break;
+			}
+		}
+	} else {
+#pragma unroll
+		for (int i = 0; i < MAX_V4; i++) {
+			if (i >= r->n_v4)
+				break;
+			if (ip4 >= r->v4[i].lo && ip4 <= r->v4[i].hi) {
+				ok = 1;
+				break;
+			}
+		}
+	}
+	return ok;
+}
+
+static __always_inline int rule_matches(const struct router_rule *r, __u32 ip4, const __u32 *ip6, __u16 port, __u8 pbit, int is_v6)
 {
 	if (r->network && !(r->network & pbit))
 		return 0;
@@ -280,26 +380,14 @@ static __always_inline int rule_matches(const struct router_rule *r, __u32 ip4, 
 		if (!ok)
 			return 0;
 	}
-	if (!r->any_host) {
-		int ok = 0;
-#pragma unroll
-		for (int i = 0; i < MAX_V4; i++) {
-			if (i >= r->n_v4)
-				break;
-			if (ip4 >= r->v4[i].lo && ip4 <= r->v4[i].hi) {
-				ok = 1;
-				break;
-			}
-		}
-		if (!ok)
-			return 0;
-	}
+	if (!host_matches(r, ip4, ip6, is_v6))
+		return 0;
 	return 1;
 }
 
 // The first matching rule of the executable's list decides. inbound_out is set
 // only for ACT_PROXY.
-static __always_inline int decide_exec(__u8 *inbound_out, __u32 slot, __u32 ip4, __u16 port, __u8 pbit)
+static __always_inline int decide_exec(__u8 *inbound_out, __u32 slot, __u32 ip4, const __u32 *ip6, __u16 port, __u8 pbit, int is_v6)
 {
 	*inbound_out = 0;
 	struct router_exec_rules *er = bpf_map_lookup_elem(&exec_rules, &slot);
@@ -317,7 +405,7 @@ static __always_inline int decide_exec(__u8 *inbound_out, __u32 slot, __u32 ip4,
 		struct router_rule *r = bpf_map_lookup_elem(&brules, &ri);
 		if (!r)
 			break;
-		if (!rule_matches(r, ip4, port, pbit))
+		if (!rule_matches(r, ip4, ip6, port, pbit, is_v6))
 			continue;
 		*inbound_out = r->inbound_id;
 		switch (r->action) {
@@ -345,6 +433,49 @@ static __always_inline int record(struct bpf_sock_addr *ctx, struct router_orig 
 	bpf_map_update_elem(&by_cookie, &cookie, o, BPF_ANY);
 	count(STAT_REDIRECTED);
 	return 1;
+}
+
+// route asks the executable's rules what happens to a flow. The returned action
+// is final for ACT_DIRECT and ACT_BLOCK; ACT_PROXY and ACT_DECIDE mean the flow
+// has to reach the relay, and o carries which class it goes to. An executable
+// the kernel holds no entry for is ACT_DECIDE: the relay resolves it, decides,
+// and caches the result so the next flow takes this path without it.
+static __always_inline int route(struct router_orig *o, __u32 ip4, const __u32 *ip6, int is_v6, __u16 port, __u8 pbit)
+{
+	struct router_exe_key key = {};
+	if (!exe_identity(&key)) {
+		// Nothing to match on: let the relay look the process up.
+		count(STAT_DECIDE);
+		o->action = ACT_DECIDE;
+		return ACT_DECIDE;
+	}
+	o->exe_dev = key.dev;
+	o->exe_ino = key.ino;
+	if (bpf_map_lookup_elem(&exempt_exe, &key)) {
+		count(STAT_EXEMPT);
+		return ACT_DIRECT;
+	}
+	__u32 *slot = bpf_map_lookup_elem(&exe2rules, &key);
+	if (!slot) {
+		count(STAT_DECIDE);
+		o->action = ACT_DECIDE;
+		return ACT_DECIDE;
+	}
+	__u8 inbound = 0;
+	int act = decide_exec(&inbound, *slot, ip4, ip6, port, pbit, is_v6);
+	switch (act) {
+	case ACT_BLOCK:
+		return ACT_BLOCK;
+	case ACT_PROXY:
+		o->action = ACT_PROXY;
+		o->inbound_id = inbound;
+		return ACT_PROXY;
+	case ACT_DECIDE:
+		o->action = ACT_DECIDE;
+		return ACT_DECIDE;
+	default:
+		return ACT_DIRECT;
+	}
 }
 
 // Shared by the connect and sendmsg hooks: both carry the destination the
@@ -381,40 +512,11 @@ static __always_inline int v4_hook(struct bpf_sock_addr *ctx, __u8 pbit, int con
 	o.pid = tgid;
 	__builtin_memcpy(o.addr + 12, &ctx->user_ip4, 4);
 
-	struct router_exe_key key = {};
-	if (!exe_identity(&key)) {
-		// Nothing to match on: let the relay look the process up.
-		count(STAT_DECIDE);
-		o.action = ACT_DECIDE;
-	} else {
-		o.exe_dev = key.dev;
-		o.exe_ino = key.ino;
-		if (bpf_map_lookup_elem(&exempt_exe, &key)) {
-			count(STAT_EXEMPT);
-			return 1;
-		}
-		__u32 *slot = bpf_map_lookup_elem(&exe2rules, &key);
-		if (!slot) {
-			count(STAT_DECIDE);
-			o.action = ACT_DECIDE;
-		} else {
-			__u8 inbound = 0;
-			int act = decide_exec(&inbound, *slot, ip4, port, pbit);
-			switch (act) {
-			case ACT_BLOCK:
-				return 0; // EPERM: the datagram or connection is refused
-			case ACT_PROXY:
-				o.action = ACT_PROXY;
-				o.inbound_id = inbound;
-				break;
-			case ACT_DECIDE:
-				o.action = ACT_DECIDE;
-				break;
-			default:
-				return 1; // direct: the socket is untouched
-			}
-		}
-	}
+	int act = route(&o, ip4, NULL, 0, port, pbit);
+	if (act == ACT_BLOCK)
+		return 0; // EPERM: the datagram or connection is refused
+	if (act == ACT_DIRECT)
+		return 1; // direct: the socket is untouched
 
 	if (pbit == NET_UDP) {
 		__u64 cookie = bpf_get_socket_cookie(ctx);
@@ -439,6 +541,83 @@ static __always_inline int v4_hook(struct bpf_sock_addr *ctx, __u8 pbit, int con
 	return record(ctx, &o);
 }
 
+// The IPv6 twin of v4_hook. The destination is read as four words; a v4-mapped
+// one is an IPv4 destination and takes the IPv4 shape, so the relay, SOCKS5 and
+// getpeername keep one path for both families.
+static __always_inline int v6_hook(struct bpf_sock_addr *ctx, __u8 pbit, int connected)
+{
+	struct router_cfg *c = cfgp();
+	if (!c || !c->enabled)
+		return 1;
+	if (foreign_netns(ctx)) {
+		count(STAT_FOREIGN_NETNS);
+		return 1;
+	}
+	__u32 tgid = bpf_get_current_pid_tgid() >> 32;
+	if (tgid == c->self_tgid || (c->core_tgid && tgid == c->core_tgid)) {
+		count(STAT_SELF);
+		return 1;
+	}
+
+	__u32 ip6[4] = { ctx->user_ip6[0], ctx->user_ip6[1], ctx->user_ip6[2], ctx->user_ip6[3] };
+	int mapped = v4_mapped6(ip6);
+	__u32 ip4 = mapped ? bpf_ntohl(ip6[3]) : 0;
+	__u16 port = bpf_ntohs(ctx->user_port);
+	int implicit;
+	if (mapped)
+		implicit = pbit == NET_TCP ? implicit_direct4(ip4) : implicit_direct_udp(ip4, port);
+	else
+		implicit = implicit_direct6(ip6);
+	if (implicit || port == (__u16)c->relay_port) {
+		count(STAT_IMPLICIT_DIRECT);
+		return 1;
+	}
+
+	struct router_orig o = {};
+	o.proto = pbit == NET_TCP ? IPPROTO_TCP : IPPROTO_UDP;
+	o.port = port;
+	o.pid = tgid;
+	if (mapped) {
+		o.family = AF_INET;
+		__builtin_memcpy(o.addr + 12, &ip6[3], 4);
+	} else {
+		o.family = AF_INET6;
+		__builtin_memcpy(o.addr, ip6, 16);
+	}
+
+	int act = route(&o, ip4, ip6, !mapped, port, pbit);
+	if (act == ACT_BLOCK)
+		return 0;
+	if (act == ACT_DIRECT)
+		return 1;
+
+	if (pbit == NET_UDP) {
+		if (!mapped) {
+			// The kernel will not carry a native IPv6 destination rewritten
+			// to the v4-mapped relay, so this flow cannot be handed on. It
+			// is refused rather than let past the rule that matched it.
+			count(STAT_UDP6_REFUSED);
+			return 0;
+		}
+		__u64 cookie = bpf_get_socket_cookie(ctx);
+		__u32 flow = udp_flow_addr(&o, cookie);
+		if (!flow) {
+			count(STAT_UDP_NOFLOW);
+			return 0;
+		}
+		set_mapped_v4(ctx->user_ip6, bpf_htonl(flow));
+		ctx->user_port = bpf_htons(c->relay_port);
+		count(STAT_UDP_REDIRECTED);
+		if (connected)
+			bpf_map_update_elem(&by_cookie, &cookie, &o, BPF_ANY);
+		return 1;
+	}
+
+	set_mapped_v4(ctx->user_ip6, bpf_htonl(0x7f000001));
+	ctx->user_port = bpf_htons(c->relay_port);
+	return record(ctx, &o);
+}
+
 SEC("cgroup/connect4")
 int router_connect4(struct bpf_sock_addr *ctx)
 {
@@ -455,6 +634,20 @@ int router_connect4(struct bpf_sock_addr *ctx)
 	return 1;
 }
 
+SEC("cgroup/connect6")
+int router_connect6(struct bpf_sock_addr *ctx)
+{
+	if (ctx->protocol == IPPROTO_TCP) {
+		count(STAT_CONNECT6);
+		return v6_hook(ctx, NET_TCP, 0);
+	}
+	if (ctx->protocol == IPPROTO_UDP) {
+		count(STAT_SEND);
+		return v6_hook(ctx, NET_UDP, 1);
+	}
+	return 1;
+}
+
 // One datagram, one decision: a UDP socket can talk to many destinations, and
 // each of them gets its own flow address.
 SEC("cgroup/sendmsg4")
@@ -464,6 +657,17 @@ int router_sendmsg4(struct bpf_sock_addr *ctx)
 		return 1;
 	count(STAT_SEND);
 	return v4_hook(ctx, NET_UDP, 0);
+}
+
+// Only a v4-mapped destination can be carried: a native IPv6 one cannot be
+// rewritten to the relay, and v6_hook refuses it.
+SEC("cgroup/sendmsg6")
+int router_sendmsg6(struct bpf_sock_addr *ctx)
+{
+	if (ctx->protocol != IPPROTO_UDP)
+		return 1;
+	count(STAT_SEND);
+	return v6_hook(ctx, NET_UDP, 0);
 }
 
 // A datagram that came from a flow address is really from the destination the
@@ -480,6 +684,27 @@ int router_recvmsg4(struct bpf_sock_addr *ctx)
 	if (!o || o->family != AF_INET)
 		return 1;
 	__builtin_memcpy(&ctx->user_ip4, o->addr + 12, 4);
+	ctx->user_port = bpf_htons(o->port);
+	count(STAT_UDP_REWRITTEN);
+	return 1;
+}
+
+// The same for an IPv6 socket. A flow address is always IPv4, so only its
+// v4-mapped form can be the source of a datagram this hook has to restore.
+SEC("cgroup/recvmsg6")
+int router_recvmsg6(struct bpf_sock_addr *ctx)
+{
+	if (ctx->protocol != IPPROTO_UDP)
+		return 1;
+	count(STAT_UDP_RECVMSG);
+	__u32 ip6[4] = { ctx->user_ip6[0], ctx->user_ip6[1], ctx->user_ip6[2], ctx->user_ip6[3] };
+	if (!v4_mapped6(ip6))
+		return 1;
+	__u32 key = bpf_ntohl(ip6[3]);
+	struct router_orig *o = bpf_map_lookup_elem(&flows, &key);
+	if (!o || o->family != AF_INET)
+		return 1;
+	set_mapped_v4(ctx->user_ip6, *(__u32 *)(o->addr + 12));
 	ctx->user_port = bpf_htons(o->port);
 	count(STAT_UDP_REWRITTEN);
 	return 1;
@@ -530,6 +755,31 @@ int router_getpeername4(struct bpf_sock_addr *ctx)
 	if (!o || o->family != AF_INET)
 		return 1;
 	__builtin_memcpy(&ctx->user_ip4, o->addr + 12, 4);
+	ctx->user_port = bpf_htons(o->port);
+	count(STAT_GETPEERNAME);
+	return 1;
+}
+
+// An IPv6 socket must get its destination back in the shape it asked for: the
+// v4-mapped form for an IPv4 one, sixteen bytes for a native IPv6 one.
+SEC("cgroup/getpeername6")
+int router_getpeername6(struct bpf_sock_addr *ctx)
+{
+	if (ctx->protocol != IPPROTO_TCP && ctx->protocol != IPPROTO_UDP)
+		return 1;
+	__u64 cookie = bpf_get_socket_cookie(ctx);
+	struct router_orig *o = bpf_map_lookup_elem(&by_cookie, &cookie);
+	if (!o)
+		return 1;
+	if (o->family == AF_INET) {
+		set_mapped_v4(ctx->user_ip6, *(__u32 *)(o->addr + 12));
+	} else {
+		const __u32 *w = (const __u32 *)o->addr;
+		ctx->user_ip6[0] = w[0];
+		ctx->user_ip6[1] = w[1];
+		ctx->user_ip6[2] = w[2];
+		ctx->user_ip6[3] = w[3];
+	}
 	ctx->user_port = bpf_htons(o->port);
 	count(STAT_GETPEERNAME);
 	return 1;

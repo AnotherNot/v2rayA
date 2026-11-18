@@ -269,7 +269,7 @@ export default {
       transparentProxy:
         "If transparent proxy on, no extra configure needed and all TCP traffic will pass through the v2rayA. Providing proxy service to other computers and docker as the gateway should make option 'Share in LAN' on.",
       appRouter:
-        "Traffic is routed by the program that opens the socket: the process(...) rules in the RoutingA editor decide. Linux only, root and cgroup v2; TCP and UDP over IPv4 for now. A program no rule names is left alone, the first connection or datagram of a program is judged by the service, and a blocked program is refused outright from its second one on.",
+        "Traffic is routed by the program that opens the socket: the process(...) rules in the RoutingA editor decide. Linux only, root and cgroup v2; TCP over IPv4 and IPv6 and UDP over IPv4 for now, a native IPv6 datagram being refused rather than sent around its rule. A program no rule names is left alone, the first connection or datagram of a program is judged by the service, and a blocked program is refused outright from its second one on.",
       appRouterUnknownOwner:
         "What happens to a connection whose program cannot be identified: the process was gone before the lookup, or the service cannot see it. Leaving it alone keeps such traffic working; refusing it stops a block rule from failing open. Refusing also stops anything the service cannot attribute, so a mistake in a rule shows up as a broken application rather than as a leak.",
       transparentType:

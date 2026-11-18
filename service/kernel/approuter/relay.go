@@ -16,10 +16,19 @@ import (
 // actions above.
 const actionDecide Action = 3
 
+// Address families as the kernel records them.
+const (
+	familyInet  = 2
+	familyInet6 = 10
+)
+
 // orig is the destination the application asked for, with what the kernel knew
 // about the socket when it redirected it.
 type orig struct {
-	IP        [4]byte // network order
+	// Addr is the destination in network order; an IPv4 one sits in the last
+	// four bytes and Family says which family it is.
+	Addr      [16]byte
+	Family    uint8
 	Port      int
 	Pid       uint32
 	ExeDev    uint32
@@ -31,12 +40,30 @@ type orig struct {
 	Network Network
 }
 
-func (o orig) String() string {
-	return net.JoinHostPort(net.IP(o.IP[:]).String(), strconv.Itoa(o.Port))
+// ip is the destination in the shape a dialer or a SOCKS5 request takes. An
+// IPv4 destination is not written in its v4-mapped form: it never was one.
+func (o orig) ip() net.IP {
+	if o.Family == familyInet6 {
+		return net.IP(o.Addr[:])
+	}
+	return net.IP(o.Addr[12:])
 }
 
-// ipOf reads the destination as the host-order number the rules compare.
-func ipOf(o orig) uint32 { return binary.BigEndian.Uint32(o.IP[:]) }
+func (o orig) String() string {
+	return net.JoinHostPort(o.ip().String(), strconv.Itoa(o.Port))
+}
+
+// destination reads the address in the host-order shape the rules compare.
+func (o orig) destination() destination {
+	if o.Family == familyInet6 {
+		d := destination{isIPv6: true}
+		for i := range d.v6 {
+			d.v6[i] = binary.BigEndian.Uint32(o.Addr[i*4:])
+		}
+		return d
+	}
+	return destination{v4: binary.BigEndian.Uint32(o.Addr[12:])}
+}
 
 // portKey is the client's own address: what the relay sees as its peer.
 type portKey struct {
@@ -166,7 +193,7 @@ func (r *relay) handToInbound(conn net.Conn, o orig, class int) {
 		return
 	}
 	inbound := net.JoinHostPort("127.0.0.1", strconv.Itoa(port))
-	up, err := socks5Dial(inbound, net.IP(o.IP[:]), o.Port)
+	up, err := socks5Dial(inbound, o.ip(), o.Port)
 	if err != nil {
 		r.refused.Add(1)
 		log.Warn("app router: hand %s to the class %d inbound at %s: %v", o, class, inbound, err)

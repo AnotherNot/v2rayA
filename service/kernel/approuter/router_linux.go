@@ -157,6 +157,10 @@ func Start(opts Options) (*Router, error) {
 		{"router_getpeername4", ebpf.AttachCgroupInet4GetPeername},
 		{"router_sendmsg4", ebpf.AttachCGroupUDP4Sendmsg},
 		{"router_recvmsg4", ebpf.AttachCGroupUDP4Recvmsg},
+		{"router_connect6", ebpf.AttachCGroupInet6Connect},
+		{"router_getpeername6", ebpf.AttachCgroupInet6GetPeername},
+		{"router_sendmsg6", ebpf.AttachCGroupUDP6Sendmsg},
+		{"router_recvmsg6", ebpf.AttachCGroupUDP6Recvmsg},
 	} {
 		program, ok := collection.Programs[hook.program]
 		if !ok {
@@ -264,6 +268,8 @@ func (r *Router) Snapshot() (Stats, error) {
 		Getpeername:    counters[11],
 		Exempt:         counters[12],
 		RulesFull:      counters[13],
+		Connects6:      counters[19],
+		UDP6Refused:    counters[20],
 		UDPDatagrams:   counters[14],
 		UDPRedirected:  counters[15],
 		UDPNoFlow:      counters[16],
@@ -301,6 +307,8 @@ func (r *Router) report() {
 			log.Info("app router: %d UDP datagrams, %d redirected, %d relayed, %d direct, %d refused, %d answers restored",
 				snapshot.UDPDatagrams, snapshot.UDPRedirected, snapshot.UDPRelayed,
 				snapshot.UDPDirect, snapshot.UDPRefused, snapshot.UDPRewritten)
+			log.Info("app router: %d IPv6 connects, %d native IPv6 datagrams refused as unredirectable",
+				snapshot.Connects6, snapshot.UDP6Refused)
 		}
 	}
 }
@@ -403,6 +411,7 @@ func (s mapStore) take(key portKey) (orig, bool, error) {
 // origOf turns what the kernel recorded into the shape the relay uses.
 func origOf(value routerOrig) orig {
 	o := orig{
+		Family:    value.Family,
 		Port:      int(value.Port),
 		Pid:       value.Pid,
 		ExeDev:    value.ExeDev,
@@ -411,7 +420,7 @@ func origOf(value routerOrig) orig {
 		InboundID: int(value.InboundID),
 		Network:   networkOfProto(value.Proto),
 	}
-	copy(o.IP[:], value.Addr[12:16])
+	copy(o.Addr[:], value.Addr[:])
 	return o
 }
 

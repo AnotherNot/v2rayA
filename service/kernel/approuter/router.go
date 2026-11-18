@@ -57,6 +57,22 @@ type IPRange struct {
 	Hi uint32
 }
 
+// IPRange6 is an inclusive range of IPv6 addresses as four host-order words,
+// most significant first, the way the kernel compares them.
+type IPRange6 struct {
+	Lo [4]uint32
+	Hi [4]uint32
+}
+
+// destination is the address a rule is compared against. The two families are
+// kept apart: a rule that names an IPv4 range must not catch an IPv6 flow whose
+// address happens to be zero, and the other way round.
+type destination struct {
+	v4     uint32
+	v6     [4]uint32
+	isIPv6 bool
+}
+
 // exeKey is the identity of an executable: its file, not its name. Pad keeps
 // the layout equal to the C struct, which encoding/binary would otherwise size
 // differently.
@@ -86,9 +102,11 @@ type Rule struct {
 	Class int
 	// Network narrows the rule to TCP, UDP or both. Zero means both.
 	Network Network
-	// V4 and Ports narrow the rule to some destinations. An empty list means
-	// any.
+	// V4, V6 and Ports narrow the rule to some destinations. No addresses at
+	// all means any address; a rule that names only one family does not match
+	// the other.
 	V4    []IPRange
+	V6    []IPRange6
 	Ports []PortRange
 }
 
@@ -128,6 +146,8 @@ type Stats struct {
 	Getpeername    uint64
 	Exempt         uint64
 	RulesFull      uint64
+	Connects6      uint64
+	UDP6Refused    uint64
 	UDPDatagrams   uint64
 	UDPRedirected  uint64
 	UDPNoFlow      uint64
