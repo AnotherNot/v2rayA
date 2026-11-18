@@ -190,7 +190,7 @@ func TestAppRouterRefusesConditionsItCannotEnforce(t *testing.T) {
 		text string
 	}{
 		{"domain", "process(curl) && domain(example.com)->proxy"},
-		{"udp", "process(curl) && network(tcp, udp)->proxy"},
+		{"sctp", "process(curl) && network(sctp)->proxy"},
 		{"geoip", "process(curl) && ip(geoip:cn)->proxy"},
 		{"protocol", "process(curl) && protocol(tls)->proxy"},
 		{"source", "process(curl) && source(10.0.0.1)->proxy"},
@@ -320,5 +320,59 @@ func TestAppRouterClassTagRoundTrips(t *testing.T) {
 		if _, ok := appRouterClassOf(other); ok {
 			t.Errorf("%q was read as a class", other)
 		}
+	}
+}
+
+// network(...) says which transport a rule is about; a rule that does not name
+// one covers both, which is what a rule written before UDP existed means.
+func TestAppRouterReadsTheNetworkCondition(t *testing.T) {
+	withPorts(t)
+	withRoutingAText(t, `process(curl) && network(udp)->proxy
+process(wget) && network(tcp, udp) && port(53)->direct
+process(nc) && port(443)->direct`)
+	setting := appRouterSetting()
+	tmpl := baseTemplate(t, setting)
+	withProxyOutbound(tmpl)
+	if err := tmpl.setInbound(setting); err != nil {
+		t.Fatal(err)
+	}
+	if err := tmpl.setTransparentRouting(); err != nil {
+		t.Fatal(err)
+	}
+	plan := tmpl.appRouter
+	if len(plan.rules) != 3 {
+		t.Fatalf("%d rules", len(plan.rules))
+	}
+	if plan.rules[0].Network != approuter.NetworkUDP {
+		t.Errorf("the udp rule carries %d", plan.rules[0].Network)
+	}
+	if plan.rules[1].Network != approuter.NetworkBoth {
+		t.Errorf("tcp, udp carries %d", plan.rules[1].Network)
+	}
+	if plan.rules[2].Network != 0 {
+		t.Errorf("a rule without network(...) carries %d, and zero means both", plan.rules[2].Network)
+	}
+}
+
+// UDP reaches the class over a SOCKS5 association, so the generated inbound
+// has to accept one.
+func TestAppRouterClassInboundAcceptsUDP(t *testing.T) {
+	withPorts(t)
+	withRoutingAText(t, "process(curl)->proxy")
+	setting := appRouterSetting()
+	tmpl := baseTemplate(t, setting)
+	withProxyOutbound(tmpl)
+	if err := tmpl.setInbound(setting); err != nil {
+		t.Fatal(err)
+	}
+	if err := tmpl.setTransparentRouting(); err != nil {
+		t.Fatal(err)
+	}
+	class := findClassInbound(tmpl, AppRouterClassTag(1))
+	if class == nil {
+		t.Fatal("no class inbound was generated")
+	}
+	if class.Settings == nil || !class.Settings.UDP {
+		t.Fatalf("the class inbound does not accept UDP: %+v", class.Settings)
 	}
 }

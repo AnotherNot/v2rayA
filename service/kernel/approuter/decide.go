@@ -41,7 +41,8 @@ type bpfRule struct {
 	NV4       uint8
 	NPort     uint8
 	InboundID uint8
-	Pad       [2]uint8
+	Network   uint8
+	Pad       [1]uint8
 	V4        [maxHostsPerRule]IPRange
 	Port      [maxPortsPerRule]PortRange
 }
@@ -72,6 +73,7 @@ func compileRules(rules []Rule) (*compiled, error) {
 			InboundID: uint8(r.Class),
 			NV4:       uint8(len(r.V4)),
 			NPort:     uint8(len(r.Ports)),
+			Network:   uint8(r.Network),
 		}
 		if len(r.V4) == 0 {
 			br.AnyHost = 1
@@ -124,8 +126,11 @@ func matchesDestination(r Rule, ip uint32, port uint16) bool {
 
 // decide returns the action of the first rule that matches this flow, and the
 // class a proxy action goes to.
-func (c *compiled) decide(indexes []int, ip uint32, port uint16) (Action, int) {
+func (c *compiled) decide(indexes []int, ip uint32, port uint16, network Network) (Action, int) {
 	for _, i := range indexes {
+		if !c.rules[i].Network.Covers(network) {
+			continue
+		}
 		if !matchesDestination(c.rules[i], ip, port) {
 			continue
 		}
@@ -199,7 +204,7 @@ func (p *planner) decide(o orig) (Action, int) {
 	}
 	indexes := p.rulesFor(name, path)
 	p.remember(o, name, path, indexes)
-	return p.compiled.decide(indexes, ip, uint16(o.Port))
+	return p.compiled.decide(indexes, ip, uint16(o.Port), o.Network)
 }
 
 // rulesFor lists the rules that are about this executable, in order.
@@ -293,4 +298,13 @@ func policyName(a Action) string {
 		return "refusing"
 	}
 	return "leaving alone"
+}
+
+// networkOfProto reads the transport the kernel recorded. A TCP entry is the
+// only one the maps held before UDP existed, so anything else is UDP.
+func networkOfProto(proto uint8) Network {
+	if proto == 17 { // IPPROTO_UDP
+		return NetworkUDP
+	}
+	return NetworkTCP
 }

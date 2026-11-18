@@ -2,8 +2,11 @@
 //
 // Per-application routing: the connect() of a selected executable is matched
 // against that executable's ordered rule list and is sent to a local relay,
-// left alone, or refused. Sockets in one cgroup subtree and one network
-// namespace only.
+// left alone, or refused. UDP is handled one datagram at a time: each
+// destination of a socket gets a loopback "flow address" that stands for it,
+// so one socket can talk to many destinations and the relay can answer from
+// the address the application asked for. Sockets in one cgroup subtree and one
+// network namespace only.
 //
 // A rule carries a set of destination addresses, ports and an action; the first
 // rule of the executable's list that matches decides. Rules live in arrays so
@@ -38,6 +41,11 @@ struct task_struct { struct mm_struct *mm; };
 
 #define AF_INET 2
 #define IPPROTO_TCP 6
+#define IPPROTO_UDP 17
+
+// The transport bits a rule carries. Zero on a rule means "either".
+#define NET_TCP 1
+#define NET_UDP 2
 
 #define ACT_DIRECT 0
 #define ACT_PROXY 1
@@ -80,7 +88,8 @@ struct router_rule {
 	__u8 n_v4;
 	__u8 n_port;
 	__u8 inbound_id;    // for ACT_PROXY: which local inbound to hand the flow to
-	__u8 pad[2];
+	__u8 network;       // NET_*; zero = both
+	__u8 pad[1];
 	struct { __u32 lo; __u32 hi; } v4[MAX_V4];
 	struct { __u16 lo; __u16 hi; } port[MAX_PORTS];
 };
@@ -101,6 +110,7 @@ struct router_orig {
 	__u32 exe_dev;
 	__u32 pad1;
 	__u64 exe_ino;
+	__u64 cookie; // the socket the flow belongs to
 	__u8 action;
 	__u8 family;
 	__u8 proto;
@@ -130,8 +140,12 @@ MAP(exempt_exe, BPF_MAP_TYPE_HASH, 256, struct router_exe_key, __u8);
 // recover it from the peer address it sees.
 MAP(by_cookie, BPF_MAP_TYPE_LRU_HASH, 8192, __u64, struct router_orig);
 MAP(by_port, BPF_MAP_TYPE_LRU_HASH, 8192, struct router_port_key, struct router_orig);
+// One entry per UDP flow, keyed by the loopback flow address the destination
+// was rewritten to. The address stands for one (process, destination) pair;
+// the recvmsg hook reads it to give the application the real source back.
+MAP(flows, BPF_MAP_TYPE_LRU_HASH, 4096, __u32, struct router_orig);
 
-MAP(stats, BPF_MAP_TYPE_ARRAY, 16, __u32, __u64);
+MAP(stats, BPF_MAP_TYPE_ARRAY, 32, __u32, __u64);
 
 enum {
 	STAT_CONNECT = 0,         // every TCP connect the hook saw
@@ -148,6 +162,11 @@ enum {
 	STAT_GETPEERNAME = 11,
 	STAT_EXEMPT = 12,
 	STAT_RULES_FULL = 13, // the executable has more rules than fit
+	STAT_SEND = 14,         // UDP datagrams the send hooks saw
+	STAT_UDP_REDIRECTED = 15,
+	STAT_UDP_NOFLOW = 16,   // no loopback flow address was free
+	STAT_UDP_REWRITTEN = 17, // answers turned back into the real source
+	STAT_UDP_RECVMSG = 18,   // every UDP answer the hook looked at
 };
 
 static __always_inline void count(__u32 i)
@@ -200,8 +219,53 @@ static __always_inline int implicit_direct4(__u32 ip4)
 	return ip4 >= 0xe0000000; // multicast and above
 }
 
-static __always_inline int rule_matches(const struct router_rule *r, __u32 ip4, __u16 port)
+// A datagram to the DHCP ports is answered by the local network: proxying it
+// would leave the machine without a lease.
+static __always_inline int implicit_direct_udp(__u32 ip4, __u16 port)
 {
+	if (implicit_direct4(ip4))
+		return 1;
+	return port == 67 || port == 68;
+}
+
+// A loopback flow address stands for one UDP destination of one socket: the
+// relay replies from it and the recvmsg hook turns it back into the real
+// source. The socket is part of the identity, not just the process: a program
+// that opens a fresh socket per datagram (a resolver does) would otherwise
+// share an address with its previous socket and receive that socket's answers.
+// 127.1.0.0/16 is used, so a datagram from a real local service cannot be
+// mistaken for a flow. 0 means no address was free; the caller refuses the send
+// rather than borrowing another flow's address.
+static __always_inline __u32 udp_flow_addr(struct router_orig *o, __u64 cookie)
+{
+	o->cookie = cookie;
+	const __u32 *w = (const __u32 *)o->addr;
+	__u32 h = w[0] * 2654435761u ^ w[1] * 40503u ^ w[2] * 2246822519u ^ w[3] * 3266489917u;
+	h ^= ((__u32)o->port << 16) | o->pid;
+	h ^= (__u32)cookie * 2654435761u ^ (__u32)(cookie >> 32);
+	h ^= (__u32)o->action * 668265263u;
+	h ^= h >> 15;
+	h *= 2246822519u;
+	h ^= h >> 13;
+#pragma unroll
+	for (int i = 0; i < 8; i++) {
+		__u32 addr = 0x7f010000 | ((h + i) & 0x0000ffff);
+		struct router_orig *ex = bpf_map_lookup_elem(&flows, &addr);
+		if (!ex) {
+			bpf_map_update_elem(&flows, &addr, o, BPF_NOEXIST);
+			return addr;
+		}
+		if (ex->cookie == cookie && !__builtin_memcmp(ex->addr, o->addr, 16) &&
+		    ex->port == o->port && ex->action == o->action && ex->pid == o->pid)
+			return addr;
+	}
+	return 0;
+}
+
+static __always_inline int rule_matches(const struct router_rule *r, __u32 ip4, __u16 port, __u8 pbit)
+{
+	if (r->network && !(r->network & pbit))
+		return 0;
 	if (!r->any_port) {
 		int ok = 0;
 #pragma unroll
@@ -235,7 +299,7 @@ static __always_inline int rule_matches(const struct router_rule *r, __u32 ip4, 
 
 // The first matching rule of the executable's list decides. inbound_out is set
 // only for ACT_PROXY.
-static __always_inline int decide_exec(__u8 *inbound_out, __u32 slot, __u32 ip4, __u16 port)
+static __always_inline int decide_exec(__u8 *inbound_out, __u32 slot, __u32 ip4, __u16 port, __u8 pbit)
 {
 	*inbound_out = 0;
 	struct router_exec_rules *er = bpf_map_lookup_elem(&exec_rules, &slot);
@@ -253,7 +317,7 @@ static __always_inline int decide_exec(__u8 *inbound_out, __u32 slot, __u32 ip4,
 		struct router_rule *r = bpf_map_lookup_elem(&brules, &ri);
 		if (!r)
 			break;
-		if (!rule_matches(r, ip4, port))
+		if (!rule_matches(r, ip4, port, pbit))
 			continue;
 		*inbound_out = r->inbound_id;
 		switch (r->action) {
@@ -283,16 +347,12 @@ static __always_inline int record(struct bpf_sock_addr *ctx, struct router_orig 
 	return 1;
 }
 
-SEC("cgroup/connect4")
-int router_connect4(struct bpf_sock_addr *ctx)
+// Shared by the connect and sendmsg hooks: both carry the destination the
+// application asked for in the same place. connected is true for a connect(),
+// where the socket itself is rewritten and getpeername must keep answering
+// with the destination; a datagram socket is rewritten per datagram instead.
+static __always_inline int v4_hook(struct bpf_sock_addr *ctx, __u8 pbit, int connected)
 {
-	// TCP over IPv4 only: UDP and IPv6 are later stages, and a hook that
-	// half-serves them would leave their traffic on the direct path without
-	// saying so.
-	if (ctx->protocol != IPPROTO_TCP)
-		return 1;
-	count(STAT_CONNECT);
-
 	struct router_cfg *c = cfgp();
 	if (!c || !c->enabled)
 		return 1;
@@ -308,14 +368,15 @@ int router_connect4(struct bpf_sock_addr *ctx)
 
 	__u32 ip4 = bpf_ntohl(ctx->user_ip4);
 	__u16 port = bpf_ntohs(ctx->user_port);
-	if (implicit_direct4(ip4) || port == (__u16)c->relay_port) {
+	int implicit = pbit == NET_TCP ? implicit_direct4(ip4) : implicit_direct_udp(ip4, port);
+	if (implicit || port == (__u16)c->relay_port) {
 		count(STAT_IMPLICIT_DIRECT);
 		return 1;
 	}
 
 	struct router_orig o = {};
 	o.family = AF_INET;
-	o.proto = IPPROTO_TCP;
+	o.proto = pbit == NET_TCP ? IPPROTO_TCP : IPPROTO_UDP;
 	o.port = port;
 	o.pid = tgid;
 	__builtin_memcpy(o.addr + 12, &ctx->user_ip4, 4);
@@ -338,10 +399,10 @@ int router_connect4(struct bpf_sock_addr *ctx)
 			o.action = ACT_DECIDE;
 		} else {
 			__u8 inbound = 0;
-			int act = decide_exec(&inbound, *slot, ip4, port);
+			int act = decide_exec(&inbound, *slot, ip4, port, pbit);
 			switch (act) {
 			case ACT_BLOCK:
-				return 0; // EPERM: the connection is refused
+				return 0; // EPERM: the datagram or connection is refused
 			case ACT_PROXY:
 				o.action = ACT_PROXY;
 				o.inbound_id = inbound;
@@ -355,9 +416,73 @@ int router_connect4(struct bpf_sock_addr *ctx)
 		}
 	}
 
+	if (pbit == NET_UDP) {
+		__u64 cookie = bpf_get_socket_cookie(ctx);
+		__u32 flow = udp_flow_addr(&o, cookie);
+		if (!flow) {
+			count(STAT_UDP_NOFLOW);
+			return 0;
+		}
+		ctx->user_ip4 = bpf_htonl(flow);
+		ctx->user_port = bpf_htons(c->relay_port);
+		count(STAT_UDP_REDIRECTED);
+		if (connected) {
+			// A connected datagram socket has a peer to report, and the
+			// application may ask for it before the first datagram.
+			bpf_map_update_elem(&by_cookie, &cookie, &o, BPF_ANY);
+		}
+		return 1;
+	}
+
 	ctx->user_ip4 = bpf_htonl(0x7f000001);
 	ctx->user_port = bpf_htons(c->relay_port);
 	return record(ctx, &o);
+}
+
+SEC("cgroup/connect4")
+int router_connect4(struct bpf_sock_addr *ctx)
+{
+	// A connect() on a datagram socket is the connected-UDP case: the socket
+	// gets one flow address, and its datagrams then name that address.
+	if (ctx->protocol == IPPROTO_TCP) {
+		count(STAT_CONNECT);
+		return v4_hook(ctx, NET_TCP, 0);
+	}
+	if (ctx->protocol == IPPROTO_UDP) {
+		count(STAT_SEND);
+		return v4_hook(ctx, NET_UDP, 1);
+	}
+	return 1;
+}
+
+// One datagram, one decision: a UDP socket can talk to many destinations, and
+// each of them gets its own flow address.
+SEC("cgroup/sendmsg4")
+int router_sendmsg4(struct bpf_sock_addr *ctx)
+{
+	if (ctx->protocol != IPPROTO_UDP)
+		return 1;
+	count(STAT_SEND);
+	return v4_hook(ctx, NET_UDP, 0);
+}
+
+// A datagram that came from a flow address is really from the destination the
+// application asked for: the application must see that destination, or it will
+// drop the answer as coming from a stranger.
+SEC("cgroup/recvmsg4")
+int router_recvmsg4(struct bpf_sock_addr *ctx)
+{
+	if (ctx->protocol != IPPROTO_UDP)
+		return 1;
+	count(STAT_UDP_RECVMSG);
+	__u32 key = bpf_ntohl(ctx->user_ip4);
+	struct router_orig *o = bpf_map_lookup_elem(&flows, &key);
+	if (!o || o->family != AF_INET)
+		return 1;
+	__builtin_memcpy(&ctx->user_ip4, o->addr + 12, 4);
+	ctx->user_port = bpf_htons(o->port);
+	count(STAT_UDP_REWRITTEN);
+	return 1;
 }
 
 // The relay has to learn the destination by something it can see, and what it
@@ -398,7 +523,7 @@ int router_sockops(struct bpf_sock_ops *s)
 SEC("cgroup/getpeername4")
 int router_getpeername4(struct bpf_sock_addr *ctx)
 {
-	if (ctx->protocol != IPPROTO_TCP)
+	if (ctx->protocol != IPPROTO_TCP && ctx->protocol != IPPROTO_UDP)
 		return 1;
 	__u64 cookie = bpf_get_socket_cookie(ctx);
 	struct router_orig *o = bpf_map_lookup_elem(&by_cookie, &cookie);

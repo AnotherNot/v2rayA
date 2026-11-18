@@ -84,14 +84,14 @@ func TestCompiledDecideTakesTheFirstMatch(t *testing.T) {
 		t.Fatal(err)
 	}
 	indexes := []int{0, 1, 2}
-	if action, _ := c.decide(indexes, 0x01010101, 443); action != ActionBlock {
+	if action, _ := c.decide(indexes, 0x01010101, 443, NetworkTCP); action != ActionBlock {
 		t.Fatalf("port 443 got %v", action)
 	}
-	if action, class := c.decide(indexes, 0x01010101, 80); action != ActionProxy || class != 1 {
+	if action, class := c.decide(indexes, 0x01010101, 80, NetworkTCP); action != ActionProxy || class != 1 {
 		t.Fatalf("port 80 got %v class %d", action, class)
 	}
 	// A destination no rule mentions is left alone.
-	if action, _ := c.decide([]int{2}, 0x01010101, 80); action != ActionDirect {
+	if action, _ := c.decide([]int{2}, 0x01010101, 80, NetworkTCP); action != ActionDirect {
 		t.Fatalf("no matching rule gave %v", action)
 	}
 }
@@ -244,5 +244,42 @@ func TestPlannerAppliesTheUnknownOwnerPolicy(t *testing.T) {
 		if action != policy {
 			t.Errorf("policy %v gave %v", policy, action)
 		}
+	}
+}
+
+// A rule that names a transport leaves the other one alone; a rule with no
+// network(...) covers both.
+func TestCompiledDecideRespectsTheNetwork(t *testing.T) {
+	c, err := compileRules([]Rule{
+		{Apps: apps("x"), Action: ActionBlock, Network: NetworkUDP},
+		{Apps: apps("x"), Action: ActionProxy, Class: 1, Network: NetworkTCP},
+		{Apps: apps("x"), Action: ActionDirect},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	indexes := []int{0, 1, 2}
+	if action, _ := c.decide(indexes, 0x01010101, 443, NetworkUDP); action != ActionBlock {
+		t.Fatalf("the UDP rule gave %v for a UDP flow", action)
+	}
+	if action, class := c.decide(indexes, 0x01010101, 443, NetworkTCP); action != ActionProxy || class != 1 {
+		t.Fatalf("the TCP rule gave %v class %d for a TCP flow", action, class)
+	}
+	if action, _ := c.decide([]int{2}, 0x01010101, 443, NetworkUDP); action != ActionDirect {
+		t.Fatalf("a rule without a network gave %v", action)
+	}
+	if !(NetworkBoth.Covers(NetworkTCP) && NetworkBoth.Covers(NetworkUDP)) {
+		t.Fatal("NetworkBoth does not cover both transports")
+	}
+}
+
+// The kernel reads the transport as a bit it can test without a branch table.
+func TestCompileCarriesTheNetworkToTheKernel(t *testing.T) {
+	c, err := compileRules([]Rule{{Apps: apps("x"), Action: ActionDirect, Network: NetworkUDP}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.kernel[0].Network != uint8(NetworkUDP) {
+		t.Fatalf("the kernel rule carries %d", c.kernel[0].Network)
 	}
 }

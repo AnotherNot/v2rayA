@@ -19,13 +19,13 @@ With the transparent proxy on, traffic reaches the core without any application 
 | `tproxy`       | Linux                                                        | iptables/nftables `TPROXY`; TCP and UDP                                                                      |
 | `tun`          | Linux, Windows, macOS                                        | the core opens a TUN device; TCP and UDP; excludes v2rayA and the core by itself                             |
 | System proxy   | Windows; Linux and macOS when not running as root (`--lite`) | sets the desktop's proxy settings (GNOME and KDE on Linux); only applications that honour them are covered   |
-| By application | Linux | a cgroup eBPF program matches the program that opens the socket against the `process(...)` rules of RoutingA; TCP over IPv4 for now |
+| By application | Linux | a cgroup eBPF program matches the program that opens the socket against the `process(...)` rules of RoutingA; TCP and UDP over IPv4 for now, with DHCP left alone |
 
 `redirect` and `tproxy` need root and `iptables` or `nftables`; `tun` needs `/dev/net/tun` and `ip` on Linux and administrator rights on Windows and macOS.
 
 **Excluded Interface Prefixes** keeps traffic arriving on the named interfaces (Docker bridges, VPN tunnels; `docker*`, `veth*`, `wg*`, `ppp*` by default) out of `redirect` and `tproxy`; their DNS is still intercepted in the *service and interception* mode.
 
-`--redirect-respect-bound-device` (Linux) lets TCP sockets bound to a device with `SO_BINDTODEVICE` bypass `redirect`: NetworkManager's connectivity checks are such sockets, and a redirected check reports a limited connection and keeps applications offline. Off by default. When it is on, the service marks those sockets with `0x80` through cgroup BPF; that needs kernel 5.14 or later and cgroup v2, and `redirect` fails to start when they are missing.
+The first connection of a program — or the first datagram, for a program that sends UDP — is judged by the service, which then caches the answer in the kernel; a blocked program is refused outright from its second connection or datagram on. A program whose rules the kernel cannot hold is judged by the service on every flow instead, and the log names it.
 
 ## By application
 
@@ -34,12 +34,13 @@ With the transparent proxy on, traffic reaches the core without any application 
 ```
 process(firefox) -> proxy
 process(curl) && port(443) -> work
+process(steam) && network(udp) -> proxy
 process(transmission) -> block
 ```
 
-A bare value is a file name; `name:`, `path:` and `folder:` say which part of the program the value means, and `*` and `?` are wildcards. Rules match from top to bottom and the first match wins. A program no rule names is not touched at all, and a `process(...)` rule is inactive while another implementation is chosen — the log says how many such rules were skipped.
+A bare value is a file name; `name:`, `path:` and `folder:` say which part of the program the value means, and `*` and `?` are wildcards. Rules match from top to bottom and the first match wins. `network(tcp)` or `network(udp)` narrows a rule to one transport; without it the rule covers both. A program no rule names is not touched at all, and a `process(...)` rule is inactive while another implementation is chosen — the log says how many such rules were skipped.
 
-The mode needs root, kernel 5.14 or later and cgroup v2 at `/sys/fs/cgroup`. It carries TCP over IPv4; UDP and IPv6 are not routed by it yet. The program behind a socket is identified through `/proc`, so the service has to see the host's process namespace: in a container with a private PID namespace programs cannot be identified and their connections are left alone.
+The mode needs root, kernel 5.14 or later and cgroup v2 at `/sys/fs/cgroup`. It carries TCP and UDP over IPv4; IPv6 is not routed by it yet. A datagram socket is matched per destination, so one socket talking to several places still gets the right rule for every datagram. DHCP is never proxied. The program behind a socket is identified through `/proc`, so the service has to see the host's process namespace: in a container with a private PID namespace programs cannot be identified and their connections are left alone.
 
 The first connection of a program is judged by the service, which then caches the answer in the kernel; a blocked program is refused outright from its second connection on. A program whose rules the kernel cannot hold is judged by the service on every connection instead, and the log names it.
 

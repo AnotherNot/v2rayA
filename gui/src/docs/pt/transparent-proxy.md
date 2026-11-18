@@ -19,7 +19,7 @@ Com o proxy transparente ativado, o tráfego chega ao núcleo sem nenhuma config
 | `tproxy`         | Linux                                                              | `TPROXY` do iptables/nftables; TCP e UDP                                                                                 |
 | `tun`            | Linux, Windows, macOS                                              | o núcleo abre um dispositivo TUN; TCP e UDP; exclui o v2rayA e o próprio núcleo automaticamente                          |
 | Proxy do sistema | Windows; Linux e macOS quando não é executado como root (`--lite`) | configura o proxy do ambiente gráfico (GNOME e KDE no Linux); abrange apenas os aplicativos que as respeitam             |
-| Por aplicativo | Linux | um programa cgroup eBPF compara o programa que abre o socket com as regras `process(...)` do RoutingA; por enquanto TCP sobre IPv4 |
+| Por aplicativo | Linux | um programa cgroup eBPF compara o programa que abre o socket com as regras `process(...)` do RoutingA; por enquanto TCP e UDP sobre IPv4; o DHCP fica intocado |
 
 `redirect` e `tproxy` exigem root e `iptables` ou `nftables`; `tun` exige `/dev/net/tun` e `ip` no Linux e privilégios de administrador no Windows e no macOS.
 
@@ -34,14 +34,15 @@ Com o proxy transparente ativado, o tráfego chega ao núcleo sem nenhuma config
 ```
 process(firefox) -> proxy
 process(curl) && port(443) -> work
+process(steam) && network(udp) -> proxy
 process(transmission) -> block
 ```
 
-Um valor sem parâmetro é o nome do arquivo; `name:`, `path:` e `folder:` dizem de que parte do programa se trata, e `*` e `?` são curingas. As regras são lidas de cima para baixo e a primeira que casa vence. Um programa que nenhuma regra nomeia não é tocado, e uma regra `process(...)` fica inativa enquanto outra implementação estiver escolhida — o log diz quantas foram ignoradas.
+Um valor sem parâmetro é o nome do arquivo; `name:`, `path:` e `folder:` dizem de que parte do programa se trata, e `*` e `?` são curingas. As regras são lidas de cima para baixo e a primeira que casa vence. `network(tcp)` ou `network(udp)` restringe a regra a um transporte; sem isso a regra cobre os dois. Um programa que nenhuma regra nomeia não é tocado, e uma regra `process(...)` fica inativa enquanto outra implementação estiver escolhida — o log diz quantas foram ignoradas.
 
-O modo exige root, kernel 5.14 ou mais recente e cgroup v2 em `/sys/fs/cgroup`. Ele carrega TCP sobre IPv4; UDP e IPv6 ainda não passam por ele. O programa por trás do socket é identificado por `/proc`, então o serviço precisa enxergar o espaço de processos do host: num contêiner com namespace de PID próprio os programas não são identificados e suas conexões ficam intocadas.
+O modo exige root, kernel 5.14 ou mais recente e cgroup v2 em `/sys/fs/cgroup`. Ele carrega TCP e UDP sobre IPv4; IPv6 ainda não passa por ele. Os datagramas são comparados por destino, então um socket que fala com vários lugares recebe a regra certa para cada datagrama. O DHCP nunca é proxiado. O programa por trás do socket é identificado por `/proc`, então o serviço precisa enxergar o espaço de processos do host: num contêiner com namespace de PID próprio os programas não são identificados e suas conexões ficam intocadas.
 
-A primeira conexão de um programa é julgada pelo serviço, que guarda a resposta no kernel; um programa bloqueado é recusado pelo kernel já na segunda conexão. Um programa cujas regras não cabem no kernel é julgado pelo serviço a cada conexão, e o log o nomeia.
+A primeira conexão de um programa — ou o primeiro datagrama, para quem usa UDP — é julgada pelo serviço, que então guarda a resposta no núcleo; um programa bloqueado é recusado pelo núcleo já a partir da segunda conexão ou datagrama. Um programa cujas regras não cabem no núcleo passa a ser julgado pelo serviço em cada fluxo, e o registro o nomeia.
 
 Uma conexão cujo programa não pode ser identificado — o processo terminou antes da consulta, ou o serviço não o enxerga — segue **Proprietário desconhecido**: por padrão fica intocada, e pode ser configurada para ser recusada, para que uma regra de bloqueio não falhe aberta.
 

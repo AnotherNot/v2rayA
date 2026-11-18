@@ -102,9 +102,17 @@ func (t *Template) appRuleOf(r RoutingA.Routing, plan *appRouterPlan, outboundTa
 			}
 			out.Ports = append(out.Ports, ranges...)
 		case "network":
+			if len(f.Params) == 0 {
+				return out, true, fmt.Errorf("the rule for %q has an empty network(...)", r.Out)
+			}
 			for _, network := range f.Params {
-				if strings.TrimSpace(network) != "tcp" {
-					return out, true, fmt.Errorf("the rule for %q names network %q, and application rules carry TCP only for now", r.Out, network)
+				switch strings.TrimSpace(network) {
+				case "tcp":
+					out.Network |= approuter.NetworkTCP
+				case "udp":
+					out.Network |= approuter.NetworkUDP
+				default:
+					return out, true, fmt.Errorf("the rule for %q names network %q, and application rules carry tcp and udp", r.Out, network)
 				}
 			}
 		case "domain", "domains":

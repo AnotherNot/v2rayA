@@ -35,6 +35,21 @@ const (
 	ActionBlock Action = 2
 )
 
+// Network is the transport a rule is about. A rule written without
+// network(...) applies to both, so the zero value means "either" rather than
+// "neither".
+type Network uint8
+
+const (
+	NetworkTCP Network = 1 << iota
+	NetworkUDP
+	NetworkBoth = NetworkTCP | NetworkUDP
+)
+
+// Covers reports whether a flow of the given transport is subject to a rule
+// that names these networks.
+func (n Network) Covers(flow Network) bool { return n == 0 || n&flow != 0 }
+
 // IPRange is an inclusive range of IPv4 addresses in host order, the way the
 // kernel compares them.
 type IPRange struct {
@@ -69,6 +84,8 @@ type Rule struct {
 	Action Action
 	// Class is the inbound that serves a proxy action.
 	Class int
+	// Network narrows the rule to TCP, UDP or both. Zero means both.
+	Network Network
 	// V4 and Ports narrow the rule to some destinations. An empty list means
 	// any.
 	V4    []IPRange
@@ -111,6 +128,15 @@ type Stats struct {
 	Getpeername    uint64
 	Exempt         uint64
 	RulesFull      uint64
+	UDPDatagrams   uint64
+	UDPRedirected  uint64
+	UDPNoFlow      uint64
+	UDPRewritten   uint64
+	UDPAnswers     uint64
 	Relayed        uint64
+	RelayDirect    uint64
 	Refused        uint64
+	UDPRelayed     uint64
+	UDPDirect      uint64
+	UDPRefused     uint64
 }

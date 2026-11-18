@@ -26,6 +26,9 @@ type orig struct {
 	ExeIno    uint64
 	Action    Action
 	InboundID int
+	// Network is the transport the flow uses; a rule that names one network
+	// leaves the other alone.
+	Network Network
 }
 
 func (o orig) String() string {

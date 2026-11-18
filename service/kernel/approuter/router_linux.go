@@ -43,6 +43,7 @@ type routerOrig struct {
 	ExeDev    uint32
 	Pad1      uint32
 	ExeIno    uint64
+	Cookie    uint64
 	Action    uint8
 	Family    uint8
 	Proto     uint8
@@ -71,6 +72,7 @@ type Router struct {
 	stats      *ebpf.Map
 	links      []link.Link
 	relay      *relay
+	udpRelay   *udpRelay
 	planner    *planner
 	netns      uint64
 	coreTgid   uint32
@@ -153,6 +155,8 @@ func Start(opts Options) (*Router, error) {
 		{"router_connect4", ebpf.AttachCGroupInet4Connect},
 		{"router_sockops", ebpf.AttachCGroupSockOps},
 		{"router_getpeername4", ebpf.AttachCgroupInet4GetPeername},
+		{"router_sendmsg4", ebpf.AttachCGroupUDP4Sendmsg},
+		{"router_recvmsg4", ebpf.AttachCGroupUDP4Recvmsg},
 	} {
 		program, ok := collection.Programs[hook.program]
 		if !ok {
@@ -180,9 +184,18 @@ func Start(opts Options) (*Router, error) {
 		cleanup()
 		return nil, err
 	}
+	// UDP uses the same port number as TCP: the two are separate namespaces,
+	// and one port is easier to reason about than two.
+	r.udpRelay = newUDPRelay(mapFlowStore{flows: collection.Maps["flows"]}, r.planner, opts.ClassPorts)
+	if err := r.udpRelay.start(); err != nil {
+		_ = r.relay.close()
+		cleanup()
+		return nil, err
+	}
 	// Enabled last: the programs are attached by now, so no connect is served
 	// by a table that is still being filled.
 	if err := r.putConfig(true); err != nil {
+		_ = r.udpRelay.close()
 		_ = r.relay.close()
 		cleanup()
 		return nil, err
@@ -230,7 +243,7 @@ func (r *Router) Snapshot() (Stats, error) {
 	if r.closed {
 		return Stats{}, errors.New("the app router is closed")
 	}
-	var counters [16]uint64
+	var counters [32]uint64
 	for i := range counters {
 		if err := r.stats.Lookup(uint32(i), &counters[i]); err != nil {
 			return Stats{}, err
@@ -251,8 +264,17 @@ func (r *Router) Snapshot() (Stats, error) {
 		Getpeername:    counters[11],
 		Exempt:         counters[12],
 		RulesFull:      counters[13],
+		UDPDatagrams:   counters[14],
+		UDPRedirected:  counters[15],
+		UDPNoFlow:      counters[16],
+		UDPRewritten:   counters[17],
+		UDPAnswers:     counters[18],
 		Relayed:        r.relay.relayed.Load(),
+		RelayDirect:    r.relay.direct.Load(),
 		Refused:        r.relay.refused.Load(),
+		UDPRelayed:     r.udpRelay.forwarded.Load(),
+		UDPDirect:      r.udpRelay.direct.Load(),
+		UDPRefused:     r.udpRelay.refused.Load(),
 	}, nil
 }
 
@@ -275,7 +297,10 @@ func (r *Router) report() {
 			}
 			log.Info("app router: %d connects, %d proxied, %d direct, %d blocked, %d decided late, %d relayed, %d dialled directly, %d refused",
 				snapshot.Connects, snapshot.RuleProxy, snapshot.RuleDirect, snapshot.RuleBlock,
-				snapshot.Decide, r.relay.relayed.Load(), r.relay.direct.Load(), snapshot.Refused)
+				snapshot.Decide, snapshot.Relayed, snapshot.RelayDirect, snapshot.Refused)
+			log.Info("app router: %d UDP datagrams, %d redirected, %d relayed, %d direct, %d refused, %d answers restored",
+				snapshot.UDPDatagrams, snapshot.UDPRedirected, snapshot.UDPRelayed,
+				snapshot.UDPDirect, snapshot.UDPRefused, snapshot.UDPRewritten)
 		}
 	}
 }
@@ -297,7 +322,7 @@ func (r *Router) Close() error {
 	<-r.done
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	relayErr := r.relay.close()
+	relayErr := errors.Join(r.relay.close(), r.udpRelay.close())
 	var errs []error
 	for i := len(r.links) - 1; i >= 0; i-- {
 		errs = append(errs, r.links[i].Close())
@@ -372,6 +397,11 @@ func (s mapStore) take(key portKey) (orig, bool, error) {
 	if err := s.byPort.Delete(bpfKey); err != nil && !errors.Is(err, ebpf.ErrKeyNotExist) {
 		return orig{}, false, err
 	}
+	return origOf(value), true, nil
+}
+
+// origOf turns what the kernel recorded into the shape the relay uses.
+func origOf(value routerOrig) orig {
 	o := orig{
 		Port:      int(value.Port),
 		Pid:       value.Pid,
@@ -379,9 +409,28 @@ func (s mapStore) take(key portKey) (orig, bool, error) {
 		ExeIno:    value.ExeIno,
 		Action:    Action(value.Action),
 		InboundID: int(value.InboundID),
+		Network:   networkOfProto(value.Proto),
 	}
 	copy(o.IP[:], value.Addr[12:16])
-	return o, true, nil
+	return o
+}
+
+// mapFlowStore adapts the flows map to what the UDP relay asks for. The entry
+// is not consumed: every datagram of a flow names the same address.
+type mapFlowStore struct {
+	flows *ebpf.Map
+}
+
+func (s mapFlowStore) flow(addr uint32) (orig, bool, error) {
+	var value routerOrig
+	err := s.flows.Lookup(addr, &value)
+	if errors.Is(err, ebpf.ErrKeyNotExist) {
+		return orig{}, false, nil
+	}
+	if err != nil {
+		return orig{}, false, err
+	}
+	return origOf(value), true, nil
 }
 
 // mapCache writes what the slow path learned into the kernel's maps.

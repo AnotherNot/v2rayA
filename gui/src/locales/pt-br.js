@@ -274,7 +274,7 @@ export default {
       transparentProxy:
         "Com o proxy transparente ativado, nenhuma configuração extra é necessária e todo o tráfego TCP passará pelo v2rayA. Para fornecer proxy a outros computadores e ao Docker pelo gateway, ative a opção 'Compartilhar na LAN'.",
       appRouter:
-        "O tráfego é roteado pelo programa que abre a conexão: as regras process(...) do editor RoutingA decidem. Apenas Linux, com root e cgroup v2; por enquanto TCP sobre IPv4. Um programa que nenhuma regra nomeia não é tocado, a primeira conexão de um programa é julgada pelo serviço e o resultado é guardado, e um programa bloqueado é recusado pelo kernel já na segunda conexão.",
+        "O tráfego é roteado pelo programa que abre o socket: as regras process(...) do editor RoutingA decidem. Apenas Linux, com root e cgroup v2; por enquanto TCP e UDP sobre IPv4. Um programa que nenhuma regra nomeia não é tocado, a primeira conexão ou o primeiro datagrama de um programa é julgado pelo serviço e o resultado é guardado, e um programa bloqueado é recusado pelo kernel já a partir do segundo.",
       appRouterUnknownOwner:
         "O que acontece com uma conexão cujo programa não pode ser identificado: o processo terminou antes da consulta, ou o serviço não o enxerga. Deixar em paz mantém esse tráfego funcionando; recusar impede que uma regra de bloqueio falhe aberta. Recusar também barra tudo o que o serviço não consegue atribuir, então um erro numa regra aparece como um aplicativo quebrado, não como um vazamento.",
       transparentType:

@@ -177,6 +177,7 @@ func (t *Template) setRulePortRouting() error {
 	// because "The Same as the Rule Port" may need them
 	return t.AppendRoutingRuleByMode(t.Setting.RulePortMode, []string{"rule-http", "rule-socks"})
 }
+
 // ValidateRoutingA parses RoutingA source and reports conditions this build
 // cannot enforce, before the text is stored or handed to the core.
 func ValidateRoutingA(text string) error {
@@ -478,7 +479,9 @@ func (t *Template) setTransparentRouting() (err error) {
 				Port:     approuter.ClassPort(class),
 				Protocol: "socks",
 				Listen:   "127.0.0.1",
-				Settings: &coreObj.InboundSettings{UDP: false},
+				// UDP is carried as a SOCKS5 association: the relay frames
+				// each datagram and the core forwards it like any other flow.
+				Settings: &coreObj.InboundSettings{UDP: true},
 				Tag:      tag,
 			})
 			t.Routing.Rules = append(t.Routing.Rules, coreObj.RoutingRule{
