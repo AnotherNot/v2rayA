@@ -18,6 +18,11 @@
 # publish -p 2017:2017 -p 20170:20170 instead. The container runs as root
 # because iptables and TUN need it; the capabilities above are the least it
 # can do the job with.
+#
+# The "By application" (app_router) mode is not available in this image: it
+# attaches a cgroup program to the host's cgroup v2 hierarchy and identifies
+# each program through the host's process namespace, neither of which this
+# layout grants. See docs/app-router.md.
 # Missing geoip.dat/geosite.dat are downloaded by the service itself on
 # the first start, so the image ships without them.
 

@@ -50,7 +50,11 @@ x-v2raya: &v2raya
 services:
   # -------------------------------------------------------------------------
   # Transparent proxy. redirect/tproxy/tun is selected in the interface, not
-  # here; the container needs a superset of what they require.
+  # here; the container needs a superset of what they require. The
+  # "By application" mode is not one of them: it needs the host's cgroup v2
+  # hierarchy writable here and the host PID namespace to identify a program,
+  # which this profile deliberately does not grant. Use a native install for
+  # it; see docs/app-router.md.
   # -------------------------------------------------------------------------
   v2raya-transparent:
     <<: *v2raya
