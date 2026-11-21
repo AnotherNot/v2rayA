@@ -447,7 +447,10 @@ func portRangeOf(value string) (uint16, uint16, error) {
 		if err != nil {
 			return 0, 0, fmt.Errorf("port(%s) is not a range", value)
 		}
-		if lo < 0 || hi > 65535 || lo > hi {
+		// Both ends are checked against the type's range, not only the upper
+		// one: lo <= hi <= 65535 already implies it, but the conversion to
+		// uint16 must be visibly guarded, and the check costs nothing.
+		if lo < 0 || hi < 0 || lo > 65535 || hi > 65535 || lo > hi {
 			return 0, 0, fmt.Errorf("port(%s) is outside 0-65535 or reversed", value)
 		}
 		return uint16(lo), uint16(hi), nil

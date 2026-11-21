@@ -196,6 +196,9 @@ func TestAppRouterRefusesConditionsItCannotEnforce(t *testing.T) {
 		{"v4-mapped", `process(curl) && ip("::ffff:1.2.3.4")->proxy`},
 		{"v4-mapped range", `process(curl) && ip("::ffff:1.2.3.0/120")->proxy`},
 		{"reversed IPv6 range", `process(curl) && ip("::5-::1")->proxy`},
+		{"port above the range", "process(curl) && port(70000)->proxy"},
+		{"range above the range", "process(curl) && port(70000-80000)->proxy"},
+		{"reversed port range", "process(curl) && port(1000-999)->proxy"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			withPorts(t)
