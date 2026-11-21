@@ -1,3 +1,5 @@
+github.com/AnotherNot/RoutingA v1.0.3 h1:9juv6FUCVm3cED3z15/DAjTMNYscvFsQoxRP9HD4eX8=
+github.com/AnotherNot/RoutingA v1.0.3/go.mod h1:M9kQE+WtKChg48TABm9jdVBPjvm1bNDjm1zFPNfyU/c=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/adrg/xdg v0.4.0 h1:RzRqFcjH4nE5C6oTAxhBtoE2IRyjBSa62SCbyPidvls=
 github.com/adrg/xdg v0.4.0/go.mod h1:N6ag73EX4wyxeaoeHctc1mas01KZgsj5tYiAIwqJE/E=
@@ -231,8 +233,6 @@ github.com/v2fly/VSign v0.0.0-20201108000810-e2adc24bf848 h1:p1UzXK6VAutXFFQMnre
 github.com/v2fly/VSign v0.0.0-20201108000810-e2adc24bf848/go.mod h1:p80Bv154ZtrGpXMN15slDCqc9UGmfBuUzheDFBYaW/M=
 github.com/v2fly/ss-bloomring v0.0.0-20210312155135-28617310f63e h1:5QefA066A1tF8gHIiADmOVOV5LS43gt3ONnlEl3xkwI=
 github.com/v2fly/ss-bloomring v0.0.0-20210312155135-28617310f63e/go.mod h1:5t19P9LBIrNamL6AcMQOncg/r10y3Pc01AbHeMhwlpU=
-github.com/v2rayA/RoutingA v1.0.2 h1:UHBIdrflQ0zj+PXnEDLj9D2aTk2gYreIsvtfPKNdpu4=
-github.com/v2rayA/RoutingA v1.0.2/go.mod h1:M9kQE+WtKChg48TABm9jdVBPjvm1bNDjm1zFPNfyU/c=
 github.com/v2rayA/beego/v2 v2.0.7 h1:1794GEbEnC0VQ2TOVWFmaiyHreMQKJZf5kGQK7VH0yc=
 github.com/v2rayA/beego/v2 v2.0.7/go.mod h1:DfxatafB8bCtcjsFtDVVR5Qq7XC+HOcfwFAVmpFaIco=
 github.com/v2rayA/v2ray-core/v5 v5.0.0-20230812170925-960565fa0686 h1:8XPGtxiuXq947v27WlwYk2oVvKCjjLjoJl0ooQIjQYI=

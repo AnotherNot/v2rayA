@@ -11,6 +11,7 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/v2rayA/v2rayA/common"
 	"github.com/v2rayA/v2rayA/db/configure"
+	"github.com/v2rayA/v2rayA/kernel/v2ray"
 	"github.com/v2rayA/v2rayA/kernel/v2ray/asset"
 	"github.com/v2rayA/v2rayA/server/service"
 )
@@ -119,6 +120,22 @@ func PutSetting(ctx *gin.Context) {
 	}
 	if err = configure.ValidateDnsMode(data.DnsMode); err != nil {
 		common.ResponseError(ctx, badRequest("dnsMode", err))
+		return
+	}
+	if err = configure.ValidateAppRouterUnknownOwner(data.AppRouterUnknownOwner); err != nil {
+		common.ResponseError(ctx, common.Coded("TRANSPARENT_TYPE_INVALID", logError(err), map[string]interface{}{
+			"value": string(data.AppRouterUnknownOwner),
+		}))
+		return
+	}
+	if err = configure.ValidateTransparentType(data.TransparentType); err != nil {
+		common.ResponseError(ctx, common.Coded("TRANSPARENT_TYPE_INVALID", logError(err), map[string]interface{}{
+			"value": string(data.TransparentType),
+		}))
+		return
+	}
+	if err = v2ray.ValidateAppRouterDomains(&data, configure.GetRoutingA()); err != nil {
+		common.ResponseError(ctx, common.Coded("APP_ROUTER_DNS_MODE", logError(err), nil))
 		return
 	}
 	// 对 DNS 配置字段执行迁移，确保旧格式请求中的缺失字段被填充默认值

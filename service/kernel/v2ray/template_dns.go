@@ -28,11 +28,15 @@ type Addr struct {
 // setDNS 生成新 DNS 模块的配置，嵌入 xray JSON 供 v2raya-core 读取。
 // v2raya-core 启动时解析此配置并启动独立 DNS 监听器，v2rayA 不参与 DNS 查询处理。
 func (t *Template) setDNS(serverInfos []serverInfo) error {
+	report, err := t.appRouterDNSReport()
+	if err != nil {
+		return err
+	}
 	if !dnsServiceEnabled(t.Setting) {
 		t.DnsModuleConfig = nil
 		return nil
 	}
-	return t.generateDnsModuleConfig(serverInfos)
+	return t.generateDnsModuleConfig(serverInfos, report)
 }
 
 // dnsModuleListenAddr is the DNS module's primary listener. The stored
@@ -269,7 +273,7 @@ func init() {
 // v2raya-core 启动时解析此配置并启动独立 DNS 监听器，v2rayA 不参与 DNS 查询处理。
 //
 // 生成的配置结构对应 core/dns/config.go 中的 DnsModuleConfig。
-func (t *Template) generateDnsModuleConfig(serverInfos []serverInfo) error {
+func (t *Template) generateDnsModuleConfig(serverInfos []serverInfo, reportSocket string) error {
 	setting := t.Setting
 	if setting == nil {
 		setting = configure.GetSettingNotNil()
@@ -597,6 +601,12 @@ func (t *Template) generateDnsModuleConfig(serverInfos []serverInfo) error {
 	cfg["upstreams"] = upstreams
 	cfg["rules"] = rulesList
 	cfg["default_upstream"] = defaultUpstream
+	if reportSocket != "" {
+		// A rule that names a domain is decided from what this module
+		// answered, so the module reports each pair before it hands the
+		// answer on.
+		cfg["report"] = map[string]interface{}{"socket": reportSocket}
+	}
 
 	// bootstrap 列表去重
 	bootstrapList = common.Deduplicate(bootstrapList)

@@ -555,6 +555,87 @@ nftables, а для `tun` — устройство `/dev/net/tun`. Правил�
 пользователя и пароль (`service/kernel/v2ray/template_inbound.go`). API-порт ядра
 всегда остаётся на loopback.
 
+### 8.4 По приложению
+
+`app_router` решает по программе программой cgroup eBPF, а пакеты не трогает.
+Нужны root, ядро 5.14 или новее, cgroup v2 в `/sys/fs/cgroup` и пространство
+имён процессов, которое служба может прочитать; в Lite-режиме и в поставляемых
+профилях Docker он недоступен. Язык правил, UDP, IPv6 и домены описаны во
+встроенной документации и в [app-router-ru.md](app-router-ru.md); здесь только
+процедура.
+
+```sh
+# Включить режим. Режим DNS важен только для доменных правил.
+curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:2017/api/setting \
+  | python3 -c '
+import json,sys
+s=json.load(sys.stdin)["data"]["setting"]
+s["transparentType"]="app_router"
+s["transparent"]="proxy"
+print(json.dumps(s))' > /tmp/setting.json
+curl -s -X PUT http://127.0.0.1:2017/api/setting \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d @/tmp/setting.json
+
+# Одно правило для curl, одно блокирующее и default, который не трогает остальных.
+python3 - <<'EOF' > /tmp/rules.json
+import json
+print(json.dumps({"routingA": """process(curl) -> proxy
+process(app-blocked) -> block
+default: direct
+"""}))
+EOF
+curl -s -X PUT http://127.0.0.1:2017/api/routingA \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d @/tmp/rules.json
+```
+
+Выберите узел и нажмите «Запустить», затем смотрите журнал и ответ самого движка:
+
+```sh
+journalctl -u v2raya -f | grep -E "app router: (attached|[0-9]+ connects)"
+ss -ltnp | grep -E "52346|5236[1-9]"
+```
+
+Те же числа и то, подключён ли движок вообще, отдают API и блок **Состояние
+движка** на странице настроек:
+
+```sh
+curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:2017/api/appRouter \
+  | python3 -m json.tool
+```
+
+`52346` — relay, `52361`… — инбаунды классов, по одному на аутбаунд, названный
+правилами. Дальше:
+
+```sh
+curl -s https://ifconfig.me; echo          # через прокси: адрес узла
+cp /bin/curl /tmp/not-named && /tmp/not-named -s https://ifconfig.me; echo
+                                           # direct: адрес хоста
+cp /bin/curl /tmp/app-blocked && /tmp/app-blocked https://ifconfig.me
+                                           # отказ; ответа нет
+```
+
+Правило, выбирающее по домену, требует DNS-модуль в режиме hijack; страница
+настроек иначе отвергает сочетание. Замените первое правило на эти два:
+
+```
+process(curl) && domain(ifconfig.me) -> proxy
+process(curl) -> direct
+```
+
+Тогда обычный `curl https://ifconfig.me` идёт через узел, потому что имя
+известно из ответа модуля, а `curl --resolve ifconfig.me:443:<адрес>
+https://ifconfig.me` — тот же адрес без запроса DNS — остаётся direct.
+Программа, которую не назвало ни одно правило, должна остаться direct; если это
+не так, режим не присоединён, и в журнале сказано, выбрали ли правила хоть одну
+программу.
+
+Первое соединение или первая датаграмма программы решается службой и
+кэшируется в ядре; заблокированную программу ядро отвергает со второго
+соединения. Счётчики печатаются каждые 30 секунд: `decided late` — потоки,
+которые судила служба, `relayed` и `dialled directly` — что она с ними сделала,
+`native IPv6 datagrams refused` — датаграммы, которые нельзя было перенести.
+API-эндпоинта для них пока нет.
+
 ## 9. Справочник API
 
 | Метод | Путь | Тело запроса | Примечания |
@@ -568,6 +649,7 @@ nftables, а для `tun` — устройство `/dev/net/tun`. Правил�
 | GET | `/api/setting` | — | `pacMode` выбирает `routingA`; `proxyModeWhenSubscribe` выбирает, как загружаются источники |
 | GET | `/api/ports` | — | объект портов лежит прямо в `data`; `vmessLink` появляется, когда включён VMess-вход |
 | PUT | `/api/ports` | объект портов | перезапускает ядро; 0 закрывает входящее |
+| GET | `/api/appRouter` | — | движок по приложению: `mode`, `attached`, `rules`, `classes` и `counters`, когда он подключён |
 | GET | `/api/touch` | — | текущие узлы и подключения |
 
 ## 10. Автоматическое покрытие

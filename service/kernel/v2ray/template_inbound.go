@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/v2rayA/v2rayA/common"
@@ -14,6 +15,30 @@ import (
 	"github.com/v2rayA/v2rayA/kernel/iptables"
 	"github.com/v2rayA/v2rayA/pkg/util/log"
 )
+
+// AppRouterClassTag is the tag of the inbound a class of the app router uses.
+// The class number is the one the engine names when it hands a flow over.
+func AppRouterClassTag(class int) string {
+	return "approuter-" + strconv.Itoa(class)
+}
+
+// appRouterClassOf reads the class number out of a tag AppRouterClassTag made.
+// The dual-stack step renames every loopback inbound to <tag>_ipv4 and adds an
+// <tag>_ipv6 twin, so both spellings name the same class.
+func appRouterClassOf(tag string) (int, bool) {
+	rest, ok := strings.CutPrefix(tag, "approuter-")
+	if !ok {
+		return 0, false
+	}
+	for _, suffix := range []string{"_ipv4", "_ipv6"} {
+		rest = strings.TrimSuffix(rest, suffix)
+	}
+	class, err := strconv.Atoi(rest)
+	if err != nil || class < 1 {
+		return 0, false
+	}
+	return class, true
+}
 
 func FilterIPs(ips []string) []string {
 	var ret []string
@@ -296,6 +321,10 @@ func (t *Template) setInbound(setting *configure.Setting) error {
 				Settings: tunInboundSettings(t.Setting),
 				Tag:      "transparent",
 			})
+		case configure.TransparentAppRouter:
+			// The class inbounds come from the rules, not from here: one per
+			// outbound the rules name, added in setTransparentRouting once the
+			// rules are read.
 		}
 
 	}
@@ -308,6 +337,17 @@ func (t *Template) setInbound(setting *configure.Setting) error {
 		enableSniffingRouteOnly := configure.GetSettingNotNil().RouteOnly
 		domainsExcluded := splitNonEmptyLines(configure.GetDomainsExcluded())
 		for i := len(t.Inbounds) - 1; i >= 0; i-- {
+			// A class inbound carries the destination the application asked
+			// for, which the engine already read from the socket. Sniffing it
+			// would replace that with a name taken from the payload — an HTTP
+			// Host header, say — and the outbound would then dial the name
+			// instead of the address the application chose.
+			if _, isClass := appRouterClassOf(t.Inbounds[i].Tag); isClass {
+				t.Inbounds[i].Sniffing.Enabled = false
+				t.Inbounds[i].Sniffing.DestOverride = nil
+				t.Inbounds[i].Sniffing.DomainsExcluded = nil
+				continue
+			}
 			if setting.InboundSniffing == configure.InboundSniffingHttpTLS {
 				t.Inbounds[i].Sniffing.DestOverride = []string{"http", "tls"}
 			} else {

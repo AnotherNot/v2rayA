@@ -9,8 +9,10 @@ import (
 	"time"
 
 	"github.com/v2rayA/v2rayA/common"
+	"github.com/v2rayA/v2rayA/conf"
 	"github.com/v2rayA/v2rayA/db"
 	"github.com/v2rayA/v2rayA/db/configure"
+	"github.com/v2rayA/v2rayA/kernel/approuter"
 	"github.com/v2rayA/v2rayA/kernel/ipforward"
 	"github.com/v2rayA/v2rayA/kernel/v2ray"
 	"github.com/v2rayA/v2rayA/pkg/util/log"
@@ -101,6 +103,17 @@ func run() error {
 	// Repair what a crashed or killed previous run left in the operating
 	// system before anything else, whether or not the core is started.
 	v2ray.CleanupTunResidual()
+
+	// The probe attaches where the app router will attach, counts and allows:
+	// it exists to prove the mechanism on a machine, not to route.
+	if conf.GetEnvironmentConfig().AppRouterProbe {
+		probe, err := approuter.StartProbe("/sys/fs/cgroup")
+		if err != nil {
+			log.Warn("app-router probe: %v", err)
+		} else {
+			defer probe.Close()
+		}
+	}
 
 	if shouldStart {
 		//configure the ip forward

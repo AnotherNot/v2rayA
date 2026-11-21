@@ -321,6 +321,7 @@ func Run() error {
 		auth.GET("remoteBlocklistVersion", controller.GetRemoteGFWListVersion)
 		auth.GET("setting", controller.GetSetting)
 		auth.PUT("setting", controller.PutSetting)
+		auth.GET("appRouter", controller.GetAppRouter)
 		auth.PUT("gfwList", controller.PutGFWList)
 		auth.DELETE("gfwList", controller.DeleteGFWList)
 		// Neutral spellings of the blocklist-data routes; the GFWList

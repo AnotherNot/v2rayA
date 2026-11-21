@@ -557,6 +557,88 @@ With both, they move onto all interfaces and require that username and password
 (`service/kernel/v2ray/template_inbound.go`). The core's API port always stays
 on loopback.
 
+### 8.4 By application
+
+`app_router` decides per program with a cgroup BPF program instead of touching
+packets. It needs root, kernel 5.14 or later, cgroup v2 at `/sys/fs/cgroup`,
+and a process namespace the service can read; it is not available in Lite mode
+and not in the shipped Docker profiles. The in-app documentation and
+[app-router.md](app-router.md) cover the rule language, UDP, IPv6 and domains;
+this section is only the procedure.
+
+```sh
+# Turn the mode on. The DNS mode matters only for domain rules.
+curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:2017/api/setting \
+  | python3 -c '
+import json,sys
+s=json.load(sys.stdin)["data"]["setting"]
+s["transparentType"]="app_router"
+s["transparent"]="proxy"
+print(json.dumps(s))' > /tmp/setting.json
+curl -s -X PUT http://127.0.0.1:2017/api/setting \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d @/tmp/setting.json
+
+# One rule for curl, one block, and a default that touches nothing else.
+python3 - <<'EOF' > /tmp/rules.json
+import json
+print(json.dumps({"routingA": """process(curl) -> proxy
+process(app-blocked) -> block
+default: direct
+"""}))
+EOF
+curl -s -X PUT http://127.0.0.1:2017/api/routingA \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d @/tmp/rules.json
+```
+
+Select a node and press Start, then read the log and the engine's own answer:
+
+```sh
+journalctl -u v2raya -f | grep -E "app router: (attached|[0-9]+ connects)"
+ss -ltnp | grep -E "52346|5236[1-9]"
+```
+
+The same numbers, and whether the engine is attached at all, come from the API
+and from **Engine status** on the settings page:
+
+```sh
+curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:2017/api/appRouter \
+  | python3 -m json.tool
+```
+
+`52346` is the relay and `52361`… are the class inbounds, one per outbound the
+rules name. Then:
+
+```sh
+curl -s https://ifconfig.me; echo          # proxied: the node's address
+cp /bin/curl /tmp/not-named && /tmp/not-named -s https://ifconfig.me; echo
+                                           # direct: the host's address
+cp /bin/curl /tmp/app-blocked && /tmp/app-blocked https://ifconfig.me
+                                           # refused; no answer
+```
+
+A rule that selects on a domain needs the DNS module in hijack mode; the
+settings page refuses the combination otherwise. Replace the first rule with
+these two:
+
+```
+process(curl) && domain(ifconfig.me) -> proxy
+process(curl) -> direct
+```
+
+Then a plain `curl https://ifconfig.me` goes through the node, because the name
+is known from what the module answered, while `curl --resolve
+ifconfig.me:443:<address> https://ifconfig.me` — the same address without asking
+DNS — stays direct. A program that is not named at all must stay direct; if it
+does not, the mode is not attached, and the log says whether the rules selected
+any program.
+
+The first connection or datagram of a program is decided by the service and
+cached in the kernel; a blocked program is refused by the kernel from its second
+one on. The counters print every 30 seconds: `decided late` counts the flows the
+service judged, `relayed` and `dialled directly` what it did with them, and
+`native IPv6 datagrams refused` the datagrams that could not be carried. There
+is no API endpoint for them yet.
+
 ## 9. API reference
 
 | Method | Path | Body | Notes |
@@ -570,6 +652,7 @@ on loopback.
 | GET | `/api/setting` | — | `pacMode` selects `routingA`; `proxyModeWhenSubscribe` selects how sources are fetched |
 | GET | `/api/ports` | — | the ports object directly under `data`; `vmessLink` appears when the VMess inbound is on |
 | PUT | `/api/ports` | the ports object | restarts the core; 0 closes an inbound |
+| GET | `/api/appRouter` | — | the per-application engine: `mode`, `attached`, `rules`, `classes`, and `counters` once attached |
 | GET | `/api/touch` | — | current nodes and connections |
 
 ## 10. Automated coverage

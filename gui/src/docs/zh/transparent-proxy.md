@@ -19,12 +19,33 @@
 | `tproxy`   | Linux                                                    | iptables/nftables `TPROXY`；TCP 与 UDP                                                           |
 | `tun`      | Linux、Windows、macOS                                    | 内核打开 TUN 设备；TCP 与 UDP；自动排除 v2rayA 与内核自身                                        |
 | 系统代理   | Windows；Linux 与 macOS 在非 root 运行（`--lite`）时可用 | 修改桌面的代理设置（Linux 上为 GNOME 与 KDE）；只覆盖遵守该设置的应用                            |
+| 按应用 | Linux | cgroup eBPF 程序把发起套接字的程序与 RoutingA 的 `process(...)` 规则对应；TCP 走 IPv4 与 IPv6，UDP 走 IPv4；DHCP 不会被代理 |
 
 `redirect` 与 `tproxy` 需要 root 和 `iptables` 或 `nftables`；`tun` 在 Linux 上需要 `/dev/net/tun` 与 `ip` 命令，在 Windows 与 macOS 上需要管理员权限。
 
 **排除的网卡名前缀**让从指定网卡进入的流量（Docker 网桥、VPN 隧道；默认为 `docker*`、`veth*`、`wg*`、`ppp*`）不经过 `redirect` 与 `tproxy`，在**服务与接管**模式下，它们的 DNS 仍会被拦截。
 
 `--redirect-respect-bound-device`（Linux）让用 `SO_BINDTODEVICE` 绑定到网卡的 TCP 连接绕过 `redirect`：NetworkManager 的联网检测就是这类连接，被重定向后会报告网络受限，依赖它的应用一直离线。默认关闭。打开后，服务通过 cgroup BPF 给这类连接打上 `0x80` 标记；这需要 5.14 及以上内核和 cgroup v2，缺少时 `redirect` 会启动失败。
+
+## 按应用
+
+`app_router` 按程序而不是按地址决定走向。cgroup 程序读取套接字背后的可执行文件，与 RoutingA 编辑器中的 `process(...)` 规则匹配，然后保持连接不动、交给规则指定的出站，或者拒绝。
+
+```
+process(firefox) -> proxy
+process(curl) && port(443) -> work
+process(steam) && network(udp) -> proxy
+process(transmission) -> block
+process(ssh) && domain(private.example.com) -> direct
+```
+
+不带参数的值就是文件名；`name:`、`path:` 和 `folder:` 指定值指代程序的哪一部分，`*` 和 `?` 是通配符。规则自上而下匹配，先命中者生效。`network(tcp)` 或 `network(udp)` 把规则限定到一种传输方式；不写则两者都适用。`ip(...)` 中的 IPv6 字面量要加引号，例如 `ip("2001:db8::/32")` 或 `ip("::1-::5")`；只写一种地址族的规则不会匹配另一种。规则可以按连接解析自的名称选择：`domain(example.com)` 覆盖该名称及其子域，`full:`、`suffix:`、`keyword:` 和 `regexp:` 说明具体比较什么。名称不在数据包中，因此来自 DNS 模块的应答：该模式需要 DNS 模块处于 *hijack* 模式，模块把每一对「名称—地址」报告给服务，服务按地址的 TTL 保存它们。在别处解析名称的程序（自带的 DoH 解析器、写死的服务器）无法这样识别，在名称被查询之前就连接到地址的连接也一样。带域名规则的程序由服务逐个连接判断，因为内核无法计算名称。没有任何规则点名的程序完全不受影响；选择其他实现方式时 `process(...)` 规则不生效，日志会写明跳过了多少条。
+
+该模式需要 root、5.14 或更新的内核，以及 `/sys/fs/cgroup` 上的 cgroup v2。它承载 IPv4 与 IPv6 上的 TCP，以及 IPv4 上的 UDP——包括 IPv6 套接字访问的 IPv4 目的地。原生 IPv6 数据报会被拒绝，而不是绕过规则发出：内核不会放行改写为 IPv4 中继的数据报。程序要靠服务能看到的一次连接来识别，因此只发送原生 IPv6 数据报的程序在建立这样一次连接之前都会被拒绝。数据报按目的地逐个匹配，因此同一个套接字与多个目的地通信时，每份数据报仍会套用正确的规则。DHCP 从不代理。套接字背后的程序通过 `/proc` 识别，因此服务必须能看到主机的进程命名空间：在使用私有 PID 命名空间的容器里无法识别程序，其连接保持不动。
+
+程序的第一个连接（若使用 UDP，则为第一份数据报）由服务判断，随后把结论缓存到内核；被阻止的程序从第二个连接或数据报起由内核直接拒绝。规则无法全部放进内核的程序，改由服务逐个流判断，并在日志中列出。
+
+无法识别程序的连接（进程在检查前退出，或服务看不到它）遵循**未知归属**设置：默认保持不动，也可以改为拒绝，以免阻止规则失效。
 
 ## TUN
 

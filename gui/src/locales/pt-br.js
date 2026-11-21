@@ -206,6 +206,13 @@ export default {
       more: "Mais",
     },
     transparentProxy: "Proxy transparente/Proxy do sistema",
+    appRouterUnknownOwner: "Proprietário desconhecido",
+    appRouterStatus: "Estado do motor",
+    appRouterAttached: "conectado",
+    appRouterDetached: "não conectado",
+    appRouterCountersUnavailable:
+      "O motor está conectado, mas os contadores não puderam ser lidos.",
+    appRouterRefresh: "Atualizar os contadores",
     transparentType: "Implementação do proxy transparente/proxy do sistema",
     logLevel: "Nível de registro",
     pacMode: "Modo de divisão de tráfego da porta de regras",
@@ -239,6 +246,8 @@ export default {
       gfwlist: "Proxy apenas para blocklist",
       sameAsPacMode:
         "O modo de divisão de tráfego é igual ao da porta de regras",
+      appRouter: "Por aplicativo",
+      block: "Bloquear",
       default: "Manter o padrão",
       on: "Ativado",
       off: "Desativado",
@@ -270,6 +279,14 @@ export default {
         "Necessário para o modo blocklist; atualize antes de alternar para ele.",
       transparentProxy:
         "Com o proxy transparente ativado, nenhuma configuração extra é necessária e todo o tráfego TCP passará pelo v2rayA. Para fornecer proxy a outros computadores e ao Docker pelo gateway, ative a opção 'Compartilhar na LAN'.",
+      appRouter:
+        "O tráfego é roteado pelo programa que abre o socket: as regras process(...) do editor RoutingA decidem. Apenas Linux, com root e cgroup v2; por enquanto TCP sobre IPv4 e IPv6 e UDP sobre IPv4, com um datagrama IPv6 nativo recusado em vez de passar ao lado da regra. Uma regra também pode selecionar por domínio, e isso exige o módulo de DNS no modo hijack. Um programa que nenhuma regra nomeia não é tocado, a primeira conexão ou o primeiro datagrama de um programa é julgado pelo serviço e o resultado é guardado, e um programa bloqueado é recusado pelo kernel já a partir do segundo.",
+      appRouterUnknownOwner:
+        "O que acontece com uma conexão cujo programa não pode ser identificado: o processo terminou antes da consulta, ou o serviço não o enxerga. Deixar em paz mantém esse tráfego funcionando; recusar impede que uma regra de bloqueio falhe aberta. Recusar também barra tudo o que o serviço não consegue atribuir, então um erro numa regra aparece como um aplicativo quebrado, não como um vazamento.",
+      appRouterCounters:
+        "regras: {rules} · classes: {classes} · conexões: {connects} · pelo proxy: {proxied} · diretas: {direct} · bloqueadas: {blocked} · decididas depois: {late}",
+      appRouterNotAttached:
+        "O motor não está conectado; pressione Iniciar para conectá-lo.",
       transparentType:
         "★tproxy: suporta UDP, mas não Docker. ★redirect: compatível com Docker, mas não suporta UDP; quando a interceptação de DNS está ativada, também precisa ocupar a porta local 53 para evitar a poluição do DNS. ★tun: o núcleo abre um dispositivo TUN e assume a rota padrão; funciona em Linux, Windows e macOS, suporta UDP, exclui o v2rayA e o núcleo automaticamente e permite excluir outros processos pelo nome. No Windows e no macOS, aplicativos que consultam diretamente um resolvedor da rede local ainda o ignoram.",
       tproxyExcludedInterfaces:

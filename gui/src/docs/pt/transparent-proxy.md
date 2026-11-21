@@ -19,12 +19,33 @@ Com o proxy transparente ativado, o tráfego chega ao núcleo sem nenhuma config
 | `tproxy`         | Linux                                                              | `TPROXY` do iptables/nftables; TCP e UDP                                                                                 |
 | `tun`            | Linux, Windows, macOS                                              | o núcleo abre um dispositivo TUN; TCP e UDP; exclui o v2rayA e o próprio núcleo automaticamente                          |
 | Proxy do sistema | Windows; Linux e macOS quando não é executado como root (`--lite`) | configura o proxy do ambiente gráfico (GNOME e KDE no Linux); abrange apenas os aplicativos que as respeitam             |
+| Por aplicativo | Linux | um programa cgroup eBPF compara o programa que abre o socket com as regras `process(...)` do RoutingA; TCP sobre IPv4 e IPv6 e UDP sobre IPv4; o DHCP fica intocado |
 
 `redirect` e `tproxy` exigem root e `iptables` ou `nftables`; `tun` exige `/dev/net/tun` e `ip` no Linux e privilégios de administrador no Windows e no macOS.
 
 **Prefixos de interfaces excluídos** mantém o tráfego que chega pelas interfaces indicadas (bridges do Docker, túneis VPN; `docker*`, `veth*`, `wg*`, `ppp*` por padrão) fora de `redirect` e `tproxy`; o DNS dessas interfaces só é interceptado no modo *serviço e interceptação*.
 
 `--redirect-respect-bound-device` (Linux) deixa as conexões TCP vinculadas a uma interface com `SO_BINDTODEVICE` fora do `redirect`: as verificações de conectividade do NetworkManager são conexões desse tipo e, redirecionadas, informam uma conexão limitada e mantêm os aplicativos offline. Desligado por padrão. Quando ligado, o serviço marca esses sockets com `0x80` por cgroup BPF; isso requer kernel 5.14 ou mais recente e cgroup v2, e sem eles o `redirect` não inicia.
+
+## Por aplicativo
+
+`app_router` decide por programa, não por endereço. Um programa cgroup lê o executável por trás do socket, compara-o com as regras `process(...)` do editor RoutingA e deixa a conexão intocada, entrega-a ao outbound que a regra nomeia ou a recusa.
+
+```
+process(firefox) -> proxy
+process(curl) && port(443) -> work
+process(steam) && network(udp) -> proxy
+process(transmission) -> block
+process(ssh) && domain(private.example.com) -> direct
+```
+
+Um valor sem parâmetro é o nome do arquivo; `name:`, `path:` e `folder:` dizem de que parte do programa se trata, e `*` e `?` são curingas. As regras são lidas de cima para baixo e a primeira que casa vence. `network(tcp)` ou `network(udp)` restringe a regra a um transporte; sem isso a regra cobre os dois. Um literal IPv6 em `ip(...)` vai entre aspas, como `ip("2001:db8::/32")` ou `ip("::1-::5")`; uma regra que nomeia uma família não casa com a outra. Uma regra pode selecionar pelo nome de onde a conexão foi resolvida: `domain(example.com)` cobre o nome e os subdomínios, e `full:`, `suffix:`, `keyword:` e `regexp:` dizem exatamente o que comparar. O nome não está no pacote, então vem do que o módulo de DNS respondeu: o modo precisa do módulo de DNS em modo *hijack*, o módulo informa cada par nome-endereço ao serviço, e o serviço os guarda pelo TTL do endereço. Um programa que resolve nomes em outro lugar — o próprio resolvedor DoH, um servidor fixo — não é reconhecido assim, nem uma conexão feita a um endereço antes de o nome ser perguntado. Um programa com regra de domínio é julgado pelo serviço em cada conexão, porque o núcleo não consegue avaliar um nome. Um programa que nenhuma regra nomeia não é tocado, e uma regra `process(...)` fica inativa enquanto outra implementação estiver escolhida — o log diz quantas foram ignoradas.
+
+O modo exige root, kernel 5.14 ou mais recente e cgroup v2 em `/sys/fs/cgroup`. Ele carrega TCP sobre IPv4 e IPv6, e UDP sobre IPv4 — incluindo um destino IPv4 alcançado por um socket IPv6. Um datagrama IPv6 nativo é recusado em vez de passar ao lado da sua regra, porque o núcleo não leva um datagrama reescrito para o relay IPv4. Um programa é aprendido por uma conexão que o serviço vê, então um que só envie datagramas IPv6 nativos é recusado até fazer uma. Os datagramas são comparados por destino, então um socket que fala com vários lugares recebe a regra certa para cada datagrama. O DHCP nunca é proxiado. O programa por trás do socket é identificado por `/proc`, então o serviço precisa enxergar o espaço de processos do host: num contêiner com namespace de PID próprio os programas não são identificados e suas conexões ficam intocadas.
+
+A primeira conexão de um programa — ou o primeiro datagrama, para quem usa UDP — é julgada pelo serviço, que então guarda a resposta no núcleo; um programa bloqueado é recusado pelo núcleo já a partir da segunda conexão ou datagrama. Um programa cujas regras não cabem no núcleo passa a ser julgado pelo serviço em cada fluxo, e o registro o nomeia.
+
+Uma conexão cujo programa não pode ser identificado — o processo terminou antes da consulta, ou o serviço não o enxerga — segue **Proprietário desconhecido**: por padrão fica intocada, e pode ser configurada para ser recusada, para que uma regra de bloqueio não falhe aberta.
 
 ## TUN
 

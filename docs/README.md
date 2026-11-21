@@ -30,6 +30,10 @@ in English and Russian; the remaining in-app locales fall back to English.
   ([на русском](redirect-bound-device-ru.md)) — the opt-in
   REDIRECT bypass for sockets bound to a device, its preconditions, and the live
   validation it has had so far.
+- **[app-router.md](app-router.md)** ([на русском](app-router-ru.md)) — the
+  per-application transparent mode: what it needs from the kernel and the
+  service, what a `process(...)` rule may select on, how UDP, IPv6 and domains
+  are carried, the size limits, and the live validation it has had.
 
 ## A note on what is verified
 

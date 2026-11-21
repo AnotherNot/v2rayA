@@ -88,6 +88,52 @@ export interface VersionResponse {
   docker?: boolean;
 }
 
+/** kernel/approuter.Stats — what the attached engine counted since it was attached. */
+export interface AppRouterCounters {
+  connects: number;
+  implicitDirect: number;
+  self: number;
+  foreignNetns: number;
+  decide: number;
+  noRule: number;
+  ruleDirect: number;
+  ruleProxy: number;
+  ruleBlock: number;
+  redirected: number;
+  portWritten: number;
+  getpeername: number;
+  exempt: number;
+  rulesFull: number;
+  connects6: number;
+  udp6Refused: number;
+  udpDatagrams: number;
+  udpRedirected: number;
+  udpNoFlow: number;
+  udpRewritten: number;
+  udpAnswers: number;
+  relayed: number;
+  relayDirect: number;
+  refused: number;
+  udpRelayed: number;
+  udpDirect: number;
+  udpRefused: number;
+}
+
+/**
+ * GET /appRouter — the per-application engine. `mode` says whether the mode is
+ * selected, `attached` whether an engine is running; `counters` is absent until
+ * one is.
+ */
+export interface AppRouterStatus {
+  mode: boolean;
+  attached: boolean;
+  rules: number;
+  classes: number;
+  counters?: AppRouterCounters;
+  /** why the counters could not be read, if they could not */
+  error?: string;
+}
+
 /** configure.DnsMode — whether the DNS module runs, and whether the system's queries reach it */
 export type DnsMode = "off" | "service" | "hijack";
 

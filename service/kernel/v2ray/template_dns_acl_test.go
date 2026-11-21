@@ -66,7 +66,7 @@ func TestGeneratedDNSConfigCarriesACLAndRateLimit(t *testing.T) {
 	setting := configure.NewSetting()
 	setting.PortSharing = true
 	tmpl := baseTemplate(t, setting)
-	if err := tmpl.generateDnsModuleConfig(nil); err != nil {
+	if err := tmpl.generateDnsModuleConfig(nil, ""); err != nil {
 		t.Fatal(err)
 	}
 	b := []byte(tmpl.DnsModuleConfig)

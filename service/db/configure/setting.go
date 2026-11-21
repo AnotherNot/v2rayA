@@ -37,6 +37,10 @@ type Setting struct {
 	TunSetupScript                     string          `json:"tunSetupScript"`
 	TunTeardownScript                  string          `json:"tunTeardownScript"`
 	TunExcludeProcesses                string          `json:"tunExcludeProcesses"`
+	// AppRouterUnknownOwner is what happens to a connection whose owning
+	// program cannot be identified. Two answers are safe: leave it alone, or
+	// refuse it. Guessing would apply a rule to a program it does not name.
+	AppRouterUnknownOwner AppRouterUnknownOwner `json:"appRouterUnknownOwner"`
 	SsBackend                          string          `json:"ssBackend"`
 	TrojanBackend                      string          `json:"trojanBackend"`
 	// 新 DNS 模块监听配置
@@ -71,6 +75,7 @@ func NewSetting() (setting *Setting) {
 		TransparentType:                    TransparentRedirect,
 		TproxyExcludedInterfaces:           defaultTproxyExcludedInterfaces(common.IsOpenWrt()),
 		TunAutoRoute:                       true,
+		AppRouterUnknownOwner:              AppRouterOwnerDirect,
 		// 新 DNS 模块默认值
 		DnsListenAddr:    "0.0.0.0:52353",
 		DnsCacheEnabled:  true,

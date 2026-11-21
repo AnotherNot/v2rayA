@@ -10,6 +10,7 @@ export interface RequestOptions {
   timeout?: number;
 }
 import type {
+  AppRouterStatus,
   CustomInbound,
   Param,
   DnsRule,
@@ -53,6 +54,9 @@ export const getVersion = () =>
   call<VersionResponse>({ url: "version", method: "get" });
 export const getParams = () =>
   call<{ params: Param[] }>({ url: "params", method: "get" });
+/** The per-application engine's state; cheap enough to read when the page opens. */
+export const getAppRouter = () =>
+  call<AppRouterStatus>({ url: "appRouter", method: "get" });
 
 // ---- nodes and subscriptions ---------------------------------------------
 export const getTouch = (o: RequestOptions = {}) =>

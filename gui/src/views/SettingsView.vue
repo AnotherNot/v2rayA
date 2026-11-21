@@ -3,6 +3,9 @@ import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useDisplay } from "vuetify";
 import dayjs from "dayjs";
+import { mdiRefresh } from "@mdi/js";
+import { getAppRouter } from "@/api";
+import type { AppRouterStatus } from "@/api/types";
 import { errorText } from "@/api/errors";
 import {
   useDialog,
@@ -28,6 +31,7 @@ import {
   pacModes as pacModeItems,
   transparentModes as transparentModeItems,
   transparentTypes as transparentTypeItems,
+  appRouterOwnerModes as appRouterOwnerModeItems,
 } from "./settings/options";
 import AboutDialog from "./settings/AboutDialog.vue";
 import SettingChoice from "./settings/SettingChoice.vue";
@@ -56,6 +60,7 @@ const formRef = ref<{ validate(): Promise<{ valid: boolean }> } | null>(null);
 onMounted(() => {
   settings.load().catch((err) => notify.warning(errorText(err)));
   settings.loadRemoteVersion().catch(() => {});
+  refreshAppRouter();
 });
 // Ctrl/Cmd+S saves what changed
 useHotkeys((event) => {
@@ -73,6 +78,35 @@ const isRoot = computed(() => store.version?.isRoot ?? false);
 const tunSupported = computed(() => store.version?.tunSupported ?? false);
 const transparentModes = computed(() => transparentModeItems(t));
 const pacModes = computed(() => pacModeItems(t));
+const appRouterOwnerItems = computed(() => appRouterOwnerModeItems(t));
+// The engine's own state, not the form's: the form can hold a mode that has
+// not been applied yet, and the counters belong to whatever is running.
+const appRouter = ref<AppRouterStatus | null>(null);
+const appRouterError = ref("");
+async function refreshAppRouter() {
+  appRouterError.value = "";
+  try {
+    appRouter.value = await getAppRouter();
+  } catch (err) {
+    appRouterError.value = errorText(err);
+  }
+}
+const appRouterText = computed(() => {
+  if (appRouterError.value) return appRouterError.value;
+  const status = appRouter.value;
+  if (!status?.attached) return t("setting.messages.appRouterNotAttached");
+  const counters = status.counters;
+  if (!counters) return t("setting.appRouterCountersUnavailable");
+  return t("setting.messages.appRouterCounters", {
+    rules: status.rules,
+    classes: status.classes,
+    connects: counters.connects,
+    proxied: counters.ruleProxy,
+    direct: counters.ruleDirect,
+    blocked: counters.ruleBlock,
+    late: counters.decide,
+  });
+});
 const transparentTypes = computed(() =>
   transparentTypeItems(t, {
     lite: store.lite,
@@ -198,6 +232,8 @@ async function save() {
   } finally {
     saving.value = false;
   }
+  // A save restarts the core, so the engine the counters describe is a new one.
+  refreshAppRouter();
 }
 defineExpose({ sync: () => settings.load() });
 </script>
@@ -234,8 +270,55 @@ defineExpose({ sync: () => settings.load() });
             v-if="transparentOn"
             v-model="form.transparentType"
             :title="t('setting.transparentType')"
+            :hint="
+              form.transparentType === 'app_router'
+                ? t('setting.messages.appRouter')
+                : undefined
+            "
             :items="transparentTypes"
           />
+        </v-expand-transition>
+        <v-expand-transition>
+          <SettingChoice
+            v-if="transparentOn && form.transparentType === 'app_router'"
+            v-model="form.appRouterUnknownOwner"
+            :title="t('setting.appRouterUnknownOwner')"
+            :hint="t('setting.messages.appRouterUnknownOwner')"
+            :items="appRouterOwnerItems"
+          />
+        </v-expand-transition>
+        <v-expand-transition>
+          <v-list-item
+            v-if="transparentOn && form.transparentType === 'app_router'"
+            class="setting-row app-router-status"
+            lines="two"
+          >
+            <v-list-item-title>{{
+              t("setting.appRouterStatus")
+            }}</v-list-item-title>
+            <v-list-item-subtitle class="app-router-status__text">
+              {{ appRouterText }}
+            </v-list-item-subtitle>
+            <template #append>
+              <v-chip
+                size="small"
+                variant="tonal"
+                :color="appRouter?.attached ? 'success' : undefined"
+              >
+                {{
+                  appRouter?.attached
+                    ? t("setting.appRouterAttached")
+                    : t("setting.appRouterDetached")
+                }}
+              </v-chip>
+              <v-btn
+                :icon="mdiRefresh"
+                variant="text"
+                :aria-label="t('setting.appRouterRefresh')"
+                @click="refreshAppRouter"
+              />
+            </template>
+          </v-list-item>
         </v-expand-transition>
         <v-expand-transition>
           <SettingRow
@@ -518,6 +601,9 @@ defineExpose({ sync: () => settings.load() });
 }
 .settings__interfaces {
   width: 200px;
+}
+.app-router-status :deep(.v-list-item-subtitle) {
+  white-space: normal;
 }
 .settings__save {
   position: fixed;

@@ -4,13 +4,14 @@ import { DOMWrapper, flushPromises, type VueWrapper } from "@vue/test-utils";
 import { defineComponent, h } from "vue";
 import { VApp, VMain } from "vuetify/components";
 import {
+  getAppRouter,
   getDnsRules,
   getOutbounds,
   getRemoteGFWListVersion,
   getSetting,
   putSetting,
 } from "@/api";
-import type { Setting, VersionResponse } from "@/api/types";
+import type { AppRouterCounters, Setting, VersionResponse } from "@/api/types";
 import DialogHost from "@/components/hosts/DialogHost.vue";
 import { closeAllDialogs } from "@/composables/useDialog";
 import { useAppStore } from "@/stores/app";
@@ -19,6 +20,7 @@ import SettingsView from "../SettingsView.vue";
 
 vi.mock("@/api", () => ({
   getSetting: vi.fn(),
+  getAppRouter: vi.fn(),
   getRemoteGFWListVersion: vi.fn(),
   putSetting: vi.fn(),
   getDnsRules: vi.fn(),
@@ -41,6 +43,7 @@ const loaded: Setting = {
   tunTeardownScript: "ip route del default dev tun0",
   tunScriptAcknowledged: false,
   tunExcludeProcesses: "firefox,chrome",
+  appRouterUnknownOwner: "direct",
   pacMode: "blocklist",
   pacAutoUpdateMode: "auto_update_at_intervals",
   pacAutoUpdateIntervalHour: 24,
@@ -69,6 +72,12 @@ beforeEach(() => {
   vi.mocked(putSetting).mockResolvedValue(undefined);
   vi.mocked(getDnsRules).mockResolvedValue({ rules: [] });
   vi.mocked(getOutbounds).mockResolvedValue({ outbounds: ["proxy"] });
+  vi.mocked(getAppRouter).mockResolvedValue({
+    mode: false,
+    attached: false,
+    rules: 0,
+    classes: 0,
+  });
 });
 afterEach(() => {
   closeAllDialogs();
@@ -248,4 +257,84 @@ describe("settings list", () => {
     expect(wrapper.text()).not.toContain("backend is down");
     expect(wrapper.text()).toContain("Transparent Proxy");
   });
+});
+
+const noCounters: AppRouterCounters = {
+  connects: 0,
+  implicitDirect: 0,
+  self: 0,
+  foreignNetns: 0,
+  decide: 0,
+  noRule: 0,
+  ruleDirect: 0,
+  ruleProxy: 0,
+  ruleBlock: 0,
+  redirected: 0,
+  portWritten: 0,
+  getpeername: 0,
+  exempt: 0,
+  rulesFull: 0,
+  connects6: 0,
+  udp6Refused: 0,
+  udpDatagrams: 0,
+  udpRedirected: 0,
+  udpNoFlow: 0,
+  udpRewritten: 0,
+  udpAnswers: 0,
+  relayed: 0,
+  relayDirect: 0,
+  refused: 0,
+  udpRelayed: 0,
+  udpDirect: 0,
+  udpRefused: 0,
+};
+
+// The counters are the only way to tell an attached engine that routes
+// nothing from an engine that is not there, so the page shows both the state
+// and what the engine counted.
+test("shows the running app router's counters", async () => {
+  vi.mocked(getSetting).mockResolvedValue({
+    setting: { ...loaded, transparentType: "app_router" },
+    localBlocklistVersion: "2026-09-15",
+    localGeositeVersion: "",
+  });
+  vi.mocked(getAppRouter).mockResolvedValue({
+    mode: true,
+    attached: true,
+    rules: 3,
+    classes: 1,
+    counters: {
+      ...noCounters,
+      connects: 120,
+      ruleProxy: 96,
+      ruleDirect: 20,
+      ruleBlock: 4,
+      decide: 12,
+    },
+  });
+
+  await mountPage();
+
+  expect(wrapper.text()).toContain("attached");
+  expect(wrapper.text()).toContain("rules: 3");
+  expect(wrapper.text()).toContain("classes: 1");
+  expect(wrapper.text()).toContain("connects: 120");
+  expect(wrapper.text()).toContain("proxied: 96");
+  expect(wrapper.text()).toContain("decided late: 12");
+});
+
+// A mode that is selected but not applied says so instead of showing zeros,
+// which would look like an engine that saw no traffic.
+test("says the app router engine is not attached", async () => {
+  vi.mocked(getSetting).mockResolvedValue({
+    setting: { ...loaded, transparentType: "app_router" },
+    localBlocklistVersion: "2026-09-15",
+    localGeositeVersion: "",
+  });
+
+  await mountPage();
+
+  expect(wrapper.text()).toContain("not attached");
+  expect(wrapper.text()).toContain("press Start");
+  expect(wrapper.text()).not.toContain("0 connects");
 });

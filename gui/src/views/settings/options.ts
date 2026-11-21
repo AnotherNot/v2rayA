@@ -13,6 +13,12 @@ export const transparentModes = (t: T) => {
   ];
 };
 
+/** what happens to a connection whose program cannot be identified */
+export const appRouterOwnerModes = (t: T) => [
+  { value: "direct", title: t("setting.options.direct") },
+  { value: "block", title: t("setting.options.block") },
+];
+
 export const pacModes = (t: T) => [
   { value: "allowlist", title: t("setting.options.whitelistCn") },
   { value: "blocklist", title: t("setting.options.gfwlist") },
@@ -54,6 +60,7 @@ export const transparentTypes = (
     items.push(
       { value: "redirect", title: "redirect" },
       { value: "tproxy", title: "tproxy" },
+      { value: "app_router", title: t("setting.options.appRouter") },
     );
   if (!host.lite)
     items.push({

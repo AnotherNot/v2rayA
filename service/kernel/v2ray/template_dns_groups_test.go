@@ -18,7 +18,7 @@ func TestDnsModuleConfigNamesGroups(t *testing.T) {
 		{Tag: "direct", Protocol: "freedom"},
 		{Tag: "member", Protocol: "vless", Balancers: []string{"regional"}},
 	}
-	if err := tmpl.generateDnsModuleConfig(nil); err != nil {
+	if err := tmpl.generateDnsModuleConfig(nil, ""); err != nil {
 		t.Fatal(err)
 	}
 	var cfg struct {
@@ -39,7 +39,7 @@ func TestDnsModuleConfigWithoutGroups(t *testing.T) {
 		{Tag: "proxy", Protocol: "vless"},
 		{Tag: "direct", Protocol: "freedom"},
 	}
-	if err := tmpl.generateDnsModuleConfig(nil); err != nil {
+	if err := tmpl.generateDnsModuleConfig(nil, ""); err != nil {
 		t.Fatal(err)
 	}
 	var cfg struct {

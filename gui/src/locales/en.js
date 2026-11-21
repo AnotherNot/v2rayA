@@ -205,6 +205,13 @@ export default {
       more: "More",
     },
     transparentProxy: "Transparent Proxy/System Proxy",
+    appRouterUnknownOwner: "Unknown owner",
+    appRouterStatus: "Engine status",
+    appRouterAttached: "attached",
+    appRouterDetached: "not attached",
+    appRouterCountersUnavailable:
+      "The engine is attached but its counters could not be read.",
+    appRouterRefresh: "Refresh the counters",
     transparentType: "Transparent Proxy/System Proxy Implementation",
     logLevel: "Log Level",
     pacMode: "Traffic Splitting Mode of Rule Port",
@@ -237,6 +244,8 @@ export default {
       whitelistCn: "Proxy except allowlist",
       gfwlist: "Proxy only blocklist",
       sameAsPacMode: "Traffic Splitting Mode is the Same as the Rule Port",
+      appRouter: "By application",
+      block: "Blocked",
       default: "Keep Default",
       on: "On",
       off: "Off",
@@ -265,6 +274,14 @@ export default {
         "Needed by the blocklist mode; update before switching to it.",
       transparentProxy:
         "If transparent proxy on, no extra configure needed and all TCP traffic will pass through the v2rayA. Providing proxy service to other computers and docker as the gateway should make option 'Share in LAN' on.",
+      appRouter:
+        "Traffic is routed by the program that opens the socket: the process(...) rules in the RoutingA editor decide. Linux only, root and cgroup v2; TCP over IPv4 and IPv6 and UDP over IPv4 for now, a native IPv6 datagram being refused rather than sent around its rule. A rule may also select on a domain, which needs the DNS module in hijack mode. A program no rule names is left alone, the first connection or datagram of a program is judged by the service, and a blocked program is refused outright from its second one on.",
+      appRouterUnknownOwner:
+        "What happens to a connection whose program cannot be identified: the process was gone before the lookup, or the service cannot see it. Leaving it alone keeps such traffic working; refusing it stops a block rule from failing open. Refusing also stops anything the service cannot attribute, so a mistake in a rule shows up as a broken application rather than as a leak.",
+      appRouterCounters:
+        "rules: {rules} · classes: {classes} · connects: {connects} · proxied: {proxied} · direct: {direct} · blocked: {blocked} · decided late: {late}",
+      appRouterNotAttached:
+        "The engine is not attached; press Start to attach it.",
       transparentType:
         "★tproxy: supports UDP, but not docker. ★redirect: friendly for docker, but does not support UDP; when DNS interception is on, it also uses local port 53 for DNS anti-pollution. ★tun: the core opens a TUN device and takes the default route; works on Linux, Windows and macOS, supports UDP, excludes v2rayA and the core by itself and lets you exclude other processes by name. On Windows and macOS, applications that query a LAN resolver directly still bypass it.",
       tproxyExcludedInterfaces:

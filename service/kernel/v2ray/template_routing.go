@@ -11,6 +11,7 @@ import (
 	"github.com/mohae/deepcopy"
 	"github.com/v2rayA/RoutingA"
 	"github.com/v2rayA/v2rayA/db/configure"
+	"github.com/v2rayA/v2rayA/kernel/approuter"
 	"github.com/v2rayA/v2rayA/kernel/coreObj"
 	"github.com/v2rayA/v2rayA/kernel/iptables"
 	"github.com/v2rayA/v2rayA/kernel/v2ray/asset"
@@ -176,6 +177,100 @@ func (t *Template) setRulePortRouting() error {
 	// because "The Same as the Rule Port" may need them
 	return t.AppendRoutingRuleByMode(t.Setting.RulePortMode, []string{"rule-http", "rule-socks"})
 }
+
+// ValidateRoutingA parses RoutingA source and reports conditions this build
+// cannot enforce, before the text is stored or handed to the core.
+func ValidateRoutingA(text string) error {
+	rules, err := RoutingA.Parse(text)
+	if err != nil {
+		return err
+	}
+	for _, rule := range rules {
+		r, ok := rule.(RoutingA.Routing)
+		if !ok {
+			continue
+		}
+		for _, f := range r.And {
+			if f.Name != "process" {
+				continue
+			}
+			// The condition is the app router's, so its shape is checked here
+			// rather than by the core: a parameter nothing can enforce is
+			// refused while the user is looking at it.
+			if _, isProcess, err := f.ProcessMatcher(); isProcess && err != nil {
+				return fmt.Errorf("the rule for %q: %w", r.Out, err)
+			}
+		}
+	}
+	return nil
+}
+
+// ValidateCustomInboundRoutingA checks the rules of a custom inbound, which go
+// straight to the core's router: an executable condition there would be dropped
+// and the rule would match more than written.
+func ValidateCustomInboundRoutingA(text string) error {
+	if err := ValidateRoutingA(text); err != nil {
+		return err
+	}
+	return validateCoreRoutingA(text)
+}
+
+// validateCoreRoutingA refuses a condition the core's router has no matcher
+// for. Dropping one is not harmless: the rule keeps its other conditions and
+// then matches more traffic than its author wrote. It is used where the text
+// goes straight to the core — a custom inbound's own rules — and not for the
+// main editor, whose process(...) rules the app router applies.
+func validateCoreRoutingA(text string) error {
+	rules, err := RoutingA.Parse(text)
+	if err != nil {
+		return err
+	}
+	for _, rule := range rules {
+		r, ok := rule.(RoutingA.Routing)
+		if !ok {
+			continue
+		}
+		for _, f := range r.And {
+			if f.Name == "process" {
+				return fmt.Errorf("RoutingA: the rule for %q selects on process(...), which a custom inbound cannot enforce; application rules belong in the main rule set, with the app router on", r.Out)
+			}
+		}
+	}
+	return nil
+}
+
+// hasProcessCondition reports whether a rule selects on the executable, which
+// is the app router's business rather than the core's.
+func hasProcessCondition(r RoutingA.Routing) bool {
+	for _, f := range r.And {
+		if f.Name == "process" {
+			return true
+		}
+	}
+	return false
+}
+
+// expandRoutingAEnv replaces $$NAME$$ placeholders with the environment's value,
+// the way a deployment can keep a rule set's addresses out of the database.
+func expandRoutingAEnv(text, who string) string {
+	lines := strings.Split(text, "\n")
+	hardcodeReplacement := regexp.MustCompile(`\$\$.+?\$\$`)
+	for i := range lines {
+		hardcodes := hardcodeReplacement.FindAllString(lines[i], -1)
+		for _, hardcode := range hardcodes {
+			env := strings.TrimSuffix(strings.TrimPrefix(hardcode, "$$"), "$$")
+			val, ok := os.LookupEnv(env)
+			if !ok {
+				log.Error("%s: Environment variable \"%v\" is not found", who, env)
+			} else {
+				log.Info("%s: Environment variable %v=%v", who, env, strconv.Quote(val))
+			}
+			lines[i] = strings.Replace(lines[i], hardcode, val, 1)
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
 func parseRoutingA(t *Template, routingInboundTags []string) error {
 	// A rule source names the domain strategy its set was written for. It is
 	// applied before the default is filled in, so a set asking for AsIs gets it
@@ -186,22 +281,7 @@ func parseRoutingA(t *Template, routingInboundTags []string) error {
 	if src.DomainStrategy != "" {
 		t.Routing.DomainStrategy = src.DomainStrategy
 	}
-	lines := strings.Split(configure.GetRoutingA(), "\n")
-	hardcodeReplacement := regexp.MustCompile(`\$\$.+?\$\$`)
-	for i := range lines {
-		hardcodes := hardcodeReplacement.FindAllString(lines[i], -1)
-		for _, hardcode := range hardcodes {
-			env := strings.TrimSuffix(strings.TrimPrefix(hardcode, "$$"), "$$")
-			val, ok := os.LookupEnv(env)
-			if !ok {
-				log.Error("RoutingA: Environment variable \"%v\" is not found", env)
-			} else {
-				log.Info("RoutingA: Environment variable %v=%v", env, strconv.Quote(val))
-			}
-			lines[i] = strings.Replace(lines[i], hardcode, val, 1)
-		}
-	}
-	rules, err := RoutingA.Parse(strings.Join(lines, "\n"))
+	rules, err := RoutingA.Parse(expandRoutingAEnv(configure.GetRoutingA(), "parseRoutingA"))
 	if err != nil {
 		log.Warn("parseRoutingA: %v", err)
 		return err
@@ -304,65 +384,19 @@ func parseRoutingA(t *Template, routingInboundTags []string) error {
 				}
 			}
 		case RoutingA.Routing:
+			if hasProcessCondition(rule) {
+				// The app router applies these, not the core's router: the
+				// core has no matcher for the executable, and a rule that kept
+				// its other conditions would match more than it says.
+				continue
+			}
 			rr := deepcopy.Copy(coreObj.RoutingRule{
 				Type:        "field",
 				OutboundTag: rule.Out,
 				InboundTag:  routingInboundTags,
 			}).(coreObj.RoutingRule)
-			for _, f := range rule.And {
-				switch f.Name {
-				case "domain", "domains":
-					for k, vv := range f.NamedParams {
-						for _, v := range vv {
-							if k == "contains" {
-								rr.Domain = append(rr.Domain, v)
-								continue
-							}
-							if k == "ext" {
-								datFilenameAndTag := strings.SplitN(v, ":", 2)
-								if len(datFilenameAndTag) < 2 {
-									return fmt.Errorf("RoutingA ext value %q is missing its tag; expected ext:\"file.dat:tag\"", v)
-								}
-								if !asset.DoesV2rayAssetExist(datFilenameAndTag[0]) {
-									return fmt.Errorf("RoutingA ext file %q is not in the asset directory", datFilenameAndTag[0])
-								}
-							}
-							rr.Domain = append(rr.Domain, fmt.Sprintf("%v:%v", k, v))
-						}
-					}
-					// unnamed param is not recommended
-					rr.Domain = append(rr.Domain, f.Params...)
-				case "ip":
-					for k, vv := range f.NamedParams {
-						for _, v := range vv {
-							if k == "ext" {
-								datFilenameAndTag := strings.SplitN(v, ":", 2)
-								if len(datFilenameAndTag) < 2 {
-									return fmt.Errorf("RoutingA ext value %q is missing its tag; expected ext:\"file.dat:tag\"", v)
-								}
-								if !asset.DoesV2rayAssetExist(datFilenameAndTag[0]) {
-									return fmt.Errorf("RoutingA ext file %q is not in the asset directory", datFilenameAndTag[0])
-								}
-							}
-							rr.IP = append(rr.IP, fmt.Sprintf("%v:%v", k, v))
-						}
-					}
-					rr.IP = append(rr.IP, f.Params...)
-				case "network":
-					rr.Network = strings.Join(f.Params, ",")
-				case "port":
-					rr.Port = strings.Join(f.Params, ",")
-				case "sourcePort":
-					rr.SourcePort = strings.Join(f.Params, ",")
-				case "protocol":
-					rr.Protocol = f.Params
-				case "source":
-					rr.Source = f.Params
-				case "user":
-					rr.User = f.Params
-				case "inboundTag":
-					rr.InboundTag = f.Params
-				}
+			if err := applyConditions(&rr, rule); err != nil {
+				return err
 			}
 			if rr.OutboundTag != "" {
 				if _, ok := outboundTags[rr.OutboundTag]; !ok {
@@ -406,64 +440,16 @@ func parseRoutingARules(rulesText string, inboundTag string) (rules []coreObj.Ro
 	for _, rule := range parsedRules {
 		switch rule := rule.(type) {
 		case RoutingA.Routing:
+			if hasProcessCondition(rule) {
+				return nil, fmt.Errorf("the custom inbound %q selects on process(...), which it cannot enforce; application rules belong in the main rule set", inboundTag)
+			}
 			rr := deepcopy.Copy(coreObj.RoutingRule{
 				Type:        "field",
 				OutboundTag: rule.Out,
 				InboundTag:  []string{inboundTag},
 			}).(coreObj.RoutingRule)
-			for _, f := range rule.And {
-				switch f.Name {
-				case "domain", "domains":
-					for k, vv := range f.NamedParams {
-						for _, v := range vv {
-							if k == "contains" {
-								rr.Domain = append(rr.Domain, v)
-								continue
-							}
-							if k == "ext" {
-								datFilenameAndTag := strings.SplitN(v, ":", 2)
-								if len(datFilenameAndTag) < 2 {
-									return nil, fmt.Errorf("RoutingA ext value %q is missing its tag; expected ext:\"file.dat:tag\"", v)
-								}
-								if !asset.DoesV2rayAssetExist(datFilenameAndTag[0]) {
-									return nil, fmt.Errorf("RoutingA ext file %q is not in the asset directory", datFilenameAndTag[0])
-								}
-							}
-							rr.Domain = append(rr.Domain, fmt.Sprintf("%v:%v", k, v))
-						}
-					}
-					rr.Domain = append(rr.Domain, f.Params...)
-				case "ip":
-					for k, vv := range f.NamedParams {
-						for _, v := range vv {
-							if k == "ext" {
-								datFilenameAndTag := strings.SplitN(v, ":", 2)
-								if len(datFilenameAndTag) < 2 {
-									return nil, fmt.Errorf("RoutingA ext value %q is missing its tag; expected ext:\"file.dat:tag\"", v)
-								}
-								if !asset.DoesV2rayAssetExist(datFilenameAndTag[0]) {
-									return nil, fmt.Errorf("RoutingA ext file %q is not in the asset directory", datFilenameAndTag[0])
-								}
-							}
-							rr.IP = append(rr.IP, fmt.Sprintf("%v:%v", k, v))
-						}
-					}
-					rr.IP = append(rr.IP, f.Params...)
-				case "network":
-					rr.Network = strings.Join(f.Params, ",")
-				case "port":
-					rr.Port = strings.Join(f.Params, ",")
-				case "sourcePort":
-					rr.SourcePort = strings.Join(f.Params, ",")
-				case "protocol":
-					rr.Protocol = f.Params
-				case "source":
-					rr.Source = f.Params
-				case "user":
-					rr.User = f.Params
-				case "inboundTag":
-					rr.InboundTag = f.Params
-				}
+			if err := applyConditions(&rr, rule); err != nil {
+				return nil, err
 			}
 			if rr.OutboundTag != "" {
 				rules = append(rules, rr)
@@ -474,6 +460,38 @@ func parseRoutingARules(rulesText string, inboundTag string) (rules []coreObj.Ro
 }
 
 func (t *Template) setTransparentRouting() (err error) {
+	// The app router decides per application and has already named the class
+	// when the flow reaches an inbound, so the transparent policy has nothing
+	// to add: a class goes to the outbound it stands for.
+	if t.Setting.TransparentType == configure.TransparentAppRouter {
+		plan, err := t.compileAppRouter()
+		if err != nil {
+			return err
+		}
+		t.appRouter = plan
+		if len(plan.rules) == 0 {
+			log.Warn("app router: no rule selects on process(...), so no traffic is routed; write one in the RoutingA editor")
+			return nil
+		}
+		for _, class := range plan.order {
+			tag := AppRouterClassTag(class)
+			t.Inbounds = append(t.Inbounds, coreObj.Inbound{
+				Port:     approuter.ClassPort(class),
+				Protocol: "socks",
+				Listen:   "127.0.0.1",
+				// UDP is carried as a SOCKS5 association: the relay frames
+				// each datagram and the core forwards it like any other flow.
+				Settings: &coreObj.InboundSettings{UDP: true},
+				Tag:      tag,
+			})
+			t.Routing.Rules = append(t.Routing.Rules, coreObj.RoutingRule{
+				Type:        "field",
+				InboundTag:  []string{tag},
+				OutboundTag: plan.classes[class],
+			})
+		}
+		return nil
+	}
 	// With DNS interception off in tun mode the core no longer relays port
 	// 53, so a query that still reaches the device must leave the host
 	// directly instead of joining the transparent proxy chain, which would

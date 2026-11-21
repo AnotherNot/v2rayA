@@ -19,12 +19,33 @@ With the transparent proxy on, traffic reaches the core without any application 
 | `tproxy`       | Linux                                                        | iptables/nftables `TPROXY`; TCP and UDP                                                                      |
 | `tun`          | Linux, Windows, macOS                                        | the core opens a TUN device; TCP and UDP; excludes v2rayA and the core by itself                             |
 | System proxy   | Windows; Linux and macOS when not running as root (`--lite`) | sets the desktop's proxy settings (GNOME and KDE on Linux); only applications that honour them are covered   |
+| By application | Linux | a cgroup eBPF program matches the program that opens the socket against the `process(...)` rules of RoutingA; TCP over IPv4 and IPv6 and UDP over IPv4, with DHCP left alone |
 
 `redirect` and `tproxy` need root and `iptables` or `nftables`; `tun` needs `/dev/net/tun` and `ip` on Linux and administrator rights on Windows and macOS.
 
 **Excluded Interface Prefixes** keeps traffic arriving on the named interfaces (Docker bridges, VPN tunnels; `docker*`, `veth*`, `wg*`, `ppp*` by default) out of `redirect` and `tproxy`; their DNS is still intercepted in the *service and interception* mode.
 
-`--redirect-respect-bound-device` (Linux) lets TCP sockets bound to a device with `SO_BINDTODEVICE` bypass `redirect`: NetworkManager's connectivity checks are such sockets, and a redirected check reports a limited connection and keeps applications offline. Off by default. When it is on, the service marks those sockets with `0x80` through cgroup BPF; that needs kernel 5.14 or later and cgroup v2, and `redirect` fails to start when they are missing.
+The first connection of a program — or the first datagram, for a program that sends UDP — is judged by the service, which then caches the answer in the kernel; a blocked program is refused outright from its second connection or datagram on. A program whose rules the kernel cannot hold is judged by the service on every flow instead, and the log names it.
+
+## By application
+
+`app_router` decides per program instead of per address. A cgroup program reads the executable behind the socket, matches it against the `process(...)` rules in the RoutingA editor, and either leaves the connection alone, hands it to the outbound the rule names, or refuses it.
+
+```
+process(firefox) -> proxy
+process(curl) && port(443) -> work
+process(steam) && network(udp) -> proxy
+process(transmission) -> block
+process(ssh) && domain(private.example.com) -> direct
+```
+
+A bare value is a file name; `name:`, `path:` and `folder:` say which part of the program the value means, and `*` and `?` are wildcards. Rules match from top to bottom and the first match wins. `network(tcp)` or `network(udp)` narrows a rule to one transport; without it the rule covers both. An IPv6 literal in `ip(...)` is quoted, as in `ip("2001:db8::/32")` or `ip("::1-::5")`; a rule that names one family does not match the other. A rule may select on the name the connection was resolved from: `domain(example.com)` covers the name and its subdomains, and `full:`, `suffix:`, `keyword:` and `regexp:` say exactly what to compare. The name is not in the packet, so it comes from what the DNS module answered: the mode needs the DNS module in *hijack* mode, the module reports each name and address to the service, and the service keeps them for the address's TTL. A program that resolves names elsewhere — its own DoH resolver, a hardcoded server — is not recognised this way, and neither is a connection made to an address before its name was asked for. A program with a domain rule is judged by the service on every connection, because the kernel cannot evaluate a name. A program no rule names is not touched at all, and a `process(...)` rule is inactive while another implementation is chosen — the log says how many such rules were skipped.
+
+The mode needs root, kernel 5.14 or later and cgroup v2 at `/sys/fs/cgroup`. It carries TCP over IPv4 and IPv6, and UDP over IPv4 — including an IPv4 destination reached through an IPv6 socket. A native IPv6 datagram is refused rather than sent around its rule, because the kernel will not carry a datagram rewritten to the IPv4 relay; a program is learned from a connection the service can see, so one that sends only native IPv6 datagrams is refused until it makes such a connection. A datagram socket is matched per destination, so one socket talking to several places still gets the right rule for every datagram. DHCP is never proxied. The program behind a socket is identified through `/proc`, so the service has to see the host's process namespace: in a container with a private PID namespace programs cannot be identified and their connections are left alone.
+
+The first connection of a program is judged by the service, which then caches the answer in the kernel; a blocked program is refused outright from its second connection on. A program whose rules the kernel cannot hold is judged by the service on every connection instead, and the log names it.
+
+A connection whose program cannot be identified — the process was gone before the lookup, or the service cannot see it — follows **Unknown owner**: by default it is left alone, and it can be set to be refused instead, so a blocking rule does not fail open.
 
 ## TUN
 
