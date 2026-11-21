@@ -588,11 +588,19 @@ curl -s -X PUT http://127.0.0.1:2017/api/routingA \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d @/tmp/rules.json
 ```
 
-Выберите узел и нажмите «Запустить», затем смотрите журнал:
+Выберите узел и нажмите «Запустить», затем смотрите журнал и ответ самого движка:
 
 ```sh
 journalctl -u v2raya -f | grep -E "app router: (attached|[0-9]+ connects)"
 ss -ltnp | grep -E "52346|5236[1-9]"
+```
+
+Те же числа и то, подключён ли движок вообще, отдают API и блок **Состояние
+движка** на странице настроек:
+
+```sh
+curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:2017/api/appRouter \
+  | python3 -m json.tool
 ```
 
 `52346` — relay, `52361`… — инбаунды классов, по одному на аутбаунд, названный
@@ -641,6 +649,7 @@ API-эндпоинта для них пока нет.
 | GET | `/api/setting` | — | `pacMode` выбирает `routingA`; `proxyModeWhenSubscribe` выбирает, как загружаются источники |
 | GET | `/api/ports` | — | объект портов лежит прямо в `data`; `vmessLink` появляется, когда включён VMess-вход |
 | PUT | `/api/ports` | объект портов | перезапускает ядро; 0 закрывает входящее |
+| GET | `/api/appRouter` | — | движок по приложению: `mode`, `attached`, `rules`, `classes` и `counters`, когда он подключён |
 | GET | `/api/touch` | — | текущие узлы и подключения |
 
 ## 10. Автоматическое покрытие

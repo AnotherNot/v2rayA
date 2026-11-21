@@ -590,11 +590,19 @@ curl -s -X PUT http://127.0.0.1:2017/api/routingA \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d @/tmp/rules.json
 ```
 
-Select a node and press Start, then read the log:
+Select a node and press Start, then read the log and the engine's own answer:
 
 ```sh
 journalctl -u v2raya -f | grep -E "app router: (attached|[0-9]+ connects)"
 ss -ltnp | grep -E "52346|5236[1-9]"
+```
+
+The same numbers, and whether the engine is attached at all, come from the API
+and from **Engine status** on the settings page:
+
+```sh
+curl -s -H "Authorization: Bearer $TOKEN" http://127.0.0.1:2017/api/appRouter \
+  | python3 -m json.tool
 ```
 
 `52346` is the relay and `52361`… are the class inbounds, one per outbound the
@@ -644,6 +652,7 @@ is no API endpoint for them yet.
 | GET | `/api/setting` | — | `pacMode` selects `routingA`; `proxyModeWhenSubscribe` selects how sources are fetched |
 | GET | `/api/ports` | — | the ports object directly under `data`; `vmessLink` appears when the VMess inbound is on |
 | PUT | `/api/ports` | the ports object | restarts the core; 0 closes an inbound |
+| GET | `/api/appRouter` | — | the per-application engine: `mode`, `attached`, `rules`, `classes`, and `counters` once attached |
 | GET | `/api/touch` | — | current nodes and connections |
 
 ## 10. Automated coverage

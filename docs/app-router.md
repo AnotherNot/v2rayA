@@ -164,8 +164,12 @@ app router: 2 IPv6 connects, 0 native IPv6 datagrams refused as unredirectable
 `decided late` is flows the service had to judge because the executable's rules
 were not cached yet; `relayed` and `dialled directly` are what the relay did with
 them. A mode that is on but routes nothing looks exactly like one that is off
-from the outside, and these three lines are what tells them apart. There is no
-API endpoint or interface status for them yet.
+from the outside, and these three lines are what tells them apart.
+
+The same counters are served by `GET /api/appRouter` and shown on the settings
+page as **Engine status**: the mode, whether the engine is attached, the plan's
+rule and class count, and the counters above. The page reads them when it opens,
+after a save, and when the refresh button is pressed; they are not polled.
 
 ## Limits and interactions
 
@@ -200,10 +204,28 @@ go test -race ./kernel/approuter
 go test ./kernel/v2ray -run AppRouter
 ```
 
-The privileged, opt-in Go test that `bounddevice` has has not been written for
-this engine yet. The live validation below was done with a separate stand: real
-binaries, a real daemon, a container sharing the host's cgroup namespace, and
-scripts kept outside this repository.
+The privileged test is opt-in and attaches only to a disposable child cgroup,
+never to the host's root cgroup. It starts a local destination and a class
+inbound on loopback, then runs a child process in that cgroup and checks what
+the kernel did with it: a proxied flow reaches the class inbound twice (the
+second flow comes from the kernel's cache), a direct flow reaches the
+destination and not the inbound, a blocked flow is refused, a datagram is
+carried through its own SOCKS5 association, and an executable whose rules do
+not fit the kernel keeps being decided by the service on every flow — the
+defect the live stand found is covered by testing every path twice.
+
+```sh
+cd service
+go test -c -o /tmp/v2raya-approuter-tests ./kernel/approuter
+sudo env V2RAYA_BPF_TEST=1 /tmp/v2raya-approuter-tests -test.v
+```
+
+It passed three consecutive runs on 2026-11-21, on Linux 7.2.7, in a container
+sharing the host's cgroup and PID namespaces.
+
+The live validation below is the deeper pass: real binaries, a real daemon, a
+container sharing the host's cgroup namespace, and scripts kept outside this
+repository.
 
 ## Observed live validation (2026-11-18, 2026-11-19)
 
