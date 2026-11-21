@@ -203,6 +203,12 @@ export default {
     },
     transparentProxy: "투명 프록시/시스템 프록시",
     appRouterUnknownOwner: "소유자 불명",
+    appRouterStatus: "엔진 상태",
+    appRouterAttached: "연결됨",
+    appRouterDetached: "연결되지 않음",
+    appRouterCountersUnavailable:
+      "엔진은 연결되었지만 카운터를 읽을 수 없습니다.",
+    appRouterRefresh: "카운터 새로 고침",
     transparentType: "투명 프록시/시스템 프록시 구현 방식",
     logLevel: "로그 수준",
     pacMode: "규칙 포트의 트래픽 분할 모드",
@@ -269,6 +275,10 @@ export default {
         "소켓을 연 프로그램에 따라 경로가 결정됩니다. RoutingA 편집기의 process(...) 규칙이 판단합니다. Linux 전용이며 root와 cgroup v2가 필요하고, 현재는 IPv4와 IPv6의 TCP, IPv4의 UDP를 다루며 원시 IPv6 데이터그램은 규칙을 우회하지 않도록 거부합니다. 규칙은 도메인으로도 선택할 수 있으며, 그러려면 DNS 모듈이 hijack 모드여야 합니다. 어떤 규칙도 지목하지 않은 프로그램은 전혀 건드리지 않고, 프로그램의 첫 연결이나 첫 데이터그램은 서비스가 판단한 뒤 결과가 캐시되며, 차단된 프로그램은 두 번째부터 커널이 즉시 거부합니다.",
       appRouterUnknownOwner:
         "연결을 연 프로그램을 식별할 수 없을 때의 처리입니다. 프로세스가 확인 전에 종료되었거나 서비스가 볼 수 없는 경우입니다. '직접'은 그런 트래픽을 계속 동작하게 하고, '차단'은 차단 규칙이 무력화되지 않게 합니다. 차단은 서비스가 귀속시키지 못한 모든 연결을 막으므로, 규칙의 실수는 누출이 아니라 동작하지 않는 애플리케이션으로 드러납니다.",
+      appRouterCounters:
+        "규칙: {rules} · 클래스: {classes} · 연결: {connects} · 프록시: {proxied} · 직접: {direct} · 차단: {blocked} · 지연 판정: {late}",
+      appRouterNotAttached:
+        "엔진이 연결되지 않았습니다. 시작을 눌러 연결하세요.",
       transparentType:
         "★tproxy: UDP를 지원하지만 Docker는 지원하지 않습니다. ★redirect: Docker에 적합하지만 UDP를 지원하지 않습니다. DNS 가로채기가 켜져 있을 때 DNS 오염 방지를 위해 로컬 포트 53을 사용합니다. ★tun: 코어가 TUN 장치를 열고 기본 라우트를 가져갑니다. Linux, Windows, macOS와 UDP를 지원하며 v2rayA와 코어를 자동으로 제외하고 다른 프로세스를 이름으로 제외할 수 있습니다. Windows와 macOS에서는 LAN DNS에 직접 질의하는 애플리케이션이 여전히 우회합니다.",
       tproxyExcludedInterfaces:

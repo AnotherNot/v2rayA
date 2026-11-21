@@ -138,33 +138,35 @@ type Options struct {
 }
 
 // Stats is what the engine counted since it was attached. The first counters
-// are decided in the kernel; the rest of the flow is counted by the relay.
+// are decided in the kernel; the rest of the flow is counted by the relay. The
+// JSON names are what the settings page reads, so they are written once here
+// rather than in a second shape that could drift from these counters.
 type Stats struct {
-	Connects       uint64
-	ImplicitDirect uint64
-	Self           uint64
-	ForeignNetns   uint64
-	Decide         uint64
-	NoRule         uint64
-	RuleDirect     uint64
-	RuleProxy      uint64
-	RuleBlock      uint64
-	Redirected     uint64
-	PortWritten    uint64
-	Getpeername    uint64
-	Exempt         uint64
-	RulesFull      uint64
-	Connects6      uint64
-	UDP6Refused    uint64
-	UDPDatagrams   uint64
-	UDPRedirected  uint64
-	UDPNoFlow      uint64
-	UDPRewritten   uint64
-	UDPAnswers     uint64
-	Relayed        uint64
-	RelayDirect    uint64
-	Refused        uint64
-	UDPRelayed     uint64
-	UDPDirect      uint64
-	UDPRefused     uint64
+	Connects       uint64 `json:"connects"`
+	ImplicitDirect uint64 `json:"implicitDirect"`
+	Self           uint64 `json:"self"`
+	ForeignNetns   uint64 `json:"foreignNetns"`
+	Decide         uint64 `json:"decide"`
+	NoRule         uint64 `json:"noRule"`
+	RuleDirect     uint64 `json:"ruleDirect"`
+	RuleProxy      uint64 `json:"ruleProxy"`
+	RuleBlock      uint64 `json:"ruleBlock"`
+	Redirected     uint64 `json:"redirected"`
+	PortWritten    uint64 `json:"portWritten"`
+	Getpeername    uint64 `json:"getpeername"`
+	Exempt         uint64 `json:"exempt"`
+	RulesFull      uint64 `json:"rulesFull"`
+	Connects6      uint64 `json:"connects6"`
+	UDP6Refused    uint64 `json:"udp6Refused"`
+	UDPDatagrams   uint64 `json:"udpDatagrams"`
+	UDPRedirected  uint64 `json:"udpRedirected"`
+	UDPNoFlow      uint64 `json:"udpNoFlow"`
+	UDPRewritten   uint64 `json:"udpRewritten"`
+	UDPAnswers     uint64 `json:"udpAnswers"`
+	Relayed        uint64 `json:"relayed"`
+	RelayDirect    uint64 `json:"relayDirect"`
+	Refused        uint64 `json:"refused"`
+	UDPRelayed     uint64 `json:"udpRelayed"`
+	UDPDirect      uint64 `json:"udpDirect"`
+	UDPRefused     uint64 `json:"udpRefused"`
 }

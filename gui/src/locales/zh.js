@@ -202,6 +202,11 @@ export default {
     inboundSniffing: "嗅探",
     transparentProxy: "透明代理/系统代理",
     appRouterUnknownOwner: "未知归属",
+    appRouterStatus: "引擎状态",
+    appRouterAttached: "已接入",
+    appRouterDetached: "未接入",
+    appRouterCountersUnavailable: "引擎已接入，但无法读取其计数。",
+    appRouterRefresh: "刷新计数",
     transparentType: "透明代理/系统代理实现方式",
     logLevel: "日志等级",
     pacMode: "规则端口的分流模式",
@@ -263,6 +268,9 @@ export default {
         "由发起套接字的程序决定走向：按 RoutingA 编辑器中的 process(...) 规则处理。仅限 Linux，需要 root 与 cgroup v2；目前处理 IPv4 与 IPv6 上的 TCP 和 IPv4 上的 UDP，原生 IPv6 数据报会被拒绝，而不是绕过规则。规则也可以按域名选择，这需要 DNS 模块处于 hijack 模式。没有被任何规则点名的程序完全不受影响；程序的第一个连接或第一份数据报由服务判断，之后结果被缓存，被阻止的程序从第二个起由内核直接拒绝。",
       appRouterUnknownOwner:
         "当无法识别发起连接的程序时如何处理：进程在检查前已退出，或服务看不到它。选择“直连”可让这类流量继续工作；选择“阻止”则避免阻止规则失效。阻止也会拦下服务无法归属的一切，因此规则写错会表现为应用不可用，而不是悄悄泄漏。",
+      appRouterCounters:
+        "规则：{rules} · 类别：{classes} · 连接：{connects} · 代理：{proxied} · 直连：{direct} · 阻止：{blocked} · 延迟判定：{late}",
+      appRouterNotAttached: "引擎未接入；按「启动」进行接入。",
       transparentType:
         "★tproxy: 支持udp，不支持docker。★redirect: docker友好，不支持udp；开启 DNS 接管时，还需要占用本地53端口以应对dns污染。★tun: 由核心打开 TUN 设备并接管默认路由；支持 Linux、Windows、macOS 与 UDP，自动排除 v2rayA 与核心自身，并可按进程名排除其他进程。Windows 与 macOS 上直接查询局域网 DNS 的应用仍会绕过它。",
       tproxyExcludedInterfaces:

@@ -90,7 +90,9 @@ func startBoundDeviceGuard() error {
 
 var appRouterEngine struct {
 	sync.Mutex
-	router *approuter.Router
+	router  *approuter.Router
+	rules   int
+	classes int
 }
 
 func stopAppRouter() {
@@ -103,6 +105,8 @@ func stopAppRouter() {
 		log.Warn("stop the app router: %v", err)
 	}
 	appRouterEngine.router = nil
+	appRouterEngine.rules = 0
+	appRouterEngine.classes = 0
 }
 
 // startAppRouter attaches the engine and its relay to the rules the template
@@ -147,7 +151,46 @@ func startAppRouter(tmpl *Template) error {
 		return fmt.Errorf("could not set up the app router: %w", err)
 	}
 	appRouterEngine.router = router
+	appRouterEngine.rules = len(plan.rules)
+	appRouterEngine.classes = len(plan.classes)
 	return nil
+}
+
+// AppRouterStatus is what the settings page shows about the running engine: the
+// mode, whether it is attached, the size of the plan it attached with, and the
+// counters it has taken since. A mode that is on but routes nothing looks
+// exactly like one that is off from the outside, and this is what tells them
+// apart without reading the log.
+type AppRouterStatus struct {
+	Mode     bool             `json:"mode"`
+	Attached bool             `json:"attached"`
+	Rules    int              `json:"rules"`
+	Classes  int              `json:"classes"`
+	Counters *approuter.Stats `json:"counters,omitempty"`
+	Error    string           `json:"error,omitempty"`
+}
+
+// GetAppRouterStatus reads the attached engine, if any. It takes the engine
+// lock and then the router's, in that order, which is the order start and stop
+// use too.
+func GetAppRouterStatus() AppRouterStatus {
+	setting := configure.GetSettingNotNil()
+	status := AppRouterStatus{Mode: setting.TransparentType == configure.TransparentAppRouter}
+	appRouterEngine.Lock()
+	defer appRouterEngine.Unlock()
+	if appRouterEngine.router == nil {
+		return status
+	}
+	status.Attached = true
+	status.Rules = appRouterEngine.rules
+	status.Classes = appRouterEngine.classes
+	counters, err := appRouterEngine.router.Snapshot()
+	if err != nil {
+		status.Error = err.Error()
+		return status
+	}
+	status.Counters = &counters
+	return status
 }
 
 // unknownOwnerPolicy reads the setting, defaulting to leaving the connection
